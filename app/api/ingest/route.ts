@@ -4,6 +4,25 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Helper to recursively extract text from GitBook node blocks
+function extractTextFromBlocks(blocks: any[]): string[] {
+  let paragraphs: string[] = [];
+
+  for (const block of blocks) {
+    // If it's a text block, grab the plain text
+    if (block.object === 'block' && block.type === 'paragraph') {
+      const text = block.nodes?.map((node: any) => node.text).join('') || '';
+      if (text.trim()) paragraphs.push(text);
+    }
+    
+    // Recursively parse nested blocks (like lists or quotes)
+    if (block.nodes && block.nodes.length > 0) {
+      paragraphs = paragraphs.concat(extractTextFromBlocks(block.nodes));
+    }
+  }
+  return paragraphs;
+}
+
 export async function POST(req: Request) {
   const { apiKey, spaceId, systemPrompt } = await req.json();
 
@@ -32,12 +51,14 @@ export async function POST(req: Request) {
       throw new Error('Failed to authenticate with GitBook API');
     }
 
-    // MOCK DATA: Parsing GitBook's document node tree requires a recursive function.
-    const extractedParagraphs = [
-      "To reset your password, navigate to the settings gear icon and click 'Security'.",
-      "We currently support Visa, Mastercard, and Stripe for billing.",
-      "To invite a team member, click the plus icon next to the workspace name."
-    ];
+    const data = await gitbookResponse.json();
+    
+    // Recursively parse the GitBook blocks to extract plain text
+    const extractedParagraphs = extractTextFromBlocks(data.pages ? data.pages : [data]);
+
+    if (!extractedParagraphs || extractedParagraphs.length === 0) {
+      return NextResponse.json({ error: 'No readable content found in the Space' }, { status: 400 });
+    }
 
     // 2. Turn the paragraphs into vectors simultaneously (batching)
     const embeddingResponse = await openai.embeddings.create({
