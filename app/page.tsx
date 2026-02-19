@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Toaster, toast } from 'sonner';
 
 export default function Dashboard() {
   const [apiKey, setApiKey] = useState('');
@@ -9,7 +10,10 @@ export default function Dashboard() {
   const [embedCode, setEmbedCode] = useState('');
 
   const handleTrain = async () => {
-    if (!apiKey || !spaceId) return alert('Please provide both an API Key and a Space ID.');
+    if (!apiKey || !spaceId) {
+      toast.error('Please provide both an API Key and a Space ID.');
+      return;
+    }
     
     setIsLoading(true);
     try {
@@ -20,12 +24,14 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
+        toast.success('Successfully synced with GitBook!');
         setEmbedCode(`<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${spaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`);      
       } else {
-        alert('Failed to connect to GitBook. Please check your credentials.');
+        toast.error('Failed to connect to GitBook. Please check your credentials.');
       }
     } catch (error) {
       console.error('Ingestion error:', error);
+      toast.error('An unexpected error occurred during ingestion.');
     } finally {
       setIsLoading(false);
     }
@@ -33,6 +39,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 p-10 font-sans flex flex-col items-center justify-center">
+      <Toaster position="top-center" />
       <div className="max-w-sm w-full">
         <h1 className="text-xl font-medium mb-1">Knowledge Base</h1>
         <p className="text-gray-500 mb-6 text-sm">Sync your GitBook to train the AI.</p>
