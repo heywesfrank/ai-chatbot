@@ -44,22 +44,41 @@ export async function POST(req: Request) {
       console.error("Supabase Search Error:", supabaseError);
     }
 
-    // 4. Combine the retrieved paragraphs into one string of context
+    // 4. Fetch the custom Persona prompt for this space from Supabase
+    const { data: configData, error: configError } = await supabase
+      .from('bot_config')
+      .select('system_prompt')
+      .eq('space_id', spaceId)
+      .single();
+      
+    const agentPersona = configData?.system_prompt || "You are a helpful, minimalist support assistant.";
+
+    // 5. Combine the retrieved paragraphs into one string of context
+    // If empty, leave it explicitly empty to trigger the fallback instructions
     const context = documents && documents.length > 0 
       ? documents.map((doc: any) => doc.content).join('\n\n') 
-      : "No relevant documentation found.";
+      : "";
 
-    // 5. Call GPT-5 Nano using the new Responses API
+    // 6. Assemble the final instructions strictly separating persona and context rules
+    const systemInstructions = `${agentPersona}
+
+Answer the user's question using ONLY the provided context below. 
+If the context is empty or does not contain the answer, politely inform the user that you don't have that information in your documentation and ask if there's anything else you can assist them with. Do not hallucinate answers.
+
+CONTEXT:
+${context || "No context available."}`;
+
+    // 7. Call GPT-5 Nano using the new Responses API
     const response = await openai.responses.create({
       model: 'gpt-5-nano',
-      instructions: `You are a helpful, minimalist support assistant. Answer the user's question using ONLY this context:\n\n${context}`,
+      instructions: systemInstructions,
       input: messages.map((m: any) => ({ 
         role: m.role, 
         content: m.text 
       })),
     });
 
-    // 6. Return the text using the new SDK helper with CORS headers
+    // 8. Return the text using the new SDK helper with CORS headers
     return NextResponse.json(
       { reply: response.output_text },
       {
