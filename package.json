@@ -8,12 +8,14 @@
     "start": "next start",
     "lint": "eslint"
   },
-"dependencies": {
+  "dependencies": {
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",
     "@supabase/supabase-js": "^2.0.0",
-    "openai": "^4.0.0"
+    "openai": "^4.0.0",
+    "react-markdown": "^9.0.1",
+    "sonner": "^1.4.41"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
