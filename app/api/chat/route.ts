@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
 
+// Utilize the Next.js Edge Runtime for high performance
+export const runtime = 'edge';
+
 // Initialize OpenAI using your secret key from Vercel
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -25,12 +28,22 @@ export async function POST(req: Request) {
     const { messages, spaceId } = await req.json();
     const latestMessage = messages[messages.length - 1].text;
 
-    // 2. Turn the user's question into a vector embedding
-    const embeddingResponse = await openai.embeddings.create({
+    // 2. Parallelize independent database calls
+    const configPromise = supabase
+      .from('bot_config')
+      .select('system_prompt')
+      .eq('space_id', spaceId)
+      .single();
+
+    const embeddingPromise = openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: latestMessage,
     });
+
+    const [configResponse, embeddingResponse] = await Promise.all([configPromise, embeddingPromise]);
+
     const queryEmbedding = embeddingResponse.data[0].embedding;
+    const agentPersona = configResponse.data?.system_prompt || "You are a helpful, minimalist support assistant.";
 
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
     const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
@@ -44,51 +57,52 @@ export async function POST(req: Request) {
       console.error("Supabase Search Error:", supabaseError);
     }
 
-    // 4. Fetch the custom Persona prompt for this space from Supabase
-    const { data: configData, error: configError } = await supabase
-      .from('bot_config')
-      .select('system_prompt')
-      .eq('space_id', spaceId)
-      .single();
-      
-    const agentPersona = configData?.system_prompt || "You are a helpful, minimalist support assistant.";
-
-    // 5. Combine the retrieved paragraphs into one string of context
-    // If empty, leave it explicitly empty to trigger the fallback instructions
+    // 4. Combine the retrieved paragraphs into one string of context
     const context = documents && documents.length > 0 
       ? documents.map((doc: any) => doc.content).join('\n\n') 
       : "";
 
-    // 6. Assemble the final instructions with an exception for small talk
-    const systemInstructions = `${agentPersona}
+    // 5. Assemble the final instructions
+    const systemInstructions = `${agentPersona}\n\nYou are allowed to respond naturally and politely to basic greetings, pleasantries, or casual conversation (e.g., "hello", "how are you", "what's up").\n\nHowever, for ANY actual questions or requests for information, you must answer using ONLY the provided context below. \nIf the context is empty or does not contain the answer to their specific question, politely inform the user that you don't have that information in your documentation and ask if there's anything else you can assist them with. Do not hallucinate facts.\n\nCONTEXT:\n${context || "No context available."}`;
 
-You are allowed to respond naturally and politely to basic greetings, pleasantries, or casual conversation (e.g., "hello", "how are you", "what's up").
-
-However, for ANY actual questions or requests for information, you must answer using ONLY the provided context below. 
-If the context is empty or does not contain the answer to their specific question, politely inform the user that you don't have that information in your documentation and ask if there's anything else you can assist them with. Do not hallucinate facts.
-
-CONTEXT:
-${context || "No context available."}`;
-
-    // 7. Call GPT-5 Nano using the new Responses API
-    const response = await openai.responses.create({
+    // 6. Call GPT-5 Nano with stream=true
+    const stream = await openai.responses.create({
       model: 'gpt-5-nano',
       instructions: systemInstructions,
       input: messages.map((m: any) => ({ 
         role: m.role, 
         content: m.text 
       })),
+      stream: true, // Enable streaming
     });
 
-    // 8. Return the text using the new SDK helper with CORS headers
-    return NextResponse.json(
-      { reply: response.output_text },
-      {
-        headers: {
-          'Access-Control-Allow-Origin': '*', // Required for the browser to accept the response
-        },
+    // 7. Stream the response chunks to the client using SSE
+    const encoder = new TextEncoder();
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (event.type === 'response.output_text.delta') {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            }
+          }
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
       }
-    );
+    });
+
+    return new Response(readableStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*' 
+      }
+    });
+
   } catch (error: any) {
     console.error("Chat API Error:", error);
     return NextResponse.json(
