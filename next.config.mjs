@@ -1,6 +1,5 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   async headers() {
     return [
       {
@@ -8,12 +7,10 @@ const nextConfig: NextConfig = {
         source: "/widget",
         headers: [
           {
-            // Modern browsers use Content-Security-Policy
             key: "Content-Security-Policy",
             value: "frame-ancestors *", 
           },
           {
-            // Older browsers rely on X-Frame-Options
             key: "X-Frame-Options",
             value: "ALLOWALL",
           }
