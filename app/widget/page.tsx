@@ -32,12 +32,18 @@ export default function Widget() {
     setInput('');
     setIsLoading(true);
 
-    try {
-      // Call your new GPT-5 Nano backend
+try {
+      // Get the spaceId from the iframe URL query
+      const urlParams = new URLSearchParams(window.location.search);
+      const spaceId = urlParams.get('spaceId');
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages }),
+        body: JSON.stringify({ 
+          messages: updatedMessages,
+          spaceId: spaceId // <--- Pass user identity to the backend
+        }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
