@@ -32,8 +32,7 @@ export default function Widget() {
     setInput('');
     setIsLoading(true);
 
-try {
-      // Get the spaceId from the iframe URL query
+    try {
       const urlParams = new URLSearchParams(window.location.search);
       const spaceId = urlParams.get('spaceId');
 
@@ -42,20 +41,54 @@ try {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: updatedMessages,
-          spaceId: spaceId // <--- Pass user identity to the backend
+          spaceId: spaceId 
         }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
       
-      const data = await response.json();
+      // Stop the explicit "typing" state, as stream begins now
+      setIsLoading(false); 
       
-      // Append the AI's response to the chat
-      setMessages(prev => [...prev, { role: 'assistant', text: data.reply }]);
+      // Inject an empty assistant message to hold the streaming content
+      setMessages(prev => [...prev, { role: 'assistant', text: '' }]);
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let aiText = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+              try {
+                const event = JSON.parse(line.slice(6));
+                
+                // Retrieve delta text. Check possible properties based on the response format
+                const delta = event.delta || event.text || event.output_text_delta || '';
+                aiText += delta;
+                
+                setMessages(prev => {
+                  const newMsgs = [...prev];
+                  newMsgs[newMsgs.length - 1].text = aiText;
+                  return newMsgs;
+                });
+              } catch (e) {
+                // Ignore incomplete JSON chunks 
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, I encountered an error connecting to the knowledge base.' }]);
-    } finally {
       setIsLoading(false);
     }
   };
