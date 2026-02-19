@@ -11,7 +11,7 @@ function extractTextFromBlocks(blocks: any[]): string[] {
   for (const block of blocks) {
     // If it's a text block, grab the plain text
     if (block.object === 'block' && block.type === 'paragraph') {
-      const text = block.nodes?.map((node: any) => node.text).join('') || '';
+      const text = block.nodes?.map((node: any) => node.text || '').join('') || '';
       if (text.trim()) paragraphs.push(text);
     }
     
@@ -21,6 +21,18 @@ function extractTextFromBlocks(blocks: any[]): string[] {
     }
   }
   return paragraphs;
+}
+
+// Helper to get all page IDs from the GitBook TOC tree
+function extractPageIds(pages: any[]): string[] {
+  let ids: string[] = [];
+  for (const page of pages) {
+    if (page.id) ids.push(page.id);
+    if (page.pages && page.pages.length > 0) {
+      ids = ids.concat(extractPageIds(page.pages));
+    }
+  }
+  return ids;
 }
 
 export async function POST(req: Request) {
@@ -42,44 +54,76 @@ export async function POST(req: Request) {
       throw new Error(`Database error saving config: ${configError.message}`);
     }
 
-    // 1. Fetch the raw content from GitBook using the user's API key
+    // 1. Fetch the raw table of contents from GitBook
     const gitbookResponse = await fetch(`https://api.gitbook.com/v1/spaces/${spaceId}/content`, {
       headers: { 'Authorization': `Bearer ${apiKey}` }
     });
 
     if (!gitbookResponse.ok) {
-      throw new Error('Failed to authenticate with GitBook API');
+      throw new Error(`Failed to authenticate with GitBook API. Status: ${gitbookResponse.status}`);
     }
 
-    const data = await gitbookResponse.json();
+    const tocData = await gitbookResponse.json();
     
-    // Recursively parse the GitBook blocks to extract plain text
-    const extractedParagraphs = extractTextFromBlocks(data.pages ? data.pages : [data]);
+    // Extract page IDs from the Table of Contents
+    const pageIds = extractPageIds(tocData.pages || []);
+    
+    if (pageIds.length === 0) {
+      return NextResponse.json({ error: 'No pages found in the Space' }, { status: 400 });
+    }
+
+    let extractedParagraphs: string[] = [];
+
+    // 2. Fetch the actual content blocks for each page
+    // We process these in batches of 10 to avoid hitting GitBook API rate limits
+    const GITBOOK_BATCH_SIZE = 10;
+    for (let i = 0; i < pageIds.length; i += GITBOOK_BATCH_SIZE) {
+      const batch = pageIds.slice(i, i + GITBOOK_BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (pageId) => {
+        const pageRes = await fetch(`https://api.gitbook.com/v1/spaces/${spaceId}/content/page/${pageId}`, {
+           headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (pageRes.ok) {
+          const pageData = await pageRes.json();
+          if (pageData.document && pageData.document.nodes) {
+            const paragraphs = extractTextFromBlocks(pageData.document.nodes);
+            extractedParagraphs.push(...paragraphs);
+          }
+        }
+      }));
+    }
 
     if (!extractedParagraphs || extractedParagraphs.length === 0) {
-      return NextResponse.json({ error: 'No readable content found in the Space' }, { status: 400 });
+      return NextResponse.json({ error: 'No readable text content found across the pages' }, { status: 400 });
     }
 
-    // 2. Turn the paragraphs into vectors simultaneously (batching)
-    const embeddingResponse = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: extractedParagraphs,
-    });
+    // Clear out existing documents for this space to avoid duplicates on re-sync
+    await supabase.from('gitbook_documents').delete().eq('space_id', spaceId);
+
+    // 3. Turn the paragraphs into vectors and insert in batches to avoid OpenAI/Supabase limits
+    const OPENAI_BATCH_SIZE = 500;
+    for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
+      const chunk = extractedParagraphs.slice(i, i + OPENAI_BATCH_SIZE);
       
-    // 3. Map into a single array
-    const documentsToInsert = extractedParagraphs.map((paragraph, index) => ({
-      space_id: spaceId,
-      page_url: `https://app.gitbook.com/s/${spaceId}`,
-      content: paragraph,
-      embedding: embeddingResponse.data[index].embedding,
-    }));
+      const embeddingResponse = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: chunk,
+      });
+        
+      const documentsToInsert = chunk.map((paragraph, index) => ({
+        space_id: spaceId,
+        page_url: `https://app.gitbook.com/s/${spaceId}`,
+        content: paragraph,
+        embedding: embeddingResponse.data[index].embedding,
+      }));
 
-    // 4. Bulk insert into Supabase
-    const { error } = await supabase.from('gitbook_documents').insert(documentsToInsert);
+      const { error } = await supabase.from('gitbook_documents').insert(documentsToInsert);
 
-    if (error) {
-      console.error("Supabase Insert Error:", error.message);
-      throw new Error(`Database error: ${error.message}`);
+      if (error) {
+        console.error("Supabase Insert Error:", error.message);
+        throw new Error(`Database error: ${error.message}`);
+      }
     }
 
     return NextResponse.json({ success: true });
