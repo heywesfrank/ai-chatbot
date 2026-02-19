@@ -5,13 +5,24 @@ import OpenAI from 'openai';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: Request) {
-  const { apiKey, spaceId } = await req.json();
+  const { apiKey, spaceId, systemPrompt } = await req.json();
 
   if (!apiKey || !spaceId) {
     return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
   }
 
   try {
+    // 0. Save or update the persona prompt to the database for this space
+    const fallbackPrompt = "You are a helpful, minimalist support assistant.";
+    const { error: configError } = await supabase
+      .from('bot_config')
+      .upsert({ space_id: spaceId, system_prompt: systemPrompt || fallbackPrompt }, { onConflict: 'space_id' });
+      
+    if (configError) {
+      console.error("Supabase Config Insert Error:", configError.message);
+      throw new Error(`Database error saving config: ${configError.message}`);
+    }
+
     // 1. Fetch the raw content from GitBook using the user's API key
     const gitbookResponse = await fetch(`https://api.gitbook.com/v1/spaces/${spaceId}/content`, {
       headers: { 'Authorization': `Bearer ${apiKey}` }
