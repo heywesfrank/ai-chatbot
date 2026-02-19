@@ -39,26 +39,26 @@ export async function POST(req: Request) {
       "To invite a team member, click the plus icon next to the workspace name."
     ];
 
-    // 2. Turn the paragraphs into vectors and save them to Supabase
-    for (const paragraph of extractedParagraphs) {
-      const embeddingResponse = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: paragraph,
-      });
+    // 2. Turn the paragraphs into vectors simultaneously (batching)
+    const embeddingResponse = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: extractedParagraphs,
+    });
       
-      // Attempt to insert and capture any potential errors
-      const { error } = await supabase.from('gitbook_documents').insert({
-        space_id: spaceId, // <--- This maps the variable to the Supabase column
-        page_url: `https://app.gitbook.com/s/${spaceId}`,
-        content: paragraph,
-        embedding: embeddingResponse.data[0].embedding,
-      });
+    // 3. Map into a single array
+    const documentsToInsert = extractedParagraphs.map((paragraph, index) => ({
+      space_id: spaceId,
+      page_url: `https://app.gitbook.com/s/${spaceId}`,
+      content: paragraph,
+      embedding: embeddingResponse.data[index].embedding,
+    }));
 
-      // If Supabase throws an error (e.g., column doesn't exist), log it so we can debug
-      if (error) {
-        console.error("Supabase Insert Error:", error.message);
-        throw new Error(`Database error: ${error.message}`);
-      }
+    // 4. Bulk insert into Supabase
+    const { error } = await supabase.from('gitbook_documents').insert(documentsToInsert);
+
+    if (error) {
+      console.error("Supabase Insert Error:", error.message);
+      throw new Error(`Database error: ${error.message}`);
     }
 
     return NextResponse.json({ success: true });
