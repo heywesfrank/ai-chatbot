@@ -21,10 +21,7 @@ export async function POST(req: Request) {
       throw new Error('Failed to authenticate with GitBook API');
     }
 
-    // const rawData = await gitbookResponse.json();
-    
     // MOCK DATA: Parsing GitBook's document node tree requires a recursive function.
-    // For your MVP, we are mocking the extracted text array so you can test the AI first.
     const extractedParagraphs = [
       "To reset your password, navigate to the settings gear icon and click 'Security'.",
       "We currently support Visa, Mastercard, and Stripe for billing.",
@@ -38,17 +35,25 @@ export async function POST(req: Request) {
         input: paragraph,
       });
       
-      await supabase.from('gitbook_documents').insert({
+      // Attempt to insert and capture any potential errors
+      const { error } = await supabase.from('gitbook_documents').insert({
+        space_id: spaceId, // <--- This maps the variable to the Supabase column
         page_url: `https://app.gitbook.com/s/${spaceId}`,
         content: paragraph,
         embedding: embeddingResponse.data[0].embedding,
       });
+
+      // If Supabase throws an error (e.g., column doesn't exist), log it so we can debug
+      if (error) {
+        console.error("Supabase Insert Error:", error.message);
+        throw new Error(`Database error: ${error.message}`);
+      }
     }
 
     return NextResponse.json({ success: true });
     
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Ingestion failed' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Ingestion Route Error:", error);
+    return NextResponse.json({ error: error.message || 'Ingestion failed' }, { status: 500 });
   }
 }
