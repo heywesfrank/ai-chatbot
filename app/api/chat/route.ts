@@ -33,14 +33,21 @@ export async function POST(req: Request) {
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
-    const { data: documents } = await supabase.rpc('match_documents', {
+    const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
       match_threshold: 0.3, 
       match_count: 5,       
-      p_space_id: spaceId
+      p_space_id: spaceId 
+    });
+
+    if (supabaseError) {
+      console.error("Supabase Search Error:", supabaseError);
+    }
 
     // 4. Combine the retrieved paragraphs into one string of context
-    const context = documents?.map((doc: any) => doc.content).join('\n\n') || "No relevant documentation found.";
+    const context = documents && documents.length > 0 
+      ? documents.map((doc: any) => doc.content).join('\n\n') 
+      : "No relevant documentation found.";
 
     // 5. Call GPT-5 Nano using the new Responses API
     const response = await openai.responses.create({
