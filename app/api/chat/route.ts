@@ -35,10 +35,9 @@ export async function POST(req: Request) {
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
     const { data: documents } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.7, 
+      match_threshold: 0.3, 
       match_count: 5,       
-      p_space_id: spaceId // Filters vectors to ONLY this user's data
-    });
+      p_space_id: spaceId
 
     // 4. Combine the retrieved paragraphs into one string of context
     const context = documents?.map((doc: any) => doc.content).join('\n\n') || "No relevant documentation found.";
