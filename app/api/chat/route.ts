@@ -5,16 +5,25 @@ import { supabase } from '@/lib/supabase';
 // Utilize the Next.js Edge Runtime for high performance
 export const runtime = 'edge';
 
+// Interface for strictly typing the Supabase RPC return data
+interface DocumentMatch {
+  id: number;
+  content: string;
+  page_url: string;
+  similarity: number;
+}
+
 // Initialize OpenAI using your secret key from Vercel
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// 1. Add an OPTIONS handler to manage CORS preflight requests
-export async function OPTIONS() {
+// 1. Add an OPTIONS handler to manage CORS preflight requests based on Origin
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get('origin') || '*';
   return NextResponse.json(
     {},
     {
       headers: {
-        'Access-Control-Allow-Origin': '*', // Allows requests from any origin
+        'Access-Control-Allow-Origin': origin, 
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
@@ -23,6 +32,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: Request) {
+  const origin = req.headers.get('origin') || '*';
+  const corsHeaders = { 'Access-Control-Allow-Origin': origin };
+
   try {
     // 1. Destructure messages and spaceId from the request
     const { messages, spaceId } = await req.json();
@@ -57,9 +69,9 @@ export async function POST(req: Request) {
       console.error("Supabase Search Error:", supabaseError);
     }
 
-    // 4. Combine the retrieved paragraphs into one string of context
+    // 4. Combine the retrieved paragraphs into one string of context using Strict Types
     const context = documents && documents.length > 0 
-      ? documents.map((doc: any) => doc.content).join('\n\n') 
+      ? documents.map((doc: DocumentMatch) => doc.content).join('\n\n') 
       : "";
 
     // 5. Assemble the final instructions
@@ -99,7 +111,7 @@ export async function POST(req: Request) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*' 
+        ...corsHeaders
       }
     });
 
@@ -109,7 +121,7 @@ export async function POST(req: Request) {
       { error: error.message || 'Chat failed' },
       { 
         status: 500,
-        headers: { 'Access-Control-Allow-Origin': '*' }
+        headers: corsHeaders
       }
     );
   }
