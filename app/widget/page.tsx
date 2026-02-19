@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 type Message = { role: 'user' | 'assistant'; text: string };
 
@@ -109,7 +110,13 @@ export default function Widget() {
                 ? 'bg-gray-100 text-black' 
                 : 'border border-gray-200 bg-white text-gray-800'
             }`}>
-              {msg.text}
+              {msg.role === 'user' ? (
+                msg.text
+              ) : (
+                <ReactMarkdown className="prose prose-sm max-w-none prose-p:my-1 prose-a:text-blue-600">
+                  {msg.text}
+                </ReactMarkdown>
+              )}
             </div>
           </div>
         ))}
@@ -117,8 +124,10 @@ export default function Widget() {
         {/* Minimalist Loading State */}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] p-3 border border-gray-200 bg-white text-gray-400 rounded-sm italic">
-              Typing...
+            <div className="p-4 border border-gray-200 bg-white rounded-sm flex space-x-1">
+              <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse" />
+              <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-75" />
+              <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-150" />
             </div>
           </div>
         )}
