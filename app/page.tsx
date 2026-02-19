@@ -4,6 +4,7 @@ import { useState } from 'react';
 export default function Dashboard() {
   const [apiKey, setApiKey] = useState('');
   const [spaceId, setSpaceId] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('You are a helpful, minimalist support assistant.');
   const [isLoading, setIsLoading] = useState(false);
   const [embedCode, setEmbedCode] = useState('');
 
@@ -15,11 +16,12 @@ export default function Dashboard() {
       const response = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, spaceId }),
+        body: JSON.stringify({ apiKey, spaceId, systemPrompt }),
       });
 
       if (response.ok) {
-setEmbedCode(`<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${spaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`);      } else {
+        setEmbedCode(`<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${spaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`);      
+      } else {
         alert('Failed to connect to GitBook. Please check your credentials.');
       }
     } catch (error) {
@@ -46,9 +48,16 @@ setEmbedCode(`<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spac
         <input 
           type="text" 
           placeholder="GitBook Space ID"
-          className="w-full p-3 mb-6 border border-gray-300 rounded-sm focus:outline-none focus:border-black text-sm"
+          className="w-full p-3 mb-3 border border-gray-300 rounded-sm focus:outline-none focus:border-black text-sm"
           value={spaceId}
           onChange={(e) => setSpaceId(e.target.value)}
+        />
+
+        <textarea 
+          placeholder="Agent Persona (e.g., You are a friendly support agent...)"
+          className="w-full p-3 mb-6 border border-gray-300 rounded-sm focus:outline-none focus:border-black text-sm h-24 resize-none"
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
         />
         
         <button 
