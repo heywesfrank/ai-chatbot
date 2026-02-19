@@ -9,18 +9,23 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const latestMessage = messages[messages.length - 1].text;
 
-  // 1. Turn the user's question into a vector embedding
+export async function POST(req: Request) {
+  // 1. Destructure spaceId from the request
+  const { messages, spaceId } = await req.json();
+  const latestMessage = messages[messages.length - 1].text;
+
   const embeddingResponse = await openai.embeddings.create({
     model: 'text-embedding-3-small',
     input: latestMessage,
   });
   const queryEmbedding = embeddingResponse.data[0].embedding;
 
-  // 2. Search Supabase for the top 5 matching GitBook paragraphs
+  // 2. Pass the spaceId to Supabase to filter matching documents
   const { data: documents } = await supabase.rpc('match_documents', {
     query_embedding: queryEmbedding,
     match_threshold: 0.7, 
-    match_count: 5,       
+    match_count: 5,     
+    p_space_id: spaceId // <--- Filters vectors to ONLY this user's data
   });
 
   // 3. Combine the retrieved paragraphs into one string of context
