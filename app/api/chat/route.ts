@@ -59,11 +59,13 @@ export async function POST(req: Request) {
       ? documents.map((doc: any) => doc.content).join('\n\n') 
       : "";
 
-    // 6. Assemble the final instructions strictly separating persona and context rules
+    // 6. Assemble the final instructions with an exception for small talk
     const systemInstructions = `${agentPersona}
 
-Answer the user's question using ONLY the provided context below. 
-If the context is empty or does not contain the answer, politely inform the user that you don't have that information in your documentation and ask if there's anything else you can assist them with. Do not hallucinate answers.
+You are allowed to respond naturally and politely to basic greetings, pleasantries, or casual conversation (e.g., "hello", "how are you", "what's up").
+
+However, for ANY actual questions or requests for information, you must answer using ONLY the provided context below. 
+If the context is empty or does not contain the answer to their specific question, politely inform the user that you don't have that information in your documentation and ask if there's anything else you can assist them with. Do not hallucinate facts.
 
 CONTEXT:
 ${context || "No context available."}`;
