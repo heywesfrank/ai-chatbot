@@ -19,8 +19,7 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-setEmbedCode(`<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${spaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;"></iframe>`);
-      } else {
+setEmbedCode(`<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${spaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`);      } else {
         alert('Failed to connect to GitBook. Please check your credentials.');
       }
     } catch (error) {
