@@ -1,27 +1,29 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-
-type Message = { role: 'user' | 'assistant'; text: string };
+import { useChat } from 'ai/react';
 
 export default function Widget() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', text: 'How can I help you today?' }
-  ]);
-  const [input, setInput] = useState('');
-  
-  // isLoading is for the initial fetch before streaming starts
-  const [isLoading, setIsLoading] = useState(false);
-  // isStreaming tracks the actual text generation
-  const [isStreaming, setIsStreaming] = useState(false);
-  
   const [isInitialized, setIsInitialized] = useState(false);
-  
+  const [spaceId, setSpaceId] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Load chat history from sessionStorage on initial load
+  // Vercel AI SDK handles all streaming, buffering, and message state
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+    api: '/api/chat',
+    body: { spaceId }, // Pass spaceId directly with the request
+    onError: (err) => {
+      console.error("Chat error:", err);
+      setChatError("Sorry, I encountered an error connecting to the knowledge base.");
+    }
+  });
+
+  // 1. Initialize spaceId and load chat history
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    setSpaceId(urlParams.get('spaceId'));
+
     const savedChat = sessionStorage.getItem('widget_chat_history');
     if (savedChat) {
       try {
@@ -29,109 +31,24 @@ export default function Widget() {
       } catch (e) {
         console.error("Failed to parse chat history");
       }
+    } else {
+      // AI SDK uses 'content' instead of 'text'
+      setMessages([{ id: 'init', role: 'assistant', content: 'How can I help you today?' }]);
     }
     setIsInitialized(true);
-  }, []);
+  }, [setMessages]);
 
-  // 2. Persist to storage ONLY when idle to prevent severe performance lag during streams
+  // 2. Persist to storage only when not streaming to prevent lag
   useEffect(() => {
-    if (isInitialized && !isStreaming) {
+    if (isInitialized && !isLoading) {
       sessionStorage.setItem('widget_chat_history', JSON.stringify(messages));
     }
-  }, [messages, isInitialized, isStreaming]);
+  }, [messages, isInitialized, isLoading]);
 
-  // 3. Handle auto-scrolling separately from data persistence
+  // 3. Auto-scroll on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
-
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading || isStreaming) return;
-    
-    const userMessage = { role: 'user' as const, text: input };
-    const updatedMessages = [...messages, userMessage];
-    
-    // Update UI immediately with user's message
-    setMessages(updatedMessages);
-    setInput('');
-    setIsLoading(true);
-    setIsStreaming(true);
-
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const spaceId = urlParams.get('spaceId');
-
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          messages: updatedMessages,
-          spaceId: spaceId 
-        }),
-      });
-
-      if (!response.ok) throw new Error('Network response was not ok');
-      
-      // Stop the explicit "typing" state, as stream begins now
-      setIsLoading(false); 
-      
-      // Inject an empty assistant message to hold the streaming content
-      setMessages(prev => [...prev, { role: 'assistant', text: '' }]);
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let aiText = '';
-      let buffer = ''; // Buffer to catch incomplete JSON text fragments
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            setIsStreaming(false);
-            // Optional UX Polish: return focus to input when generation finishes
-            setTimeout(() => inputRef.current?.focus(), 100);
-            break;
-          }
-          
-          buffer += decoder.decode(value, { stream: true });
-          let boundary = buffer.indexOf('\n');
-          
-          // Process fully delimited lines
-          while (boundary !== -1) {
-            const line = buffer.slice(0, boundary).trim();
-            buffer = buffer.slice(boundary + 1);
-            
-            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-              try {
-                const event = JSON.parse(line.slice(6));
-                
-                // Retrieve delta text. Check possible properties based on the response format
-                const delta = event.delta || event.text || event.output_text_delta || '';
-                aiText += delta;
-                
-                setMessages(prev => {
-                  const newMsgs = [...prev];
-                  newMsgs[newMsgs.length - 1].text = aiText;
-                  return newMsgs;
-                });
-              } catch (e) {
-                // Ignore incomplete JSON chunks naturally caught by the try/catch
-              }
-            }
-            boundary = buffer.indexOf('\n');
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Chat error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, I encountered an error connecting to the knowledge base.' }]);
-      setIsLoading(false);
-      setIsStreaming(false);
-    }
-  };
-
-  // Prevent rendering mismatched UI until hydration is complete
-  if (!isInitialized) return null;
 
   return (
     <div className="flex flex-col h-screen bg-white font-sans text-sm">
@@ -140,59 +57,88 @@ export default function Widget() {
         Documentation Bot
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] p-3 rounded-sm leading-relaxed break-words ${
-              msg.role === 'user' 
-                ? 'bg-gray-100 text-black' 
-                : 'border border-gray-200 bg-white text-gray-800'
-            }`}>
-              {msg.role === 'user' ? (
-                msg.text
-              ) : (
-                <ReactMarkdown className="prose prose-sm max-w-none prose-p:my-1 prose-a:text-blue-600 prose-pre:overflow-x-auto">
-                  {msg.text}
-                </ReactMarkdown>
-              )}
-            </div>
-          </div>
-        ))}
-        
+      {/* Chat Area - Added A11y ARIA tags */}
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        {!isInitialized ? (
+          // Prevents hydration flash while maintaining the layout shell
+          <div className="text-center text-gray-400 py-4">Loading chat...</div>
+        ) : (
+          <>
+            {messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] p-3 rounded-sm leading-relaxed break-words ${
+                  msg.role === 'user' 
+                    ? 'bg-gray-100 text-black' 
+                    : 'border border-gray-200 bg-white text-gray-800'
+                }`}>
+                  {msg.role === 'user' ? (
+                    msg.content
+                  ) : (
+                    <ReactMarkdown className="prose prose-sm max-w-none prose-p:my-1 prose-a:text-blue-600 prose-pre:overflow-x-auto">
+                      {msg.content}
+                    </ReactMarkdown>
+                  )}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
         {/* Minimalist Loading State */}
-        {isLoading && (
+        {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="p-4 border border-gray-200 bg-white rounded-sm flex space-x-1">
+            <div className="p-4 border border-gray-200 bg-white rounded-sm flex space-x-1" aria-label="AI is typing">
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse" />
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-75" />
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-150" />
             </div>
           </div>
         )}
+
+        {/* Inline Error Fallback (replaces Sonner) */}
+        {chatError && (
+          <div className="flex justify-center my-2">
+            <span className="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-sm text-xs">
+              {chatError}
+            </span>
+          </div>
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
       <div className="border-t border-gray-200 p-3 flex bg-white">
-        <input 
-          ref={inputRef}
-          type="text" 
-          aria-label="Chat input"
-          placeholder="Ask a question..."
-          className="flex-1 p-2 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          disabled={isLoading || isStreaming}
-        />
-        <button 
-          onClick={sendMessage}
-          disabled={isLoading || isStreaming || !input.trim()}
-          className="ml-2 bg-black text-white px-4 py-2 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        {/* Switched to a <form> to leverage native submit events with the SDK */}
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            setChatError(null); // Clear errors on retry
+            handleSubmit(e);
+          }} 
+          className="flex w-full"
         >
-          Send
-        </button>
+          <input 
+            type="text" 
+            aria-label="Chat input"
+            placeholder="Ask a question..."
+            className="flex-1 p-2 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors"
+            value={input}
+            onChange={handleInputChange}
+            disabled={isLoading || !isInitialized}
+          />
+          <button 
+            type="submit"
+            disabled={isLoading || !isInitialized || !input.trim()}
+            className="ml-2 bg-black text-white px-4 py-2 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Send
+          </button>
+        </form>
       </div>
     </div>
   );
