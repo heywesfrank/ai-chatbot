@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
     const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.4, // <-- STRICTER THRESHOLD: Lowered to 0.4 to accommodate shorter keyword queries
+      match_threshold: 0.2,
       match_count: 5,       
       p_space_id: spaceId 
     });
