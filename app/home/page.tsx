@@ -42,7 +42,7 @@ export default function HomeDashboard() {
       .select('space_id, system_prompt')
       .eq('user_id', uid)
       .limit(1)
-      .maybeSingle();
+      .maybeSingle(); // Changed from .single() to prevent 406 error for new users
 
     if (data) {
       setSpaceId(data.space_id || '');
@@ -68,7 +68,8 @@ export default function HomeDashboard() {
 
     setIsSyncing(true);
     try {
-      const response = await fetch('/api/ingest', {
+      // 1. Sync the GitBook data
+      const syncResponse = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -77,12 +78,22 @@ export default function HomeDashboard() {
         body: JSON.stringify({ apiKey, spaceId }),
       });
 
-      if (response.ok) {
-        toast.success('Knowledge base synced successfully!');
+      // 2. Automatically save the current Persona to the database
+      const configResponse = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id }),
+      });
+
+      if (syncResponse.ok && configResponse.ok) {
+        toast.success('Knowledge base synced and persona saved!');
         setActiveSpaceId(spaceId);
         setRefreshKey(prev => prev + 1);
       } else {
-        toast.error('Failed to sync. Check credentials.');
+        toast.error('Failed to sync or save configuration. Check credentials.');
       }
     } catch (error) {
       toast.error('An unexpected error occurred.');
