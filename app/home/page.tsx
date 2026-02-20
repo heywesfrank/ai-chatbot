@@ -18,6 +18,12 @@ export default function HomeDashboard() {
   const [spaceId, setSpaceId] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful, minimalist support assistant.');
   
+  // --- Branding States ---
+  const [primaryColor, setPrimaryColor] = useState('#000000');
+  const [headerText, setHeaderText] = useState('Documentation Bot');
+  const [welcomeMessage, setWelcomeMessage] = useState('How can I help you today?');
+  const [botAvatar, setBotAvatar] = useState('');
+  
   // --- UI States ---
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -26,7 +32,6 @@ export default function HomeDashboard() {
 
   // --- Auth Check & Hydration ---
   useEffect(() => {
-    // 1. Initial check on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/');
@@ -36,7 +41,6 @@ export default function HomeDashboard() {
       }
     });
 
-    // 2. Listen for auth state changes (crucial for hard refreshes in Next.js)
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setUserId(session.user.id);
@@ -54,12 +58,11 @@ export default function HomeDashboard() {
   const hydrateWorkspace = async (uid: string) => {
     const { data, error } = await supabase
       .from('bot_config')
-      .select('space_id, system_prompt, api_key') // Fetch the api_key
+      .select('space_id, system_prompt, api_key, primary_color, header_text, welcome_message, bot_avatar') 
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle(); 
 
-    // Log any hidden RLS errors to your browser console
     if (error) {
       console.error("Supabase Hydration Error:", error.message);
       return;
@@ -68,12 +71,14 @@ export default function HomeDashboard() {
     if (data) {
       setSpaceId(data.space_id || '');
       setSystemPrompt(data.system_prompt || '');
-      setApiKey(data.api_key || ''); // Hydrate the API Key
+      setApiKey(data.api_key || ''); 
+      setPrimaryColor(data.primary_color || '#000000');
+      setHeaderText(data.header_text || 'Documentation Bot');
+      setWelcomeMessage(data.welcome_message || 'How can I help you today?');
+      setBotAvatar(data.bot_avatar || '');
       
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
-        // REMOVED: setRefreshKey(prev => prev + 1);
-        // This prevents the iframe from resetting the chat when switching tabs
       }
     }
   };
@@ -86,13 +91,11 @@ export default function HomeDashboard() {
   const handleSyncKnowledge = async () => {
     if (!apiKey || !spaceId) return toast.error('API Key and Space ID are required.');
     
-    // Inject auth token for backend route protection
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return toast.error('Authentication required.');
 
     setIsSyncing(true);
     try {
-      // 1. Sync the GitBook data
       const syncResponse = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 
@@ -102,21 +105,19 @@ export default function HomeDashboard() {
         body: JSON.stringify({ apiKey, spaceId }),
       });
 
-      // 2. Automatically save the current Persona and API Key to the database
       const configResponse = await fetch('/api/config', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        // Include apiKey in payload
-        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey }), 
+        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey, primaryColor, headerText, welcomeMessage, botAvatar }), 
       });
 
       if (syncResponse.ok && configResponse.ok) {
-        toast.success('Knowledge base synced and persona saved!');
+        toast.success('Knowledge base synced and configuration saved!');
         setActiveSpaceId(spaceId);
-        setRefreshKey(prev => prev + 1); // Only reset preview here
+        setRefreshKey(prev => prev + 1); 
       } else {
         toast.error('Failed to sync or save configuration. Check credentials.');
       }
@@ -127,10 +128,9 @@ export default function HomeDashboard() {
     }
   };
 
-  const handleSavePersona = async () => {
+  const handleSaveConfig = async () => {
     if (!spaceId) return toast.error('Enter a Space ID first.');
     
-    // Inject auth token for backend route protection
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return toast.error('Authentication required.');
 
@@ -143,25 +143,23 @@ export default function HomeDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        // Include apiKey so it isn't accidentally overwritten with null during a persona save
-        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey }),
+        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey, primaryColor, headerText, welcomeMessage, botAvatar }),
       });
 
       if (response.ok) {
-        toast.success('Agent persona updated!');
+        toast.success('Configuration updated!');
         setActiveSpaceId(spaceId);
-        setRefreshKey(prev => prev + 1); // Only reset preview here
+        setRefreshKey(prev => prev + 1); 
       } else {
-        toast.error('Failed to update persona.');
+        toast.error('Failed to update configuration.');
       }
     } catch (error) {
-      toast.error('Error saving persona.');
+      toast.error('Error saving configuration.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Prevent flicker while checking auth
   if (!userId) return null; 
 
   const embedCode = `<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
@@ -182,7 +180,7 @@ export default function HomeDashboard() {
           </button>
         </div>
         
-        <div className="space-y-8 flex-1">
+        <div className="space-y-8 flex-1 pb-10">
           {/* 1. KNOWLEDGE BASE */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">1. Knowledge Base</h2>
@@ -221,15 +219,72 @@ export default function HomeDashboard() {
             <div>
               <textarea 
                 placeholder="How should your bot behave?"
-                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm h-32 resize-none leading-relaxed"
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm h-28 resize-none leading-relaxed"
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* 3. BRAND CUSTOMIZATION */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">3. Brand Customization</h2>
+            
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Primary Color</label>
+              <div className="flex items-center space-x-2">
+                <input 
+                  type="color" 
+                  className="w-9 h-9 p-0 border-0 rounded-sm cursor-pointer"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                />
+                <input 
+                  type="text" 
+                  className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm uppercase"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Header Text</label>
+              <input 
+                type="text" 
+                placeholder="e.g. Acme Support"
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
+                value={headerText}
+                onChange={(e) => setHeaderText(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Bot Avatar URL</label>
+              <input 
+                type="text" 
+                placeholder="https://example.com/avatar.png"
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
+                value={botAvatar}
+                onChange={(e) => setBotAvatar(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Welcome Message</label>
+              <input 
+                type="text" 
+                placeholder="How can I help you today?"
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+              />
+            </div>
+
             <button 
-              onClick={handleSavePersona}
+              onClick={handleSaveConfig}
               disabled={isSaving}
-              className="w-full bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium"
+              className="w-full bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium mt-4"
             >
               {isSaving ? 'Saving...' : 'Save & Update Preview'}
             </button>
@@ -262,6 +317,7 @@ export default function HomeDashboard() {
 
             <div className="flex-1 flex gap-8">
               <div className="w-[400px] h-[600px] bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex-shrink-0 relative">
+                {/* Triggering full iframe reload when refreshKey changes */}
                 <iframe 
                   key={refreshKey}
                   src={`/widget?spaceId=${activeSpaceId}`} 
