@@ -10,6 +10,7 @@ export default function Widget() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Reference to auto-scroll to the bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -18,9 +19,26 @@ export default function Widget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // 1. Load chat history from sessionStorage on initial load
   useEffect(() => {
+    const savedChat = sessionStorage.getItem('widget_chat_history');
+    if (savedChat) {
+      try {
+        setMessages(JSON.parse(savedChat));
+      } catch (e) {
+        console.error("Failed to parse chat history");
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // 2. Save chat history to sessionStorage whenever it updates
+  useEffect(() => {
+    if (isInitialized) {
+      sessionStorage.setItem('widget_chat_history', JSON.stringify(messages));
+    }
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isInitialized]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -86,8 +104,7 @@ export default function Widget() {
                   return newMsgs;
                 });
               } catch (e) {
-                // Ignore incomplete JSON chunks naturally caught by the try/catch, 
-                // but buffer loop prevents cutting them in the first place
+                // Ignore incomplete JSON chunks naturally caught by the try/catch
               }
             }
             boundary = buffer.indexOf('\n');
@@ -100,6 +117,9 @@ export default function Widget() {
       setIsLoading(false);
     }
   };
+
+  // Prevent rendering mismatched UI until hydration is complete
+  if (!isInitialized) return null;
 
   return (
     <div className="flex flex-col h-screen bg-white font-sans text-sm">
