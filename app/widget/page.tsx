@@ -57,16 +57,21 @@ export default function Widget() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let aiText = '';
+      let buffer = ''; // Buffer to catch incomplete JSON text fragments
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value, { stream: true });
+          let boundary = buffer.indexOf('\n');
           
-          for (const line of lines) {
+          // Process fully delimited lines
+          while (boundary !== -1) {
+            const line = buffer.slice(0, boundary).trim();
+            buffer = buffer.slice(boundary + 1);
+            
             if (line.startsWith('data: ') && line !== 'data: [DONE]') {
               try {
                 const event = JSON.parse(line.slice(6));
@@ -81,9 +86,11 @@ export default function Widget() {
                   return newMsgs;
                 });
               } catch (e) {
-                // Ignore incomplete JSON chunks 
+                // Ignore incomplete JSON chunks naturally caught by the try/catch, 
+                // but buffer loop prevents cutting them in the first place
               }
             }
+            boundary = buffer.indexOf('\n');
           }
         }
       }
