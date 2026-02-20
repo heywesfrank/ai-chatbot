@@ -40,11 +40,11 @@ export async function POST(req: Request) {
     const { messages, spaceId } = await req.json();
     
     // Concatenate the last 3 user messages to give the embedding model conversational context
-    // Filtered by role='user' to prevent the bot's apologies from diluting the search query
+    // FIX: Read from `m.content` as passed by the Vercel AI SDK
     const recentMessagesContext = messages
       .filter((m: any) => m.role === 'user')
       .slice(-3)
-      .map((m: any) => m.text)
+      .map((m: any) => m.content)
       .join('\n');
 
     // 2. Parallelize independent database calls
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       .from('bot_config')
       .select('system_prompt')
       .eq('space_id', spaceId)
-      .maybeSingle(); // Prevents 406 error if config doesn't exist yet
+      .maybeSingle(); 
 
     const embeddingPromise = openai.embeddings.create({
       model: 'text-embedding-3-small',
@@ -94,28 +94,33 @@ CONTEXT:
 ${context || "No context available."}
 `.trim();
 
-    // 6. Call GPT-5 Nano with stream=true
+    // 6. Call Custom gpt-5-nano with stream=true
     const stream = await openai.responses.create({
       model: 'gpt-5-nano',
       instructions: systemInstructions,
+      // FIX: Read from `m.content` as passed by the Vercel AI SDK
       input: messages.map((m: any) => ({ 
         role: m.role, 
-        content: m.text 
+        content: m.content 
       })),
-      stream: true, // Enable streaming
+      stream: true, 
     });
 
-    // 7. Stream the response chunks to the client using SSE
+    // 7. Format the custom response stream into the Vercel AI DataStream Protocol
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of stream) {
             if (event.type === 'response.output_text.delta') {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+              // Extract the text delta dynamically based on the payload
+              const deltaText = event.delta || event.text || event.content || '';
+              if (deltaText) {
+                // Formatting payload as: 0:"The text chunk"\n
+                controller.enqueue(encoder.encode(`0:${JSON.stringify(deltaText)}\n`));
+              }
             }
           }
-          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
           controller.close();
         } catch (err) {
           controller.error(err);
@@ -125,7 +130,8 @@ ${context || "No context available."}
 
     return new Response(readableStream, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Vercel-AI-Data-Stream': 'v1', // Signals to the SDK frontend to use stream parsing
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         ...corsHeaders
