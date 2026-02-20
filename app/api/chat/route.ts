@@ -40,7 +40,6 @@ export async function POST(req: Request) {
     const { messages, spaceId } = await req.json();
     
     // Concatenate the last 3 user messages to give the embedding model conversational context
-    // FIX: Read from `m.content` as passed by the Vercel AI SDK
     const recentMessagesContext = messages
       .filter((m: any) => m.role === 'user')
       .slice(-3)
@@ -98,7 +97,6 @@ ${context || "No context available."}
     const stream = await openai.responses.create({
       model: 'gpt-5-nano',
       instructions: systemInstructions,
-      // FIX: Read from `m.content` as passed by the Vercel AI SDK
       input: messages.map((m: any) => ({ 
         role: m.role, 
         content: m.content 
@@ -113,10 +111,10 @@ ${context || "No context available."}
         try {
           for await (const event of stream) {
             if (event.type === 'response.output_text.delta') {
-              // Extract the text delta dynamically based on the payload
-              const deltaText = event.delta || event.text || event.content || '';
+              // TypeScript fix: ResponseTextDeltaEvent strictly uses `delta`
+              const deltaText = event.delta || '';
               if (deltaText) {
-                // Formatting payload as: 0:"The text chunk"\n
+                // Formatting payload as: 0:"The text chunk"\n for Vercel AI SDK
                 controller.enqueue(encoder.encode(`0:${JSON.stringify(deltaText)}\n`));
               }
             }
@@ -131,7 +129,7 @@ ${context || "No context available."}
     return new Response(readableStream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'X-Vercel-AI-Data-Stream': 'v1', // Signals to the SDK frontend to use stream parsing
+        'X-Vercel-AI-Data-Stream': 'v1', 
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         ...corsHeaders
