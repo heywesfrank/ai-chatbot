@@ -105,7 +105,7 @@ export default function Widget() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] p-3 rounded-sm leading-relaxed ${
+            <div className={`max-w-[85%] p-3 rounded-sm leading-relaxed break-words ${
               msg.role === 'user' 
                 ? 'bg-gray-100 text-black' 
                 : 'border border-gray-200 bg-white text-gray-800'
@@ -113,7 +113,7 @@ export default function Widget() {
               {msg.role === 'user' ? (
                 msg.text
               ) : (
-                <ReactMarkdown className="prose prose-sm max-w-none prose-p:my-1 prose-a:text-blue-600">
+                <ReactMarkdown className="prose prose-sm max-w-none prose-p:my-1 prose-a:text-blue-600 prose-pre:overflow-x-auto">
                   {msg.text}
                 </ReactMarkdown>
               )}
