@@ -32,7 +32,9 @@ create extension if not exists vector;
 create table public.bot_config (
   space_id text not null,
   system_prompt text not null,
-  constraint bot_config_pkey primary key (space_id)
+  user_id uuid null,
+  constraint bot_config_pkey primary key (space_id),
+  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
 -- Table to store ingested GitBook documentation and their embeddings
