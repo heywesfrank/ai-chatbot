@@ -39,8 +39,13 @@ export async function POST(req: Request) {
     // 1. Destructure messages and spaceId from the request
     const { messages, spaceId } = await req.json();
     
-    // Concatenate the last 3 messages to give the embedding model conversational context
-    const recentMessagesContext = messages.slice(-3).map((m: any) => m.text).join('\n');
+    // Concatenate the last 3 user messages to give the embedding model conversational context
+    // Filtered by role='user' to prevent the bot's apologies from diluting the search query
+    const recentMessagesContext = messages
+      .filter((m: any) => m.role === 'user')
+      .slice(-3)
+      .map((m: any) => m.text)
+      .join('\n');
 
     // 2. Parallelize independent database calls
     const configPromise = supabase
@@ -62,7 +67,7 @@ export async function POST(req: Request) {
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
     const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.5, // <-- STRICTER THRESHOLD: Filters out noise from casual small talk
+      match_threshold: 0.4, // <-- STRICTER THRESHOLD: Lowered to 0.4 to accommodate shorter keyword queries
       match_count: 5,       
       p_space_id: spaceId 
     });
