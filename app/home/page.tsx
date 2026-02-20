@@ -62,11 +62,18 @@ export default function HomeDashboard() {
   const handleSyncKnowledge = async () => {
     if (!apiKey || !spaceId) return toast.error('API Key and Space ID are required.');
     
+    // Inject auth token for backend route protection
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return toast.error('Authentication required.');
+
     setIsSyncing(true);
     try {
       const response = await fetch('/api/ingest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ apiKey, spaceId }),
       });
 
@@ -86,12 +93,20 @@ export default function HomeDashboard() {
 
   const handleSavePersona = async () => {
     if (!spaceId) return toast.error('Enter a Space ID first.');
+    
+    // Inject auth token for backend route protection
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return toast.error('Authentication required.');
+
     setIsSaving(true);
     
     try {
       const response = await fetch('/api/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ spaceId, systemPrompt, userId }),
       });
 
