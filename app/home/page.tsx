@@ -26,6 +26,7 @@ export default function HomeDashboard() {
 
   // --- Auth Check & Hydration ---
   useEffect(() => {
+    // 1. Initial check on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/');
@@ -34,15 +35,35 @@ export default function HomeDashboard() {
         hydrateWorkspace(session.user.id);
       }
     });
+
+    // 2. Listen for auth state changes (crucial for hard refreshes in Next.js)
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUserId(session.user.id);
+        hydrateWorkspace(session.user.id);
+      } else {
+        router.push('/');
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [router]);
 
   const hydrateWorkspace = async (uid: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bot_config')
       .select('space_id, system_prompt, api_key') // Fetch the api_key
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle(); 
+
+    // Log any hidden RLS errors to your browser console
+    if (error) {
+      console.error("Supabase Hydration Error:", error.message);
+      return;
+    }
 
     if (data) {
       setSpaceId(data.space_id || '');
