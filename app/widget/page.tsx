@@ -9,15 +9,16 @@ export default function Widget() {
     { role: 'assistant', text: 'How can I help you today?' }
   ]);
   const [input, setInput] = useState('');
+  
+  // isLoading is for the initial fetch before streaming starts
   const [isLoading, setIsLoading] = useState(false);
+  // isStreaming tracks the actual text generation
+  const [isStreaming, setIsStreaming] = useState(false);
+  
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // Reference to auto-scroll to the bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 1. Load chat history from sessionStorage on initial load
   useEffect(() => {
@@ -32,16 +33,20 @@ export default function Widget() {
     setIsInitialized(true);
   }, []);
 
-  // 2. Save chat history to sessionStorage whenever it updates
+  // 2. Persist to storage ONLY when idle to prevent severe performance lag during streams
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && !isStreaming) {
       sessionStorage.setItem('widget_chat_history', JSON.stringify(messages));
     }
-    scrollToBottom();
-  }, [messages, isLoading, isInitialized]);
+  }, [messages, isInitialized, isStreaming]);
+
+  // 3. Handle auto-scrolling separately from data persistence
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isStreaming) return;
     
     const userMessage = { role: 'user' as const, text: input };
     const updatedMessages = [...messages, userMessage];
@@ -50,6 +55,7 @@ export default function Widget() {
     setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
+    setIsStreaming(true);
 
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -80,7 +86,12 @@ export default function Widget() {
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            setIsStreaming(false);
+            // Optional UX Polish: return focus to input when generation finishes
+            setTimeout(() => inputRef.current?.focus(), 100);
+            break;
+          }
           
           buffer += decoder.decode(value, { stream: true });
           let boundary = buffer.indexOf('\n');
@@ -115,6 +126,7 @@ export default function Widget() {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, I encountered an error connecting to the knowledge base.' }]);
       setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
@@ -164,17 +176,19 @@ export default function Widget() {
       {/* Input Area */}
       <div className="border-t border-gray-200 p-3 flex bg-white">
         <input 
+          ref={inputRef}
           type="text" 
+          aria-label="Chat input"
           placeholder="Ask a question..."
           className="flex-1 p-2 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          disabled={isLoading}
+          disabled={isLoading || isStreaming}
         />
         <button 
           onClick={sendMessage}
-          disabled={isLoading || !input.trim()}
+          disabled={isLoading || isStreaming || !input.trim()}
           className="ml-2 bg-black text-white px-4 py-2 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           Send
