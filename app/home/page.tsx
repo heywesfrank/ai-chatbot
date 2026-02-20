@@ -39,14 +39,16 @@ export default function HomeDashboard() {
   const hydrateWorkspace = async (uid: string) => {
     const { data } = await supabase
       .from('bot_config')
-      .select('space_id, system_prompt')
+      .select('space_id, system_prompt, api_key') // Fetch the api_key
       .eq('user_id', uid)
       .limit(1)
-      .maybeSingle(); // Changed from .single() to prevent 406 error for new users
+      .maybeSingle(); 
 
     if (data) {
       setSpaceId(data.space_id || '');
       setSystemPrompt(data.system_prompt || '');
+      setApiKey(data.api_key || ''); // Hydrate the API Key
+      
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
         setRefreshKey(prev => prev + 1);
@@ -78,14 +80,15 @@ export default function HomeDashboard() {
         body: JSON.stringify({ apiKey, spaceId }),
       });
 
-      // 2. Automatically save the current Persona to the database
+      // 2. Automatically save the current Persona and API Key to the database
       const configResponse = await fetch('/api/config', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id }),
+        // Include apiKey in payload
+        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey }), 
       });
 
       if (syncResponse.ok && configResponse.ok) {
@@ -118,7 +121,8 @@ export default function HomeDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ spaceId, systemPrompt, userId }),
+        // Include apiKey so it isn't accidentally overwritten with null during a persona save
+        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey }),
       });
 
       if (response.ok) {
