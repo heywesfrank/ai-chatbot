@@ -3,16 +3,22 @@
 A barebones, high-performance RAG (Retrieval-Augmented Generation) chatbot designed to be embedded on customer websites. It uses GitBook as a knowledge base, Supabase for vector storage, and OpenAI's fast GPT-5 Nano for inference.
 
 ## Features
-* **Minimalist UI/UX:** Clean, flat design with no unnecessary styling.
-* **Simple GitBook Sync:** Uses a Personal Access Token to pull documentation directly from your GitBook Space using efficient bulk ingestion.
-* **Embeddable:** Includes a pre-configured, embed-friendly `/widget` route.
-* **Edge-Ready & Streaming:** Built on Next.js App Router using the Vercel Edge Runtime and Server-Sent Events (SSE) for blazing-fast, real-time streamed responses.
+* **Split-Pane Workspace:** A SaaS-style dashboard that lets you configure your agent's persona on the left and instantly test it in a live playground on the right.
+* **Cost-Optimized Updates:** Updating the bot's system prompt/persona is decoupled from the knowledge base sync, preventing unnecessary vector embedding costs.
+* **Simple GitBook Sync:** Uses a Personal Access Token to pull documentation directly from your GitBook Space using efficient bulk ingestion and chunking.
+* **Embeddable:** Includes a pre-configured, embed-friendly `/widget` route that seamlessly fits into your clients' websites.
+* **Edge-Ready & Streaming:** Built on the Next.js App Router using the Vercel Edge Runtime and Server-Sent Events (SSE) for blazing-fast, real-time streamed responses.
 
 ## Architecture
 1. **Frontend:** Next.js + Tailwind CSS
 2. **Database:** Supabase (`pgvector`)
 3. **LLM:** OpenAI (`gpt-5-nano`, `text-embedding-3-small`)
 4. **Hosting:** Vercel (Edge Runtime)
+
+## API Routes
+* `POST /api/config`: Lightweight endpoint that instantly updates the agent's persona (`system_prompt`) in the database.
+* `POST /api/ingest`: Heavy endpoint that fetches the GitBook Table of Contents, scrapes all nested pages, chunks the text, generates OpenAI embeddings, and stores them in Supabase.
+* `POST /api/chat`: The Edge-compatible chat route. It vector-searches the knowledge base based on the user's query, constructs the prompt, and streams the response back to the widget.
 
 ## Database Setup
 
