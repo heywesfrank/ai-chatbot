@@ -9,70 +9,171 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-export default function Login() {
+export default function AuthPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [step, setStep] = useState<'form' | 'otp'>('form');
 
   useEffect(() => {
-    // If already logged in, send directly to the app
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.push('/home');
     });
   }, [router]);
 
-  const handleAuth = async (type: 'login' | 'signup') => {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
-    const { error } = type === 'login'
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password });
+
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(error.message);
+        setIsLoading(false);
+      } else {
+        router.push('/home');
+      }
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        toast.error(error.message);
+        setIsLoading(false);
+      } else {
+        toast.success('Check your email for the verification code.');
+        setStep('otp');
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'signup',
+    });
 
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
     } else {
+      toast.success('Email confirmed successfully!');
       router.push('/home');
     }
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-[#FAFAFA] font-sans">
-      <Toaster position="top-center" />
-      <div className="w-full max-w-sm p-8 bg-white border border-gray-200 rounded-sm shadow-[0_2px_10px_rgba(0,0,0,0.02)] animate-fade-in">
-        <h2 className="text-lg font-medium mb-6 text-gray-900 text-center tracking-tight">Access Workspace</h2>
-        <div className="space-y-4">
-          <input 
-            type="email" 
-            placeholder="Email address"
-            className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input 
-            type="password" 
-            placeholder="Password"
-            className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <div className="flex gap-3 pt-2">
-            <button 
-              onClick={() => handleAuth('login')}
-              disabled={isLoading || !email || !password}
-              className="flex-1 bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium"
-            >
-              {isLoading ? '...' : 'Sign In'}
-            </button>
-            <button 
-              onClick={() => handleAuth('signup')}
-              disabled={isLoading || !email || !password}
-              className="flex-1 bg-white border border-gray-300 text-gray-900 p-2.5 rounded-sm hover:bg-gray-50 disabled:bg-gray-100 transition-colors text-sm font-medium"
-            >
-              Sign Up
-            </button>
+    <div className="flex min-h-screen items-center justify-center bg-[#FAFAFA] font-sans px-4">
+      <Toaster position="top-center" richColors />
+      
+      <div className="w-full max-w-[360px] p-8 bg-white border border-gray-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300">
+        
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto w-10 h-10 bg-black rounded-lg mb-4 flex items-center justify-center shadow-sm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
           </div>
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
+            {step === 'otp' ? 'Check your email' : (mode === 'login' ? 'Welcome back' : 'Create an account')}
+          </h2>
+          <p className="text-sm text-gray-500 mt-2">
+            {step === 'otp' 
+              ? `We sent a 6-digit code to ${email}` 
+              : (mode === 'login' ? 'Enter your details to sign in.' : 'Enter your details to get started.')}
+          </p>
         </div>
+
+        {/* Forms */}
+        {step === 'form' ? (
+          <form onSubmit={handleAuth} className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="space-y-3">
+              <div>
+                <label className="sr-only" htmlFor="email">Email</label>
+                <input 
+                  id="email"
+                  type="email" 
+                  placeholder="name@example.com"
+                  required
+                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm placeholder:text-gray-400"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="sr-only" htmlFor="password">Password</label>
+                <input 
+                  id="password"
+                  type="password" 
+                  placeholder="Password"
+                  required
+                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm placeholder:text-gray-400"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading || !email || !password}
+              className="w-full bg-black text-white py-2.5 rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm active:scale-[0.98]"
+            >
+              {isLoading ? 'Please wait...' : (mode === 'login' ? 'Sign In' : 'Sign Up')}
+            </button>
+
+            <div className="text-center pt-2">
+              <button 
+                type="button"
+                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                className="text-sm text-gray-500 hover:text-black transition-colors"
+              >
+                {mode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div>
+              <label className="sr-only" htmlFor="otp">Verification Code</label>
+              <input 
+                id="otp"
+                type="text" 
+                maxLength={6}
+                placeholder="000000"
+                required
+                className="w-full px-3 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-300"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} // Only allow numbers
+              />
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading || otp.length !== 6}
+              className="w-full bg-black text-white py-2.5 rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm active:scale-[0.98]"
+            >
+              {isLoading ? 'Verifying...' : 'Verify Email'}
+            </button>
+
+            <div className="text-center pt-2">
+              <button 
+                type="button"
+                onClick={() => setStep('form')}
+                className="text-sm text-gray-500 hover:text-black transition-colors"
+              >
+                Back to sign in
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
