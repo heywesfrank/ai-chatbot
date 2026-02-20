@@ -1,53 +1,61 @@
-# Minimalist RAG Chatbot
+# AI Documentation Chatbot
 
-A barebones, high-performance RAG (Retrieval-Augmented Generation) chatbot designed to be embedded on customer websites. It uses GitBook as a knowledge base, Supabase for vector storage, and OpenAI's fast GPT-5 Nano for inference.
+**⚠️ AI ASSISTANT NOTICE:** This document serves as the primary system context for this repository. This project is developed entirely within the GitHub browser UI and auto-deployed directly to Vercel. **There is no local development environment.** A full-stack, embeddable AI widget built with Next.js, Supabase, and OpenAI. It connects directly to a GitBook space, ingests the documentation into a vector database, and serves context-aware answers to users via a streaming chat interface.
 
-## Features
-* **Split-Pane Workspace:** A SaaS-style dashboard that lets you configure your agent's persona on the left and instantly test it in a live playground on the right.
-* **Cost-Optimized Updates:** Updating the bot's system prompt/persona is decoupled from the knowledge base sync, preventing unnecessary vector embedding costs.
-* **Simple GitBook Sync:** Uses a Personal Access Token to pull documentation directly from your GitBook Space using efficient bulk ingestion and chunking.
-* **Embeddable:** Includes a pre-configured, embed-friendly `/widget` route that seamlessly fits into your clients' websites.
-* **Edge-Ready & Streaming:** Built on the Next.js App Router using the Vercel Edge Runtime and Server-Sent Events (SSE) for blazing-fast, real-time streamed responses.
+## 🛠 Tech Stack
+* **Framework:** Next.js (App Router, Edge API Routes)
+* **Database & Auth:** Supabase (PostgreSQL, `pgvector`, Row Level Security)
+* **AI:** OpenAI Embeddings (`text-embedding-3-small`) & Custom LLM
+* **Styling:** Tailwind CSS
 
-## Architecture
-1. **Frontend:** Next.js + Tailwind CSS
-2. **Database:** Supabase (`pgvector`)
-3. **LLM:** OpenAI (`gpt-5-nano`, `text-embedding-3-small`)
-4. **Hosting:** Vercel (Edge Runtime)
+## 🚨 CRITICAL AI Directives
 
-## API Routes
-* `POST /api/config`: Lightweight endpoint that instantly updates the agent's persona (`system_prompt`) in the database.
-* `POST /api/ingest`: Heavy endpoint that fetches the GitBook Table of Contents, scrapes all nested pages, chunks the text, generates OpenAI embeddings, and stores them in Supabase.
-* `POST /api/chat`: The Edge-compatible chat route. It vector-searches the knowledge base based on the user's query, constructs the prompt, and streams the response back to the widget.
+If you are an AI assistant analyzing this repository to write or debug code, **do not attempt to alter or "fix" the following implementations**:
 
-## Database Setup
+1. **Custom OpenAI Model & Method:** The chat route (`/api/chat/route.ts`) intentionally uses `openai.responses.create` and the `gpt-5-nano` model. This is strictly required for this specific environment. **Do not update this to standard `chat.completions.create` or change the model name.**
+2. **SSE Stream Buffering:** The frontend widget (`app/widget/page.tsx`) uses a custom string buffer to read Server-Sent Events. This is specifically designed to handle split/incomplete JSON chunks over unstable networks. Do not replace this with naive newline splitting.
+3. **Database Schema:** The Supabase setup relies on a custom RPC function (`match_documents`) to perform cosine similarity searches against the `gitbook_documents` table. 
 
-To run this project, you need a Supabase project with the `pgvector` extension enabled. Run the following SQL in your Supabase SQL Editor to set up the required tables and search function:
+## ✨ Key Features & Architecture
+
+* **Context-Aware Memory:** The backend concatenates the last 3 user messages before creating the search embedding, allowing the bot to understand pronouns and follow-up questions (e.g., "Where is that located?").
+* **Safe Ingestion Pipeline:** The `/api/ingest` route fetches and embeds all GitBook documentation into server memory *before* touching the database. This prevents wiping the existing knowledge base if an API rate limit or timeout occurs mid-sync.
+* **Secured API Routes:** Database mutations (`/api/config` and `/api/ingest`) are protected. The frontend passes the user's Supabase session token via the `Authorization: Bearer` header, and the backend verifies the session before allowing updates.
+* **Brute-Force Text Extraction:** Bypasses GitBook's complex JSON schema to recursively hunt down and extract all readable text blocks for vectorization.
+
+## 🔐 Production Environment Variables
+When writing code that requires environment variables, assume the following are already securely configured in the Vercel production environment:
+* `NEXT_PUBLIC_SUPABASE_URL`
+* `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+* `SUPABASE_SERVICE_ROLE_KEY`
+* `OPENAI_API_KEY`
+
+## 🗄️ Database Schema (Supabase)
+
+To understand the backend structure, refer to the following SQL schema currently active in the production Supabase database. *Note: The `pgvector` extension is enabled.*
 
 ```sql
--- Enable the pgvector extension to work with embedding vectors
-create extension if not exists vector;
-
--- Table to store custom bot personas/configurations per GitBook space
-create table public.bot_config (
-  space_id text not null,
+-- Table 1: Bot Configuration
+create table bot_config (
+  space_id text primary key,
   system_prompt text not null,
-  user_id uuid null,
-  constraint bot_config_pkey primary key (space_id),
-  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
-) TABLESPACE pg_default;
+  user_id uuid not null -- References the authenticated user who owns this config
+);
 
--- Table to store ingested GitBook documentation and their embeddings
-create table public.gitbook_documents (
-  id bigserial not null,
+-- Table 2: GitBook Documents (Knowledge Base)
+create table gitbook_documents (
+  id bigserial primary key,
+  space_id text not null,
   page_url text not null,
   content text not null,
-  embedding public.vector(1536) null, -- 1536 is the dimension for text-embedding-3-small
-  space_id text null,
-  constraint gitbook_documents_pkey primary key (id)
-) TABLESPACE pg_default;
+  embedding vector(1536) -- 1536 dimensions for text-embedding-3-small
+);
 
--- Function to perform vector similarity search
+-- Index for faster vector similarity search
+create index on gitbook_documents using ivfflat (embedding vector_cosine_ops)
+with (lists = 100);
+
+-- RPC Function: Vector Similarity Search
 create or replace function match_documents (
   query_embedding vector(1536),
   match_threshold float,
@@ -70,6 +78,6 @@ as $$
   from gitbook_documents
   where gitbook_documents.space_id = p_space_id
     and 1 - (gitbook_documents.embedding <=> query_embedding) > match_threshold
-  order by gitbook_documents.embedding <=> query_embedding
+  order by similarity desc
   limit match_count;
 $$;
