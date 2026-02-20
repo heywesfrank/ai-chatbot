@@ -54,7 +54,8 @@ function extractPageIds(pages: any[]): string[] {
 }
 
 export async function POST(req: Request) {
-  const { apiKey, spaceId, systemPrompt } = await req.json();
+  // Notice we removed systemPrompt from here, it's now handled by /api/config
+  const { apiKey, spaceId } = await req.json();
 
   if (!apiKey || !spaceId) {
     return NextResponse.json({ error: 'Missing credentials: API Key and Space ID are required.' }, { status: 400 });
@@ -62,14 +63,6 @@ export async function POST(req: Request) {
 
   try {
     console.log(`[INGEST] Starting ingestion for Space ID: ${spaceId}`);
-
-    // 0. Database Configuration
-    const fallbackPrompt = "You are a helpful, minimalist support assistant.";
-    const { error: configError } = await supabase
-      .from('bot_config')
-      .upsert({ space_id: spaceId, system_prompt: systemPrompt || fallbackPrompt }, { onConflict: 'space_id' });
-      
-    if (configError) throw new Error(`Database error saving config: ${configError.message}`);
 
     // 1. Fetch TOC from GitBook
     console.log(`[INGEST] Fetching Table of Contents from GitBook...`);
