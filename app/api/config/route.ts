@@ -15,9 +15,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { spaceId, systemPrompt, userId } = await req.json();
+    // Extract apiKey along with other config
+    const { spaceId, systemPrompt, userId, apiKey } = await req.json();
 
-    // Validate that all required fields are present
+    // Validate that all required fields are present (apiKey is optional for saving just persona, but required for sync)
     if (!spaceId || !systemPrompt || !userId) {
       return NextResponse.json(
         { error: 'Space ID, System Prompt, and User ID are required.' }, 
@@ -31,16 +32,17 @@ export async function POST(req: Request) {
     }
 
     // Update the bot configuration and link it to the authenticated user.
-    // We use upsert so that if a config for this space already exists, it simply updates.
+    // We use user_id as the conflict key so it updates the user's SaaS config row
     const { error } = await supabase
       .from('bot_config')
       .upsert(
         { 
           space_id: spaceId, 
           system_prompt: systemPrompt, 
-          user_id: userId 
+          user_id: userId,
+          api_key: apiKey || null // Save the token if provided
         }, 
-        { onConflict: 'space_id' }
+        { onConflict: 'user_id' }
       );
 
     if (error) {
