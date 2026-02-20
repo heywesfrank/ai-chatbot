@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       .from('bot_config')
       .select('system_prompt')
       .eq('space_id', spaceId)
-      .maybeSingle();
+      .maybeSingle(); // Prevents 406 error if config doesn't exist yet
 
     const embeddingPromise = openai.embeddings.create({
       model: 'text-embedding-3-small',
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
     const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.3, 
+      match_threshold: 0.5, // <-- STRICTER THRESHOLD: Filters out noise from casual small talk
       match_count: 5,       
       p_space_id: spaceId 
     });
@@ -76,8 +76,18 @@ export async function POST(req: Request) {
       ? documents.map((doc: DocumentMatch) => doc.content).join('\n\n') 
       : "";
 
-    // 5. Assemble the final instructions
-    const systemInstructions = `${agentPersona}\n\nYou are allowed to respond naturally and politely to basic greetings, pleasantries, or casual conversation (e.g., "hello", "how are you", "what's up").\n\nHowever, for ANY actual questions or requests for information, you must answer using ONLY the provided context below. \nIf the context is empty or does not contain the answer to their specific question, politely inform the user that you don't have that information in your documentation and ask if there's anything else you can assist them with. Do not hallucinate facts.\n\nCONTEXT:\n${context || "No context available."}`;
+    // 5. Assemble the final instructions using clean, categorical logic
+    const systemInstructions = `
+${agentPersona}
+
+CORE DIRECTIVES:
+1. CONVERSATIONAL MODE: If the user is making casual conversation (e.g., greetings, goodbyes, expressions of gratitude, or general small talk), respond naturally and politely. Ignore the CONTEXT.
+2. SUPPORT MODE: If the user is asking a question or seeking help, you MUST answer using ONLY the CONTEXT below.
+3. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.
+
+CONTEXT:
+${context || "No context available."}
+`.trim();
 
     // 6. Call GPT-5 Nano with stream=true
     const stream = await openai.responses.create({
