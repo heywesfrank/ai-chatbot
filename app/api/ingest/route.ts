@@ -4,36 +4,28 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// GREEDY EXTRACTOR: Recursively hunts down text from ANY GitBook block
-function extractTextFromNode(node: any): string[] {
-  let chunks: string[] = [];
-  if (!node) return chunks;
+// GREEDY AST EXTRACTOR: Recursively flattens GitBook AST into clean paragraphs
+function extractAllTextFromAST(node: any): string {
+  if (!node) return '';
 
-  // 1. If this node is a block and contains text leaves, extract the text.
-  if (node.object === 'block' && Array.isArray(node.nodes)) {
-    const hasNestedBlocks = node.nodes.some((n: any) => n.object === 'block');
-    
-    if (!hasNestedBlocks) {
-      // This is a leaf block (like a paragraph, heading, list item, or code block)
-      const text = node.nodes.map((n: any) => n.text || '').join('').trim();
-      if (text) chunks.push(text);
-      return chunks; // Stop recursing here, we got the text for this block.
-    }
+  // Base case: we found a text leaf
+  if (typeof node.text === 'string') {
+    return node.text;
   }
 
-  // 2. Recurse into children 'nodes'
+  // If we are at the root level of the page data, traverse into the document
+  if (node.document) {
+    return extractAllTextFromAST(node.document);
+  }
+
+  // Recursive case: node has children
   if (Array.isArray(node.nodes)) {
-    for (const child of node.nodes) {
-      chunks = chunks.concat(extractTextFromNode(child));
-    }
+    const text = node.nodes.map((n: any) => extractAllTextFromAST(n)).join('');
+    // If it's a structural block (like a paragraph, heading, or code block), append newlines
+    return node.object === 'block' ? text + '\n\n' : text;
   }
 
-  // 3. Handle the top-level 'document' wrapper if passed the raw page object
-  if (node.document && typeof node.document === 'object') {
-    chunks = chunks.concat(extractTextFromNode(node.document));
-  }
-
-  return chunks;
+  return '';
 }
 
 // Helper to get all page IDs from the GitBook TOC tree
@@ -78,7 +70,7 @@ export async function POST(req: Request) {
     if (!gitbookResponse.ok) {
       const errText = await gitbookResponse.text();
       console.error(`[INGEST] GitBook TOC fetch failed: ${gitbookResponse.status} - ${errText}`);
-      return NextResponse.json({ error: `GitBook API Error (TOC): ${gitbookResponse.status} - ${errText}` }, { status: 400 });
+      return NextResponse.json({ error: `GitBook API Error: ${gitbookResponse.status}` }, { status: 400 });
     }
 
     const tocData = await gitbookResponse.json();
@@ -105,28 +97,26 @@ export async function POST(req: Request) {
            headers: { 'Authorization': `Bearer ${apiKey}` }
         });
         
-        if (!pageRes.ok) {
-           console.warn(`[INGEST] Warning: Failed to fetch page ${pageId}. Status: ${pageRes.status}`);
-           return; // Skip this page but don't crash the whole process
-        }
+        if (!pageRes.ok) return;
 
         const pageData = await pageRes.json();
+        const pageTitle = pageData.title || 'Documentation';
         
-        // Inject the page title so the LLM has context for these chunks
-        if (pageData.title) {
-          extractedParagraphs.push(`Page Title: ${pageData.title}`);
-        }
+        // Use the greedy extractor to get all text, then split by the double-newlines we added
+        const rawText = extractAllTextFromAST(pageData);
+        const paragraphs = rawText.split('\n\n').map(p => p.trim()).filter(p => p.length > 10); // Filter out empty or tiny blocks
 
-        // Use the greedy extractor
-        const paragraphs = extractTextFromNode(pageData);
-        extractedParagraphs.push(...paragraphs);
+        // Prepend the page title to EVERY chunk. This drastically improves RAG accuracy.
+        paragraphs.forEach(p => {
+          extractedParagraphs.push(`Page: ${pageTitle}\n\n${p}`);
+        });
       }));
     }
 
     console.log(`[INGEST] Finished fetching pages. Extracted ${extractedParagraphs.length} text blocks.`);
 
-    if (!extractedParagraphs || extractedParagraphs.length === 0) {
-      return NextResponse.json({ error: 'No readable text content found across the pages. Does the space have text blocks?' }, { status: 400 });
+    if (extractedParagraphs.length === 0) {
+      return NextResponse.json({ error: 'No readable text content found across the pages.' }, { status: 400 });
     }
 
     // Clear out existing documents for this space to avoid duplicates
@@ -134,11 +124,10 @@ export async function POST(req: Request) {
 
     // 3. Turn the paragraphs into vectors and insert
     console.log(`[INGEST] Generating OpenAI Embeddings...`);
-    const OPENAI_BATCH_SIZE = 500; // Safe batch limit for text-embedding-3
+    const OPENAI_BATCH_SIZE = 500; // Safe batch limit for OpenAI
     
     for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
       const chunk = extractedParagraphs.slice(i, i + OPENAI_BATCH_SIZE);
-      console.log(`[INGEST] Creating embeddings for paragraphs ${i} to ${i + chunk.length}...`);
       
       const embeddingResponse = await openai.embeddings.create({
         model: 'text-embedding-3-small',
@@ -152,7 +141,6 @@ export async function POST(req: Request) {
         embedding: embeddingResponse.data[index].embedding,
       }));
 
-      console.log(`[INGEST] Inserting embeddings into Supabase...`);
       const { error } = await supabase.from('gitbook_documents').insert(documentsToInsert);
 
       if (error) {
