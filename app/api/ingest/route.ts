@@ -4,20 +4,36 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Helper to recursively extract text from GitBook node blocks
-function extractTextFromBlocks(blocks: any[]): string[] {
-  let paragraphs: string[] = [];
+// GREEDY EXTRACTOR: Recursively hunts down text from ANY GitBook block
+function extractTextFromNode(node: any): string[] {
+  let chunks: string[] = [];
+  if (!node) return chunks;
 
-  for (const block of blocks) {
-    if (block.object === 'block' && block.type === 'paragraph') {
-      const text = block.nodes?.map((node: any) => node.text || '').join('') || '';
-      if (text.trim()) paragraphs.push(text);
-    }
-    if (block.nodes && block.nodes.length > 0) {
-      paragraphs = paragraphs.concat(extractTextFromBlocks(block.nodes));
+  // 1. If this node is a block and contains text leaves, extract the text.
+  if (node.object === 'block' && Array.isArray(node.nodes)) {
+    const hasNestedBlocks = node.nodes.some((n: any) => n.object === 'block');
+    
+    if (!hasNestedBlocks) {
+      // This is a leaf block (like a paragraph, heading, list item, or code block)
+      const text = node.nodes.map((n: any) => n.text || '').join('').trim();
+      if (text) chunks.push(text);
+      return chunks; // Stop recursing here, we got the text for this block.
     }
   }
-  return paragraphs;
+
+  // 2. Recurse into children 'nodes'
+  if (Array.isArray(node.nodes)) {
+    for (const child of node.nodes) {
+      chunks = chunks.concat(extractTextFromNode(child));
+    }
+  }
+
+  // 3. Handle the top-level 'document' wrapper if passed the raw page object
+  if (node.document && typeof node.document === 'object') {
+    chunks = chunks.concat(extractTextFromNode(node.document));
+  }
+
+  return chunks;
 }
 
 // Helper to get all page IDs from the GitBook TOC tree
@@ -82,7 +98,7 @@ export async function POST(req: Request) {
     
     for (let i = 0; i < pageIds.length; i += GITBOOK_BATCH_SIZE) {
       const batch = pageIds.slice(i, i + GITBOOK_BATCH_SIZE);
-      console.log(`[INGEST] Processing batch ${i / GITBOOK_BATCH_SIZE + 1} of ${Math.ceil(pageIds.length / GITBOOK_BATCH_SIZE)}...`);
+      console.log(`[INGEST] Processing batch ${Math.floor(i / GITBOOK_BATCH_SIZE) + 1} of ${Math.ceil(pageIds.length / GITBOOK_BATCH_SIZE)}...`);
       
       await Promise.all(batch.map(async (pageId) => {
         const pageRes = await fetch(`https://api.gitbook.com/v1/spaces/${spaceId}/content/page/${pageId}`, {
@@ -95,10 +111,15 @@ export async function POST(req: Request) {
         }
 
         const pageData = await pageRes.json();
-        if (pageData.document && pageData.document.nodes) {
-          const paragraphs = extractTextFromBlocks(pageData.document.nodes);
-          extractedParagraphs.push(...paragraphs);
+        
+        // Inject the page title so the LLM has context for these chunks
+        if (pageData.title) {
+          extractedParagraphs.push(`Page Title: ${pageData.title}`);
         }
+
+        // Use the greedy extractor
+        const paragraphs = extractTextFromNode(pageData);
+        extractedParagraphs.push(...paragraphs);
       }));
     }
 
