@@ -4,28 +4,41 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// GREEDY AST EXTRACTOR: Recursively flattens GitBook AST into clean paragraphs
-function extractAllTextFromAST(node: any): string {
-  if (!node) return '';
+// BRUTE-FORCE TEXT EXTRACTOR
+// This completely ignores GitBook's schema. It walks the entire JSON tree
+// and grabs EVERY string associated with a "text" key, no matter how nested.
+function extractTextSafe(obj: any): string {
+  let result = '';
 
-  // Base case: we found a text leaf
-  if (typeof node.text === 'string') {
-    return node.text;
+  function traverse(current: any) {
+    if (!current || typeof current !== 'object') return;
+    
+    // If it's an array, traverse every item
+    if (Array.isArray(current)) {
+      current.forEach(traverse);
+      return;
+    }
+
+    // If we find a 'text' property, append it! (GitBook puts all content in "text" keys)
+    if (typeof current.text === 'string') {
+      result += current.text;
+    }
+    
+    // Recurse into all nested objects to hunt for more text
+    for (const key of Object.keys(current)) {
+      if (key !== 'text') {
+        traverse(current[key]);
+      }
+    }
+    
+    // Add spacing after blocks/paragraphs so sentences don't mash together
+    if (current.object === 'block' || current.type === 'paragraph' || current.type === 'heading-1') {
+      result += '\n\n';
+    }
   }
 
-  // If we are at the root level of the page data, traverse into the document
-  if (node.document) {
-    return extractAllTextFromAST(node.document);
-  }
-
-  // Recursive case: node has children
-  if (Array.isArray(node.nodes)) {
-    const text = node.nodes.map((n: any) => extractAllTextFromAST(n)).join('');
-    // If it's a structural block (like a paragraph, heading, or code block), append newlines
-    return node.object === 'block' ? text + '\n\n' : text;
-  }
-
-  return '';
+  traverse(obj);
+  return result;
 }
 
 // Helper to get all page IDs from the GitBook TOC tree
@@ -56,10 +69,7 @@ export async function POST(req: Request) {
       .from('bot_config')
       .upsert({ space_id: spaceId, system_prompt: systemPrompt || fallbackPrompt }, { onConflict: 'space_id' });
       
-    if (configError) {
-      console.error("[INGEST] Supabase Config Error:", configError.message);
-      throw new Error(`Database error saving config: ${configError.message}`);
-    }
+    if (configError) throw new Error(`Database error saving config: ${configError.message}`);
 
     // 1. Fetch TOC from GitBook
     console.log(`[INGEST] Fetching Table of Contents from GitBook...`);
@@ -69,8 +79,7 @@ export async function POST(req: Request) {
 
     if (!gitbookResponse.ok) {
       const errText = await gitbookResponse.text();
-      console.error(`[INGEST] GitBook TOC fetch failed: ${gitbookResponse.status} - ${errText}`);
-      return NextResponse.json({ error: `GitBook API Error: ${gitbookResponse.status}` }, { status: 400 });
+      return NextResponse.json({ error: `GitBook API Error (TOC): ${gitbookResponse.status} - ${errText}` }, { status: 400 });
     }
 
     const tocData = await gitbookResponse.json();
@@ -102,20 +111,38 @@ export async function POST(req: Request) {
         const pageData = await pageRes.json();
         const pageTitle = pageData.title || 'Documentation';
         
-        // Use the greedy extractor to get all text, then split by the double-newlines we added
-        const rawText = extractAllTextFromAST(pageData);
-        const paragraphs = rawText.split('\n\n').map(p => p.trim()).filter(p => p.length > 10); // Filter out empty or tiny blocks
+        // Use the brute-force extractor
+        const rawText = extractTextSafe(pageData.document || pageData);
+        const cleanText = rawText.replace(/\n{3,}/g, '\n\n').trim();
 
-        // Prepend the page title to EVERY chunk. This drastically improves RAG accuracy.
-        paragraphs.forEach(p => {
-          extractedParagraphs.push(`Page: ${pageTitle}\n\n${p}`);
-        });
+        if (cleanText.length > 10) {
+           // Safely chunk the page so we don't break OpenAI's token limits
+           const MAX_CHUNK_LENGTH = 3000;
+           let currentChunk = '';
+           
+           const chunks = cleanText.split('\n\n');
+           for (const chunk of chunks) {
+             if (!chunk.trim()) continue;
+             
+             if (currentChunk.length + chunk.length > MAX_CHUNK_LENGTH) {
+               // Prepend the Page Title to every single chunk so the AI never loses context
+               extractedParagraphs.push(`Page: ${pageTitle}\n\n${currentChunk.trim()}`);
+               currentChunk = chunk + '\n\n';
+             } else {
+               currentChunk += chunk + '\n\n';
+             }
+           }
+           
+           if (currentChunk.trim().length > 10) {
+             extractedParagraphs.push(`Page: ${pageTitle}\n\n${currentChunk.trim()}`);
+           }
+        }
       }));
     }
 
     console.log(`[INGEST] Finished fetching pages. Extracted ${extractedParagraphs.length} text blocks.`);
 
-    if (extractedParagraphs.length === 0) {
+    if (!extractedParagraphs || extractedParagraphs.length === 0) {
       return NextResponse.json({ error: 'No readable text content found across the pages.' }, { status: 400 });
     }
 
@@ -124,10 +151,11 @@ export async function POST(req: Request) {
 
     // 3. Turn the paragraphs into vectors and insert
     console.log(`[INGEST] Generating OpenAI Embeddings...`);
-    const OPENAI_BATCH_SIZE = 500; // Safe batch limit for OpenAI
+    const OPENAI_BATCH_SIZE = 100; 
     
     for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
       const chunk = extractedParagraphs.slice(i, i + OPENAI_BATCH_SIZE);
+      console.log(`[INGEST] Creating embeddings for paragraphs ${i} to ${i + chunk.length}...`);
       
       const embeddingResponse = await openai.embeddings.create({
         model: 'text-embedding-3-small',
@@ -141,12 +169,10 @@ export async function POST(req: Request) {
         embedding: embeddingResponse.data[index].embedding,
       }));
 
+      console.log(`[INGEST] Inserting embeddings into Supabase...`);
       const { error } = await supabase.from('gitbook_documents').insert(documentsToInsert);
 
-      if (error) {
-        console.error("[INGEST] Supabase Insert Error:", error.message);
-        throw new Error(`Supabase Database error: ${error.message}`);
-      }
+      if (error) throw new Error(`Supabase Database error: ${error.message}`);
     }
 
     console.log(`[INGEST] Ingestion fully completed successfully.`);
