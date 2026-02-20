@@ -72,7 +72,8 @@ export default function HomeDashboard() {
       
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
-        setRefreshKey(prev => prev + 1);
+        // REMOVED: setRefreshKey(prev => prev + 1);
+        // This prevents the iframe from resetting the chat when switching tabs
       }
     }
   };
@@ -115,7 +116,7 @@ export default function HomeDashboard() {
       if (syncResponse.ok && configResponse.ok) {
         toast.success('Knowledge base synced and persona saved!');
         setActiveSpaceId(spaceId);
-        setRefreshKey(prev => prev + 1);
+        setRefreshKey(prev => prev + 1); // Only reset preview here
       } else {
         toast.error('Failed to sync or save configuration. Check credentials.');
       }
@@ -149,7 +150,7 @@ export default function HomeDashboard() {
       if (response.ok) {
         toast.success('Agent persona updated!');
         setActiveSpaceId(spaceId);
-        setRefreshKey(prev => prev + 1);
+        setRefreshKey(prev => prev + 1); // Only reset preview here
       } else {
         toast.error('Failed to update persona.');
       }
