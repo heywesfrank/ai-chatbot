@@ -38,7 +38,9 @@ export async function POST(req: Request) {
   try {
     // 1. Destructure messages and spaceId from the request
     const { messages, spaceId } = await req.json();
-    const latestMessage = messages[messages.length - 1].text;
+    
+    // Concatenate the last 3 messages to give the embedding model conversational context
+    const recentMessagesContext = messages.slice(-3).map((m: any) => m.text).join('\n');
 
     // 2. Parallelize independent database calls
     const configPromise = supabase
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
 
     const embeddingPromise = openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: latestMessage,
+      input: recentMessagesContext,
     });
 
     const [configResponse, embeddingResponse] = await Promise.all([configPromise, embeddingPromise]);
