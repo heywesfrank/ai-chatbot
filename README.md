@@ -5,6 +5,11 @@ create table public.bot_config (
   system_prompt text not null,
   user_id uuid not null,
   api_key text null,
+  primary_color text default '#000000',
+  header_text text default 'Documentation Bot',
+  welcome_message text default 'How can I help you today?',
+  bot_avatar text null,
+  remove_branding boolean default false,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
