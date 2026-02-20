@@ -15,10 +15,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract apiKey along with other config
-    const { spaceId, systemPrompt, userId, apiKey } = await req.json();
+    // Extract all configurations including new branding fields
+    const { 
+      spaceId, 
+      systemPrompt, 
+      userId, 
+      apiKey, 
+      primaryColor, 
+      headerText, 
+      welcomeMessage, 
+      botAvatar 
+    } = await req.json();
 
-    // Validate that all required fields are present (apiKey is optional for saving just persona, but required for sync)
+    // Validate that all required fields are present
     if (!spaceId || !systemPrompt || !userId) {
       return NextResponse.json(
         { error: 'Space ID, System Prompt, and User ID are required.' }, 
@@ -32,7 +41,6 @@ export async function POST(req: Request) {
     }
 
     // Update the bot configuration and link it to the authenticated user.
-    // We use user_id as the conflict key so it updates the user's SaaS config row
     const { error } = await supabase
       .from('bot_config')
       .upsert(
@@ -40,7 +48,11 @@ export async function POST(req: Request) {
           space_id: spaceId, 
           system_prompt: systemPrompt, 
           user_id: userId,
-          api_key: apiKey || null // Save the token if provided
+          api_key: apiKey || null,
+          primary_color: primaryColor || '#000000',
+          header_text: headerText || 'Documentation Bot',
+          welcome_message: welcomeMessage || 'How can I help you today?',
+          bot_avatar: botAvatar || null
         }, 
         { onConflict: 'user_id' }
       );
