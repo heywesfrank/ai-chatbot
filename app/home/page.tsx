@@ -42,7 +42,7 @@ export default function HomeDashboard() {
       .select('space_id, system_prompt')
       .eq('user_id', uid)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setSpaceId(data.space_id || '');
