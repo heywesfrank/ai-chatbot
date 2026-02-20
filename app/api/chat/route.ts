@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       .from('bot_config')
       .select('system_prompt')
       .eq('space_id', spaceId)
-      .single();
+      .maybeSingle();
 
     const embeddingPromise = openai.embeddings.create({
       model: 'text-embedding-3-small',
