@@ -1,4 +1,4 @@
-**Supabase Tables**
+**Supabase Tables and Functions**
 
 create table public.bot_config (
   space_id text not null,
@@ -22,3 +22,15 @@ create table public.gitbook_documents (
   space_id text null,
   constraint gitbook_documents_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+  select
+    gitbook_documents.id,
+    gitbook_documents.space_id,
+    gitbook_documents.page_url,
+    gitbook_documents.content,
+    1 - (gitbook_documents.embedding <=> query_embedding) as similarity
+  from gitbook_documents
+  where 1 - (gitbook_documents.embedding <=> query_embedding) > match_threshold
+    and gitbook_documents.space_id = p_space_id
+  order by gitbook_documents.embedding <=> query_embedding
+  limit match_count;
