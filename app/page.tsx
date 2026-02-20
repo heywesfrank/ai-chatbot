@@ -6,38 +6,70 @@ export default function Dashboard() {
   const [apiKey, setApiKey] = useState('');
   const [spaceId, setSpaceId] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful, minimalist support assistant.');
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // Independent loading states
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Drives the right-hand playground preview
   const [activeSpaceId, setActiveSpaceId] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0); // Used to force iframe reload on sync
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleTrain = async () => {
+  // ACTION 1: Syncs the heavy vector embeddings
+  const handleSyncKnowledge = async () => {
     if (!apiKey || !spaceId) {
       toast.error('Please provide both an API Key and a Space ID.');
       return;
     }
     
-    setIsLoading(true);
+    setIsSyncing(true);
     try {
       const response = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, spaceId, systemPrompt }),
+        body: JSON.stringify({ apiKey, spaceId }),
       });
 
       if (response.ok) {
-        toast.success('Successfully synced with GitBook!');
+        toast.success('Knowledge base synced successfully!');
         setActiveSpaceId(spaceId);
-        setRefreshKey(prev => prev + 1); // Forces the iframe to reload with new config
+        setRefreshKey(prev => prev + 1);
       } else {
-        toast.error('Failed to connect to GitBook. Please check your credentials.');
+        toast.error('Failed to sync with GitBook. Check your credentials.');
       }
     } catch (error) {
-      console.error('Ingestion error:', error);
       toast.error('An unexpected error occurred during ingestion.');
     } finally {
-      setIsLoading(false);
+      setIsSyncing(false);
+    }
+  };
+
+  // ACTION 2: Instantly saves the persona
+  const handleSavePersona = async () => {
+    if (!spaceId) {
+      toast.error('Please enter a Space ID first to identify your bot.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spaceId, systemPrompt }),
+      });
+
+      if (response.ok) {
+        toast.success('Agent persona updated!');
+        setActiveSpaceId(spaceId);
+        setRefreshKey(prev => prev + 1); // Refresh the iframe to test new persona
+      } else {
+        toast.error('Failed to update persona.');
+      }
+    } catch (error) {
+      toast.error('Error saving persona.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -54,60 +86,67 @@ export default function Dashboard() {
           <p className="text-gray-500 text-sm">Configure and train your AI agent.</p>
         </div>
         
-        <div className="space-y-4 flex-1">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">GitBook Token</label>
-            <input 
-              type="password" 
-              placeholder="pat_..."
-              className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
+        <div className="space-y-8 flex-1">
+          
+          {/* SECTION 1: KNOWLEDGE BASE */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">1. Knowledge Base</h2>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">GitBook Token</label>
+              <input 
+                type="password" 
+                placeholder="pat_..."
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Space ID</label>
+              <input 
+                type="text" 
+                placeholder="e.g. xYz123..."
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
+                value={spaceId}
+                onChange={(e) => setSpaceId(e.target.value)}
+              />
+            </div>
+            <button 
+              onClick={handleSyncKnowledge}
+              disabled={isSyncing}
+              className="w-full bg-white border border-gray-300 text-gray-900 p-2.5 rounded-sm hover:bg-gray-50 disabled:bg-gray-100 transition-colors text-sm font-medium flex justify-center items-center"
+            >
+              {isSyncing ? 'Syncing...' : 'Sync Data'}
+            </button>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Space ID</label>
-            <input 
-              type="text" 
-              placeholder="e.g. xYz123..."
-              className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
-              value={spaceId}
-              onChange={(e) => setSpaceId(e.target.value)}
-            />
+          {/* SECTION 2: PERSONA */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">2. Agent Persona</h2>
+            <div>
+              <textarea 
+                placeholder="How should your bot behave?"
+                className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm h-32 resize-none leading-relaxed"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+              />
+            </div>
+            <button 
+              onClick={handleSavePersona}
+              disabled={isSaving}
+              className="w-full bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium flex justify-center items-center"
+            >
+              {isSaving ? 'Saving...' : 'Save & Update Preview'}
+            </button>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Agent Persona</label>
-            <textarea 
-              placeholder="How should your bot behave?"
-              className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm h-32 resize-none leading-relaxed"
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="pt-6 border-t border-gray-100 mt-auto">
-          <button 
-            onClick={handleTrain}
-            disabled={isLoading}
-            className="w-full bg-black text-white p-3 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium flex justify-center items-center"
-          >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                Syncing...
-              </span>
-            ) : 'Save & Retrain AI'}
-          </button>
         </div>
       </div>
 
       {/* RIGHT PANE: PLAYGROUND & EXPORT */}
+      {/* ... (Right Pane remains exactly the same as the previous response) ... */}
       <div className="flex-1 bg-[#FAFAFA] p-8 flex flex-col relative overflow-y-auto">
         {!activeSpaceId ? (
-          // Empty State
           <div className="flex-1 flex flex-col items-center justify-center text-center max-w-sm mx-auto animate-fade-in">
             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4 border border-gray-200">
               <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -116,7 +155,6 @@ export default function Dashboard() {
             <p className="text-gray-500 text-sm leading-relaxed">Enter your credentials and sync your GitBook on the left to start testing your bot.</p>
           </div>
         ) : (
-          // Active State
           <div className="max-w-4xl mx-auto w-full h-full flex flex-col animate-fade-in space-y-8">
             <div className="flex items-center justify-between">
               <div>
@@ -130,7 +168,6 @@ export default function Dashboard() {
             </div>
 
             <div className="flex-1 flex gap-8">
-              {/* The actual Widget preview running in an iframe to guarantee 1:1 parity */}
               <div className="w-[400px] h-[600px] bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex-shrink-0 relative">
                 <iframe 
                   key={refreshKey}
@@ -139,7 +176,6 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Developer Details / Deployment */}
               <div className="flex-1 flex flex-col">
                 <h3 className="text-sm font-medium mb-3 text-gray-900">Deployment Code</h3>
                 <p className="text-xs text-gray-500 mb-4">Copy and paste this snippet directly into your website's HTML.</p>
