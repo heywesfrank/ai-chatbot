@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract all configurations including new branding & prompt fields
+    // Extract all configurations including new lead capture field
     const { 
       spaceId, 
       systemPrompt, 
@@ -26,7 +26,8 @@ export async function POST(req: Request) {
       welcomeMessage, 
       botAvatar,
       showPrompts,
-      suggestedPrompts
+      suggestedPrompts,
+      leadCaptureEnabled
     } = await req.json();
 
     // Validate that all required fields are present
@@ -56,7 +57,8 @@ export async function POST(req: Request) {
           welcome_message: welcomeMessage || 'How can I help you today?',
           bot_avatar: botAvatar || null,
           show_prompts: showPrompts !== undefined ? showPrompts : true,
-          suggested_prompts: suggestedPrompts || []
+          suggested_prompts: suggestedPrompts || [],
+          lead_capture_enabled: leadCaptureEnabled !== undefined ? leadCaptureEnabled : false
         }, 
         { onConflict: 'user_id' }
       );
