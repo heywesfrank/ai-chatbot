@@ -90,6 +90,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
   const [escalationEmail, setEscalationEmail] = useState('');
   const [escalatedIds, setEscalatedIds] = useState<Record<string, boolean>>({});
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   
   const primaryColor = urlOverrides.color || config?.primary_color || '#000000';
   const headerText = urlOverrides.header || config?.header_text || 'Documentation Bot';
@@ -156,6 +157,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
     // Reset active escalation states
     setEscalatingId(null);
     setEscalatedIds({});
+    setEscalationEmail('');
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -194,7 +196,8 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
   };
 
   const submitTicket = async (msgId: string, prompt: string) => {
-    if (!escalationEmail) return;
+    if (!escalationEmail || isSubmittingTicket) return;
+    setIsSubmittingTicket(true);
     try {
       await fetch('/api/ticket', {
         method: 'POST',
@@ -203,7 +206,12 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
       });
       setEscalatedIds(prev => ({ ...prev, [msgId]: true }));
       setEscalatingId(null);
-    } catch (e) { console.error('Ticket failed', e); }
+      setEscalationEmail(''); // Clear out the email input after successful submission
+    } catch (e) { 
+      console.error('Ticket failed', e); 
+    } finally {
+      setIsSubmittingTicket(false);
+    }
   };
 
   // --- PRE-CHAT CAPTURE VIEW ---
@@ -309,16 +317,17 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                               type="email" 
                               required
                               placeholder="Your email address" 
-                              className="border border-gray-300 text-[11px] p-1.5 rounded-sm flex-1 focus:outline-none focus:border-gray-500 text-gray-800" 
+                              className="border border-gray-300 text-[11px] p-1.5 rounded-sm flex-1 focus:outline-none focus:border-gray-500 text-gray-800 disabled:opacity-50" 
                               value={escalationEmail} 
                               onChange={e => setEscalationEmail(e.target.value)} 
+                              disabled={isSubmittingTicket}
                             />
                             <button 
                               onClick={() => submitTicket(msg.id, userPrompt)} 
-                              disabled={!escalationEmail.includes('@')}
+                              disabled={!escalationEmail.includes('@') || isSubmittingTicket}
                               className="bg-black text-white text-[11px] px-3 font-medium rounded-sm disabled:opacity-50 hover:bg-gray-800 transition-colors"
                             >
-                              Send
+                              {isSubmittingTicket ? 'Sending...' : 'Send'}
                             </button>
                           </div>
                         )}
