@@ -1,13 +1,8 @@
 // app/home/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { Toaster, toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+import { toast } from 'sonner';
+import { supabaseClient as supabase } from '@/lib/supabase-client';
 
 export default function HomeDashboard() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -143,10 +138,12 @@ export default function HomeDashboard() {
 
   const embedCode = `<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
 
+  // Pass un-saved values into the iframe to allow instant live previews without a DB roundtrip
+  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}`;
+
   // Note we use h-full and w-full here to inherit the size of the layout wrapper
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-white text-gray-900 font-sans overflow-hidden">
-      <Toaster position="top-center" />
       
       {/* LEFT PANE: CONFIGURATION */}
       <div className="w-full md:w-[400px] border-r border-gray-200 bg-white p-8 flex flex-col overflow-y-auto z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
@@ -261,7 +258,7 @@ export default function HomeDashboard() {
               disabled={isSaving}
               className="w-full bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium mt-4"
             >
-              {isSaving ? 'Saving...' : 'Save & Update Preview'}
+              {isSaving ? 'Saving...' : 'Save Configuration'}
             </button>
           </div>
         </div>
@@ -294,7 +291,7 @@ export default function HomeDashboard() {
               <div className="w-[400px] h-[600px] bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex-shrink-0 relative">
                 <iframe 
                   key={refreshKey}
-                  src={`/widget?spaceId=${activeSpaceId}`} 
+                  src={previewUrl} 
                   className="w-full h-full border-none"
                 />
               </div>
