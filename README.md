@@ -28,6 +28,16 @@ create table public.gitbook_documents (
   constraint gitbook_documents_pkey primary key (id)
 ) TABLESPACE pg_default;
 
+create table public.chat_feedback (
+  id bigserial primary key,
+  space_id text not null,
+  message_id text not null,
+  prompt text not null,
+  response text not null,
+  rating text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+) TABLESPACE pg_default;
+
   select
     gitbook_documents.id,
     gitbook_documents.space_id,
