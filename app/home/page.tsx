@@ -1,6 +1,6 @@
+// app/home/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'sonner';
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,7 +10,6 @@ const supabase = createClient(
 );
 
 export default function HomeDashboard() {
-  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
 
   // --- Config States ---
@@ -30,30 +29,15 @@ export default function HomeDashboard() {
   const [activeSpaceId, setActiveSpaceId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // --- Auth Check & Hydration ---
+  // Hydrate only — layout handles redirect checks
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push('/');
-      } else {
-        setUserId(session.user.id);
-        hydrateWorkspace(session.user.id);
-      }
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setUserId(session.user.id);
         hydrateWorkspace(session.user.id);
-      } else {
-        router.push('/');
       }
     });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [router]);
+  }, []);
 
   const hydrateWorkspace = async (uid: string) => {
     const { data, error } = await supabase
@@ -81,11 +65,6 @@ export default function HomeDashboard() {
         setActiveSpaceId(data.space_id);
       }
     }
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
   };
 
   const handleSyncKnowledge = async () => {
@@ -164,20 +143,16 @@ export default function HomeDashboard() {
 
   const embedCode = `<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
 
+  // Note we use h-full and w-full here to inherit the size of the layout wrapper
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-white text-gray-900 font-sans overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full w-full bg-white text-gray-900 font-sans overflow-hidden">
       <Toaster position="top-center" />
       
       {/* LEFT PANE: CONFIGURATION */}
       <div className="w-full md:w-[400px] border-r border-gray-200 bg-white p-8 flex flex-col overflow-y-auto z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-xl font-medium mb-1 tracking-tight">Workspace</h1>
-            <p className="text-gray-500 text-sm">Configure your AI agent.</p>
-          </div>
-          <button onClick={handleSignOut} className="text-gray-400 hover:text-black transition-colors" title="Sign out">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          </button>
+        <div className="mb-8">
+          <h1 className="text-xl font-medium mb-1 tracking-tight">Workspace</h1>
+          <p className="text-gray-500 text-sm">Configure your AI agent.</p>
         </div>
         
         <div className="space-y-8 flex-1 pb-10">
@@ -317,7 +292,6 @@ export default function HomeDashboard() {
 
             <div className="flex-1 flex gap-8">
               <div className="w-[400px] h-[600px] bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex-shrink-0 relative">
-                {/* Triggering full iframe reload when refreshKey changes */}
                 <iframe 
                   key={refreshKey}
                   src={`/widget?spaceId=${activeSpaceId}`} 
