@@ -1,13 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toaster, toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+import { toast } from 'sonner';
+import { supabaseClient as supabase } from '@/lib/supabase-client';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -70,7 +65,6 @@ export default function AuthPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#FAFAFA] font-sans px-4">
-      <Toaster position="top-center" richColors />
       
       <div className="w-full max-w-[360px] p-8 bg-white border border-gray-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300">
         
@@ -146,6 +140,9 @@ export default function AuthPage() {
               <input 
                 id="otp"
                 type="text" 
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
                 maxLength={6}
                 placeholder="000000"
                 required
