@@ -1,3 +1,4 @@
+// app/(dashboard)/home/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -21,13 +22,16 @@ export default function HomeDashboard() {
   const [newPrompt, setNewPrompt] = useState('');
   const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false);
   
+  // --- Widget Presentation Overrides ---
+  const [theme, setTheme] = useState('auto');
+  const [position, setPosition] = useState('right');
+
   // --- UI States ---
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Hydrate only — layout handles redirect checks
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -67,9 +71,7 @@ export default function HomeDashboard() {
         "How do I contact support?"
       ]);
       
-      if (data.space_id) {
-        setActiveSpaceId(data.space_id);
-      }
+      if (data.space_id) setActiveSpaceId(data.space_id);
     } else {
       setSuggestedPrompts([
         "How do I reset my password?",
@@ -168,10 +170,51 @@ export default function HomeDashboard() {
 
   if (!userId) return null; 
 
-  const embedCode = `<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
+  const embedCode = `<script>
+  (function() {
+    var position = "${position}";
+    var theme = "${theme}";
+    var iframe = document.createElement('iframe');
+    iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme;
+    iframe.style.position = 'fixed';
+    iframe.style.bottom = '20px';
+    iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
+    iframe.style.width = '100px';
+    iframe.style.height = '100px';
+    iframe.style.border = 'none';
+    iframe.style.zIndex = '999999';
+    iframe.style.background = 'transparent';
+    iframe.style.colorScheme = 'normal';
+    // Mobile Viewport Metatag Fixes
+    var meta = document.createElement('meta');
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+    document.head.appendChild(meta);
+    document.body.appendChild(iframe);
 
-  // Pass un-saved values into the iframe to allow instant live previews without a DB roundtrip
-  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}&showPrompts=${showPrompts}&prompts=${encodeURIComponent(JSON.stringify(suggestedPrompts))}&leadCapture=${leadCaptureEnabled}`;
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'kb-widget-resize') {
+        if (e.data.isOpen) {
+          var isMobile = window.innerWidth < 600;
+          iframe.style.width = isMobile ? '100%' : '400px';
+          iframe.style.height = isMobile ? '100%' : '600px';
+          iframe.style.bottom = isMobile ? '0' : '20px';
+          iframe.style.right = isMobile ? '0' : (position === 'right' ? '20px' : 'auto');
+          iframe.style.left = isMobile ? '0' : (position === 'left' ? '20px' : 'auto');
+        } else {
+          iframe.style.width = '100px';
+          iframe.style.height = '100px';
+          iframe.style.bottom = '20px';
+          iframe.style.right = position === 'right' ? '20px' : 'auto';
+          iframe.style.left = position === 'left' ? '20px' : 'auto';
+        }
+      }
+    });
+  })();
+</script>`;
+
+  // Override preview boolean to force the widget Open so users don't see a shrunken button inside the sandbox window
+  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}&showPrompts=${showPrompts}&prompts=${encodeURIComponent(JSON.stringify(suggestedPrompts))}&leadCapture=${leadCaptureEnabled}&theme=${theme}&position=${position}&preview=true`;
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-white text-gray-900 font-sans overflow-hidden">
@@ -184,7 +227,6 @@ export default function HomeDashboard() {
         </div>
         
         <div className="space-y-8 flex-1 pb-10">
-          {/* 1. KNOWLEDGE BASE */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">1. Knowledge Base</h2>
             <div>
@@ -216,7 +258,6 @@ export default function HomeDashboard() {
             </button>
           </div>
 
-          {/* 2. PERSONA */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">2. Agent Persona</h2>
             <div>
@@ -229,7 +270,6 @@ export default function HomeDashboard() {
             </div>
           </div>
 
-          {/* 3. BRAND CUSTOMIZATION */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">3. Brand Customization</h2>
             
@@ -266,7 +306,7 @@ export default function HomeDashboard() {
               <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Bot Avatar URL</label>
               <input 
                 type="text" 
-                placeholder="[https://example.com/avatar.png](https://example.com/avatar.png)"
+                placeholder="https://example.com/avatar.png"
                 className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
                 value={botAvatar}
                 onChange={(e) => setBotAvatar(e.target.value)}
@@ -285,7 +325,6 @@ export default function HomeDashboard() {
             </div>
           </div>
 
-          {/* 4. SUGGESTED PROMPTS */}
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <h2 className="text-sm font-semibold text-gray-900">4. Suggested Prompts</h2>
@@ -347,7 +386,6 @@ export default function HomeDashboard() {
             )}
           </div>
 
-          {/* 5. LEAD GENERATION */}
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <h2 className="text-sm font-semibold text-gray-900">5. Lead Generation</h2>
@@ -369,6 +407,35 @@ export default function HomeDashboard() {
                 A pre-chat form will require users to enter their Name and Email before they can start interacting with your bot.
               </p>
             )}
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">6. Widget Placement & UI</h2>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Position</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-sm focus:outline-none focus:border-black text-sm"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                >
+                  <option value="right">Bottom Right</option>
+                  <option value="left">Bottom Left</option>
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Color Theme</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-sm focus:outline-none focus:border-black text-sm"
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                >
+                  <option value="auto">Auto (System)</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </div>
+            </div>
 
             <button 
               onClick={handleSaveConfig}
@@ -405,17 +472,17 @@ export default function HomeDashboard() {
             </div>
 
             <div className="flex-1 flex gap-8">
-              <div className="w-[400px] h-[600px] bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex-shrink-0 relative">
+              <div className="w-[400px] h-[600px] bg-transparent rounded-[16px] shadow-2xl overflow-hidden flex-shrink-0 relative">
                 <iframe 
                   key={refreshKey}
                   src={previewUrl} 
-                  className="w-full h-full border-none"
+                  className="w-full h-full border-none bg-transparent"
                 />
               </div>
 
               <div className="flex-1 flex flex-col">
                 <h3 className="text-sm font-medium mb-3 text-gray-900">Deployment Code</h3>
-                <p className="text-xs text-gray-500 mb-4">Copy and paste this snippet directly into your website's HTML.</p>
+                <p className="text-xs text-gray-500 mb-4">Copy and paste this Javascript snippet directly into your website's HTML before the closing body tag.</p>
                 <textarea 
                   readOnly 
                   className="w-full p-4 border border-gray-200 rounded-sm bg-gray-50 text-xs font-mono h-48 focus:outline-none focus:ring-1 focus:ring-black transition-shadow text-gray-700 leading-relaxed resize-none"
