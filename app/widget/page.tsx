@@ -159,7 +159,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
 
       {/* Chat Area */}
       <div 
-        className="flex-1 overflow-y-auto p-4 flex flex-col"
+        className="flex-1 overflow-y-auto p-4 pb-2 flex flex-col"
         aria-live="polite"
         aria-atomic="false"
       >
@@ -219,12 +219,12 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           <>
             <div className="flex-1" />
             
-            <div className="w-full flex flex-wrap justify-center gap-2 mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="w-full flex flex-wrap justify-center gap-2 mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
               {suggestedPrompts.map((prompt: string, index: number) => (
                 <button
                   key={index}
                   onClick={() => append({ role: 'user', content: prompt })}
-                  className="text-[13px] px-4 py-2.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition-all shadow-sm text-center leading-tight max-w-full truncate whitespace-normal break-words"
+                  className="text-[13px] px-4 py-2.5 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words"
                 >
                   {prompt}
                 </button>
@@ -233,7 +233,8 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           </>
         )}
         
-        <div ref={messagesEndRef} className="h-4 w-full shrink-0" />
+        {/* Empty div for auto-scrolling. Removed height constraints so pills can perfectly touch the bottom. */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
@@ -263,7 +264,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
         </form>
       </div>
 
-      {/* Footer */}
+      {/* "Powered By" Watermark Footer */}
       {!removeBranding && (
         <div className="py-2 text-center text-[10px] text-gray-400 bg-gray-50 border-t border-gray-100 flex justify-center items-center">
           Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-500 hover:text-gray-800 ml-1 transition-colors">Knowledge Bot</a>
