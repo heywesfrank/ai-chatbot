@@ -1,16 +1,35 @@
+/* app/globals.css */
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Widget Light Theme Default */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --border-color: #f3f4f6;
+  --border-strong: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --msg-bot-bg: #f3f4f6;
+  --msg-bot-text: #1f2937;
+  --msg-user-text: #ffffff;
+  --input-bg: #ffffff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  --bg-primary: #18181b;
+  --bg-secondary: #27272a;
+  --border-color: #3f3f46;
+  --border-strong: #52525b;
+  --text-primary: #f9fafb;
+  --text-secondary: #a1a1aa;
+  --msg-bot-bg: #27272a;
+  --msg-bot-text: #e4e4e7;
+  --msg-user-text: #ffffff;
+  --input-bg: #18181b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +37,26 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+
+  [data-theme="auto"] {
+    --bg-primary: #18181b;
+    --bg-secondary: #27272a;
+    --border-color: #3f3f46;
+    --border-strong: #52525b;
+    --text-primary: #f9fafb;
+    --text-secondary: #a1a1aa;
+    --msg-bot-bg: #27272a;
+    --msg-bot-text: #e4e4e7;
+    --msg-user-text: #ffffff;
+    --input-bg: #18181b;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
