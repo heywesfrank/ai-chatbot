@@ -4,19 +4,44 @@
 import { useState, useEffect, useRef } from 'react';
 import { useChat } from 'ai/react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
-import { useSessionStorage } from '@/hooks/useSessionStorage';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import ChatInput from './ChatInput';
-import LeadCaptureForm from './LeadCaptureForm';
 import MessageBubble from './MessageBubble';
-import { ClearIcon } from '@/components/icons';
+import { ClearIcon, ChatBubbleIcon, ChevronDownIcon, LeadIcon } from '@/components/icons';
+
+const playPopSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.1);
+  } catch(e) {}
+};
 
 export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
+  const [isOpen, setIsOpen] = useState(urlOverrides.preview ? true : false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const enableLeadCapture = urlOverrides.leadCapture !== null ? urlOverrides.leadCapture : (config?.lead_capture_enabled ?? false);
-  const [isLeadCaptured, setIsLeadCaptured, removeLeadCaptured] = useSessionStorage(`lead_captured_${spaceId}`, !enableLeadCapture);
+  const [isLeadCaptured, setIsLeadCaptured, removeLeadCaptured] = useLocalStorage(`lead_captured_${spaceId}`, !enableLeadCapture);
+  
+  const [leadName, setLeadName] = useState('');
+  const [leadEmail, setLeadEmail] = useState('');
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
@@ -34,22 +59,45 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const initMsg = { id: 'init', role: 'assistant', content: welcomeMessage } as const;
   
-  const [savedMessages, setSavedMessages, removeSavedMessages] = useSessionStorage<any[]>(`chat_session_${spaceId}`, [initMsg]);
+  const [savedMessages, setSavedMessages, removeSavedMessages] = useLocalStorage<any[]>(`chat_session_${spaceId}`, [initMsg]);
   const { messages, input, handleInputChange, handleSubmit, isLoading, error, setMessages, append } = useChat({
     api: '/api/chat',
     body: { spaceId }, 
     initialMessages: savedMessages,
   });
 
-  const [liveSessionId, setLiveSessionId, removeLiveSessionId] = useSessionStorage<string | null>(`live_session_id_${spaceId}`, null);
-  const [liveMessages, setLiveMessages, removeLiveMessages] = useSessionStorage<{id: string, role: string, content: string}[]>(`live_messages_${spaceId}`, []);
+  const [liveSessionId, setLiveSessionId, removeLiveSessionId] = useLocalStorage<string | null>(`live_session_id_${spaceId}`, null);
+  const [liveMessages, setLiveMessages, removeLiveMessages] = useLocalStorage<{id: string, role: string, content: string}[]>(`live_messages_${spaceId}`, []);
 
-  // Update session storage whenever messages change
+  const prevMessagesLength = useRef(messages.length);
+  const prevLiveMessagesLength = useRef(liveMessages.length);
+
+  // Resize Message to Host iframe
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.parent.postMessage({ type: 'kb-widget-resize', isOpen }, '*');
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     setSavedMessages(messages);
   }, [messages, setSavedMessages]);
 
-  // Real-time listener for human escalation
+  useEffect(() => {
+    const isNewMessage = messages.length > prevMessagesLength.current;
+    const isNewLiveMessage = liveMessages.length > prevLiveMessagesLength.current;
+    
+    if (isNewMessage || isNewLiveMessage) {
+      const lastMsg = isNewLiveMessage ? liveMessages[liveMessages.length - 1] : messages[messages.length - 1];
+      if (lastMsg && lastMsg.role !== 'user' && (!isOpen || document.hidden)) {
+        if (!isOpen) setUnreadCount(c => c + 1);
+        playPopSound();
+      }
+    }
+    prevMessagesLength.current = messages.length;
+    prevLiveMessagesLength.current = liveMessages.length;
+  }, [messages, liveMessages, isOpen]);
+
   useEffect(() => {
     if (!liveSessionId) return;
 
@@ -73,7 +121,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages, liveMessages]);
+  }, [messages, liveMessages, isOpen]);
 
   const handleClearChat = () => {
     setMessages([initMsg]);
@@ -105,13 +153,14 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     } catch (e) { console.error(e); }
   };
 
-  const handleLeadSubmit = async (name: string, email: string) => {
+  const handleLeadFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmittingLead(true);
     try {
       await fetch('/api/lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceId, name, email })
+        body: JSON.stringify({ spaceId, name: leadName, email: leadEmail })
       });
       setIsLeadCaptured(true);
     } catch (e) { console.error('Lead capture failed', e); }
@@ -132,7 +181,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       const data = await res.json();
       if (data.sessionId) {
         setLiveSessionId(data.sessionId);
-        // Inject system message to represent escalation state cleanly in history
         setLiveMessages([
           { id: Date.now().toString(), role: 'system', content: 'Connecting you to an agent...' },
           { id: (Date.now() + 1).toString(), role: 'user', content: prompt }
@@ -171,35 +219,84 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     }
   };
 
+  if (!isOpen) {
+    return (
+      <div className="fixed bottom-0 top-0 left-0 right-0 flex items-center justify-center bg-transparent overflow-hidden" data-theme={urlOverrides.theme}>
+        <button 
+          onClick={() => { setIsOpen(true); setUnreadCount(0); }}
+          className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 relative"
+          style={{ backgroundColor: 'var(--primary-color)' }}
+          aria-label="Open Chat"
+        >
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
+              {unreadCount}
+            </span>
+          )}
+          <ChatBubbleIcon className="w-6 h-6 fill-current text-white" />
+        </button>
+      </div>
+    );
+  }
+
+  const Header = () => (
+    <div className="p-4 font-medium text-center shadow-sm text-white flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)' }}>
+      <div className="flex items-center gap-2">
+        {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
+        <span>{headerText}</span>
+      </div>
+      
+      {isLeadCaptured && (
+        <button aria-label="Clear Chat" onClick={handleClearChat} className="absolute left-3 p-1.5 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition-colors outline-none focus:ring-2 focus:ring-white/50" title="Clear Chat">
+          <ClearIcon className="w-4 h-4" />
+        </button>
+      )}
+
+      <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition-colors outline-none focus:ring-2 focus:ring-white/50" title="Close Chat">
+        <ChevronDownIcon className="w-5 h-5" />
+      </button>
+    </div>
+  );
+
   if (!isLeadCaptured) {
     return (
-      <LeadCaptureForm 
-        primaryColor={primaryColor}
-        botAvatar={botAvatar}
-        headerText={headerText}
-        removeBranding={removeBranding}
-        handleLeadSubmit={handleLeadSubmit}
-        isSubmittingLead={isSubmittingLead}
-      />
+      <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+        <Header />
+        <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-300">
+          <div className="w-12 h-12 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mb-4 border border-[var(--border-color)]">
+            <LeadIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+          </div>
+          <h3 className="text-base font-medium text-[var(--text-primary)] mb-1">Let's get started</h3>
+          <p className="text-xs text-[var(--text-secondary)] text-center mb-6 max-w-[250px]">Please enter your details so we can assist you better and follow up if needed.</p>
+          
+          <form onSubmit={handleLeadFormSubmit} className="w-full max-w-[280px] space-y-3">
+            <div>
+              <input aria-label="Your Name" type="text" required placeholder="Your Name" className="w-full p-2.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-md focus:outline-none focus:ring-2 transition-all text-sm shadow-sm" style={{ '--tw-ring-color': 'var(--primary-color)' } as any} value={leadName} onChange={e => setLeadName(e.target.value)} />
+            </div>
+            <div>
+              <input aria-label="Your Email" type="email" required placeholder="Your Email" className="w-full p-2.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-md focus:outline-none focus:ring-2 transition-all text-sm shadow-sm" style={{ '--tw-ring-color': 'var(--primary-color)' } as any} value={leadEmail} onChange={e => setLeadEmail(e.target.value)} />
+            </div>
+            <button aria-label="Start Chat" type="submit" disabled={isSubmittingLead} className="w-full text-white py-3 rounded-md hover:opacity-90 transition-all font-medium shadow-sm mt-2 disabled:opacity-50 active:scale-95" style={{ backgroundColor: 'var(--primary-color)' }}>
+              {isSubmittingLead ? 'Starting chat...' : 'Start Chat'}
+            </button>
+          </form>
+        </div>
+        {!removeBranding && (
+          <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center">
+            Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white font-sans text-sm" style={{ '--primary-color': primaryColor } as React.CSSProperties}>
-      <div className="p-4 font-medium text-center shadow-sm text-white flex justify-center items-center relative z-10" style={{ backgroundColor: 'var(--primary-color)' }}>
-        <div className="flex items-center gap-2">
-          {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
-          <span>{headerText}</span>
-        </div>
-        <button aria-label="Clear Chat" onClick={handleClearChat} className="absolute right-3 p-2 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition-colors outline-none focus:ring-2 focus:ring-white/50" title="Clear Chat">
-          <ClearIcon className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="flex flex-col h-full w-full bg-[var(--bg-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+      <Header />
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col" aria-live="polite" aria-atomic="false">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col bg-[var(--bg-primary)]" aria-live="polite" aria-atomic="false">
         <div className="space-y-4">
           
-          {/* Main AI Messages */}
           {messages.map((msg, index) => (
             <MessageBubble 
               key={msg.id}
@@ -221,15 +318,13 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             />
           ))}
 
-          {/* Live Chat Divider */}
           {liveMessages.length > 0 && (
             <div className="flex justify-center my-6 relative">
-              <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-gray-100" /></div>
-              <div className="relative flex justify-center"><span className="bg-white px-3 text-[10px] uppercase font-bold tracking-widest text-gray-400">Live Chat</span></div>
+              <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-[var(--border-strong)]" /></div>
+              <div className="relative flex justify-center"><span className="bg-[var(--bg-primary)] px-3 text-[10px] uppercase font-bold tracking-widest text-[var(--text-secondary)]">Live Chat</span></div>
             </div>
           )}
 
-          {/* Realtime Live Messages */}
           {liveMessages.map((msg) => (
             <MessageBubble 
               key={msg.id}
@@ -245,18 +340,18 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
           {isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user' && (
             <div className="flex justify-start">
-               {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-gray-100" />}
-              <div className="px-3 py-2 border border-gray-200 bg-white shadow-sm rounded-md flex items-center space-x-1 min-h-[36px]">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse" />
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-75" />
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-150" />
+               {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)]" />}
+              <div className="px-3 py-2 border border-[var(--border-color)] bg-[var(--msg-bot-bg)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]">
+                <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
+                <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-75" />
+                <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-150" />
               </div>
             </div>
           )}
 
           {error && (
             <div className="flex justify-center my-2">
-              <span className="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-sm text-xs shadow-sm">
+              <span className="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-lg text-xs shadow-sm">
                 Sorry, an error occurred.
               </span>
             </div>
@@ -271,7 +366,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
                 <button
                   key={index}
                   onClick={() => append({ role: 'user', content: prompt })}
-                  className="text-[13px] px-4 py-2.5 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words"
+                  className="text-[13px] px-4 py-2.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words"
                 >
                   {prompt}
                 </button>
@@ -291,8 +386,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       />
 
       {!removeBranding && (
-        <div className="py-2 text-center text-[10px] text-gray-400 bg-gray-50 border-t border-gray-100 flex justify-center items-center">
-          Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-500 hover:text-gray-800 ml-1 transition-colors">Knowledge Bot</a>
+        <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center">
+          Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
         </div>
       )}
     </div>
