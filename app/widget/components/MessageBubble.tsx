@@ -33,7 +33,6 @@ export default function MessageBubble({
 }: any) {
   const [escalationEmail, setEscalationEmail] = useState('');
 
-  // Handle system messages naturally as UI alerts
   if (msg.role === 'system') {
     return (
       <div className="flex justify-center my-3 animate-in fade-in duration-300">
@@ -53,26 +52,26 @@ export default function MessageBubble({
         <img 
           src={botAvatar} 
           alt={isAgent ? "Agent" : "Bot"} 
-          className={`w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border ${isAgent ? 'border-green-300 shadow-sm' : 'border-gray-100'}`} 
+          className={`w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border ${isAgent ? 'border-green-300 shadow-sm' : 'border-[var(--border-color)]'}`} 
         />
       )}
       
       <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div 
-          className={`px-3 py-2 rounded-md leading-relaxed break-words shadow-sm w-full ${isUser ? 'text-white' : 'border border-gray-200 bg-white text-gray-800'}`}
+          className={`px-3.5 py-2.5 rounded-2xl leading-relaxed break-words shadow-sm w-full ${isUser ? 'text-[var(--msg-user-text)] rounded-tr-sm' : 'bg-[var(--msg-bot-bg)] text-[var(--msg-bot-text)] border border-[var(--border-color)] rounded-tl-sm'}`}
           style={isUser ? { backgroundColor: 'var(--primary-color)' } : {}}
         >
           {isUser ? msg.content : (
             <ReactMarkdown 
-              className="prose prose-sm max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-600"
+              className="prose prose-sm max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)]"
               components={{
                 pre: ({ children, ...props }) => {
                   const codeText = flattenText(children);
                   return (
                     <div className="relative group/code my-2">
-                      <pre {...props}>{children}</pre>
-                      <button aria-label="Copy code snippet" onClick={() => handleCopy(codeText, codeText)} className="absolute top-2 right-2 p-1.5 bg-white border border-gray-200 rounded shadow-sm text-gray-500 opacity-0 group-hover/code:opacity-100 transition-opacity hover:bg-gray-50 focus:opacity-100 outline-none" title="Copy code">
-                        {copiedId === codeText ? <CheckIcon className="w-3.5 h-3.5 text-green-600" /> : <CopyIcon className="w-3.5 h-3.5" />}
+                      <pre {...props} className="p-3 rounded-md overflow-x-auto text-[12px]">{children}</pre>
+                      <button aria-label="Copy code snippet" onClick={() => handleCopy(codeText, codeText)} className="absolute top-2 right-2 p-1.5 bg-[var(--bg-primary)] border border-[var(--border-strong)] rounded shadow-sm text-[var(--text-secondary)] opacity-0 group-hover/code:opacity-100 transition-opacity hover:bg-[var(--bg-secondary)] focus:opacity-100 outline-none" title="Copy code">
+                        {copiedId === codeText ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   );
@@ -83,16 +82,15 @@ export default function MessageBubble({
             </ReactMarkdown>
           )}
 
-          {/* Render Escalation UI attached directly to the message where it was triggered */}
           {!isUser && msg.id !== 'init' && !isTyping && !liveSessionId && escalatingId === msg.id && (
-            <div className="mt-3 border-t border-gray-100 pt-3">
+            <div className="mt-3 border-t border-[var(--border-strong)] pt-3">
               <div className="flex gap-1.5 animate-in fade-in duration-200">
                 <input 
                   type="email" 
                   aria-label="Email for live agent escalation"
                   required
                   placeholder="Your email address" 
-                  className="border border-gray-300 text-[11px] p-1.5 rounded-sm flex-1 focus:outline-none focus:border-gray-500 text-gray-800 disabled:opacity-50" 
+                  className="border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] text-[11px] p-2 rounded-md flex-1 focus:outline-none focus:border-[var(--primary-color)] transition-all disabled:opacity-50 shadow-sm" 
                   value={escalationEmail} 
                   onChange={e => setEscalationEmail(e.target.value)} 
                   disabled={isSubmittingTicket}
@@ -101,7 +99,7 @@ export default function MessageBubble({
                   aria-label="Start human chat"
                   onClick={() => submitTicket(msg.id, userPrompt, escalationEmail)} 
                   disabled={!escalationEmail.includes('@') || isSubmittingTicket}
-                  className="bg-black text-white text-[11px] px-3 font-medium rounded-sm disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                  className="bg-[var(--text-primary)] text-[var(--bg-primary)] text-[11px] px-3.5 font-medium rounded-md disabled:opacity-50 hover:opacity-80 transition-opacity shadow-sm"
                 >
                   {isSubmittingTicket ? 'Starting...' : 'Chat'}
                 </button>
@@ -110,27 +108,26 @@ export default function MessageBubble({
           )}
         </div>
 
-        {/* Action Bar (Feedback, Copy, Escalate) */}
         {!isUser && msg.id !== 'init' && !isTyping && !liveSessionId && (
-          <div className="flex items-center gap-1.5 mt-0.5 ml-1 text-gray-400">
-            <button aria-label="Copy message" onClick={() => handleCopy(msg.content, msg.id)} className="hover:text-gray-700 transition-colors p-1" title="Copy response">
-              {copiedId === msg.id ? <CheckIcon className="w-3.5 h-3.5 text-green-600" /> : <CopyIcon className="w-3.5 h-3.5" />}
+          <div className="flex items-center gap-1.5 mt-0.5 ml-1 text-[var(--text-secondary)]">
+            <button aria-label="Copy message" onClick={() => handleCopy(msg.content, msg.id)} className="hover:text-[var(--text-primary)] transition-colors p-1" title="Copy response">
+              {copiedId === msg.id ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
             </button>
-            <button aria-label="Thumbs up" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'up')} className={`hover:text-green-600 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'up' ? 'text-green-600' : ''}`} title="Helpful">
+            <button aria-label="Thumbs up" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'up')} className={`hover:text-green-500 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'up' ? 'text-green-500' : ''}`} title="Helpful">
               <ThumbsUpIcon className="w-3.5 h-3.5" />
             </button>
-            <button aria-label="Thumbs down" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-600 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'down' ? 'text-red-600' : ''}`} title="Not helpful">
+            <button aria-label="Thumbs down" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-500 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'down' ? 'text-red-500' : ''}`} title="Not helpful">
               <ThumbsDownIcon className="w-3.5 h-3.5" />
             </button>
 
-            <div className="w-px h-3 bg-gray-200 mx-1"></div>
-            <button aria-label="Talk to human" onClick={() => setEscalatingId(msg.id)} className="text-[11px] font-medium hover:text-gray-700 transition-colors">
+            <div className="w-px h-3 bg-[var(--border-strong)] mx-1"></div>
+            <button aria-label="Talk to human" onClick={() => setEscalatingId(msg.id)} className="text-[11px] font-medium hover:text-[var(--text-primary)] transition-colors">
               Talk to human
             </button>
           </div>
         )}
 
-        {isAgent && <span className="text-[10px] text-gray-400 ml-1">Human Agent</span>}
+        {isAgent && <span className="text-[10px] text-[var(--text-secondary)] ml-1">Human Agent</span>}
       </div>
     </div>
   );
