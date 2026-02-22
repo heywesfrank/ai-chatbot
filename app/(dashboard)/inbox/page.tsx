@@ -11,43 +11,52 @@ export default function InboxDashboard() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    let channel: any;
 
-  const fetchSessions = async () => {
-    setIsLoading(true);
-    const { data: { session: authSession } } = await supabase.auth.getSession();
-    
-    if (authSession) {
-      const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', authSession.user.id).maybeSingle();
+    const fetchSessions = async () => {
+      setIsLoading(true);
+      const { data: { session: authSession } } = await supabase.auth.getSession();
       
-      if (config?.space_id) {
-        // Fetch existing sessions
-        const { data: rawSessions } = await supabase
-          .from('live_sessions')
-          .select('*')
-          .eq('space_id', config.space_id)
-          .order('created_at', { ascending: false });
-          
-        if (rawSessions) setSessions(rawSessions);
+      if (authSession) {
+        const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', authSession.user.id).maybeSingle();
+        
+        if (config?.space_id) {
+          // Fetch existing sessions
+          const { data: rawSessions } = await supabase
+            .from('live_sessions')
+            .select('*')
+            .eq('space_id', config.space_id)
+            .order('created_at', { ascending: false });
+            
+          if (rawSessions) setSessions(rawSessions);
 
-        // Listen for new sessions needing help
-        const channel = supabase.channel('dashboard_sessions')
-          .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'live_sessions', 
-            filter: `space_id=eq.${config.space_id}` 
-          }, payload => {
-            setSessions(prev => [payload.new, ...prev]);
-          })
-          .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
+          // Listen for new sessions needing help
+          channel = supabase.channel('dashboard_sessions')
+            .on('postgres_changes', { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'live_sessions', 
+              filter: `space_id=eq.${config.space_id}` 
+            }, payload => {
+              setSessions(prev => [payload.new, ...prev]);
+            })
+            .subscribe();
+        }
       }
-    }
-    setIsLoading(false);
-  };
+      
+      // We moved this outside the return statement so it actually runs!
+      setIsLoading(false);
+    };
+
+    fetchSessions();
+
+    // Properly return the cleanup function to React
+    return () => { 
+      if (channel) {
+        supabase.removeChannel(channel); 
+      }
+    };
+  }, []);
 
   const loadSession = async (session: any) => {
     setActiveSession(session);
