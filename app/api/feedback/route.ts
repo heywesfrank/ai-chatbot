@@ -25,6 +25,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
+    // Delete any existing feedback for this specific message to allow switching votes
+    await supabase.from('chat_feedback').delete().eq('message_id', messageId);
+
+    // Insert the new/updated feedback
     const { error } = await supabase
       .from('chat_feedback')
       .insert({ space_id: spaceId, message_id: messageId, prompt, response, rating });
