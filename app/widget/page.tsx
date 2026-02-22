@@ -78,6 +78,7 @@ export default function WidgetWrapper() {
 function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null, config: any, urlOverrides: any }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   // Custom Theming Mapping with URL override support for live preview
   const primaryColor = urlOverrides.color || config?.primary_color || '#000000';
@@ -136,14 +137,19 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
   const handleClearChat = () => {
     setMessages([initMsg]);
     sessionStorage.removeItem(storageKey);
+    setFeedback({});
   };
 
-  const handleCopy = (text: string) => {
-    if (navigator.clipboard) navigator.clipboard.writeText(text);
+  const handleCopy = (text: string, id: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
   const submitFeedback = async (msgId: string, prompt: string, response: string, rating: 'up' | 'down') => {
-    if (feedback[msgId]) return;
+    if (feedback[msgId] === rating) return; // Prevent duplicate calls for the exact same vote
     setFeedback(prev => ({ ...prev, [msgId]: rating }));
     
     try {
@@ -226,11 +232,15 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                               <div className="relative group/code my-2">
                                 <pre {...props}>{children}</pre>
                                 <button 
-                                  onClick={() => handleCopy(codeText)}
+                                  onClick={() => handleCopy(codeText, codeText)}
                                   className="absolute top-2 right-2 p-1.5 bg-white border border-gray-200 rounded shadow-sm text-gray-500 opacity-0 group-hover/code:opacity-100 transition-opacity hover:bg-gray-50 focus:opacity-100 outline-none"
                                   title="Copy code"
                                 >
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                  {copiedId === codeText ? (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                  ) : (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                  )}
                                 </button>
                               </div>
                             );
@@ -245,13 +255,17 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                   {/* Minimalist Action Bar (Copy / Feedback) */}
                   {msg.role === 'assistant' && msg.id !== 'init' && !isTyping && (
                     <div className="flex items-center gap-1.5 mt-0.5 ml-1 text-gray-400">
-                      <button onClick={() => handleCopy(msg.content)} className="hover:text-gray-700 transition-colors p-1" title="Copy response">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      <button onClick={() => handleCopy(msg.content, msg.id)} className="hover:text-gray-700 transition-colors p-1" title="Copy response">
+                        {copiedId === msg.id ? (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        )}
                       </button>
-                      <button onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'up')} className={`hover:text-green-600 transition-colors p-1 ${feedback[msg.id] === 'up' ? 'text-green-600' : ''}`} title="Helpful" disabled={!!feedback[msg.id]}>
+                      <button onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'up')} className={`hover:text-green-600 transition-colors p-1 ${feedback[msg.id] === 'up' ? 'text-green-600' : ''}`} title="Helpful">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
                       </button>
-                      <button onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-600 transition-colors p-1 ${feedback[msg.id] === 'down' ? 'text-red-600' : ''}`} title="Not helpful" disabled={!!feedback[msg.id]}>
+                      <button onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-600 transition-colors p-1 ${feedback[msg.id] === 'down' ? 'text-red-600' : ''}`} title="Not helpful">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
                       </button>
                     </div>
