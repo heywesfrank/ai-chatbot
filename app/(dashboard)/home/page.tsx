@@ -1,4 +1,3 @@
-// app/home/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -17,6 +16,9 @@ export default function HomeDashboard() {
   const [headerText, setHeaderText] = useState('Documentation Bot');
   const [welcomeMessage, setWelcomeMessage] = useState('How can I help you today?');
   const [botAvatar, setBotAvatar] = useState('');
+  const [showPrompts, setShowPrompts] = useState(true);
+  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
+  const [newPrompt, setNewPrompt] = useState('');
   
   // --- UI States ---
   const [isSyncing, setIsSyncing] = useState(false);
@@ -37,7 +39,7 @@ export default function HomeDashboard() {
   const hydrateWorkspace = async (uid: string) => {
     const { data, error } = await supabase
       .from('bot_config')
-      .select('space_id, system_prompt, api_key, primary_color, header_text, welcome_message, bot_avatar') 
+      .select('space_id, system_prompt, api_key, primary_color, header_text, welcome_message, bot_avatar, show_prompts, suggested_prompts') 
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle(); 
@@ -55,11 +57,41 @@ export default function HomeDashboard() {
       setHeaderText(data.header_text || 'Documentation Bot');
       setWelcomeMessage(data.welcome_message || 'How can I help you today?');
       setBotAvatar(data.bot_avatar || '');
+      setShowPrompts(data.show_prompts ?? true);
+      
+      // Load custom prompts, default to standard array if not defined yet
+      setSuggestedPrompts(data.suggested_prompts || [
+        "How do I reset my password?",
+        "Where can I find the documentation?",
+        "How do I contact support?"
+      ]);
       
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
       }
+    } else {
+      // Default initialization
+      setSuggestedPrompts([
+        "How do I reset my password?",
+        "Where can I find the documentation?",
+        "How do I contact support?"
+      ]);
     }
+  };
+
+  const handleAddPrompt = () => {
+    const p = newPrompt.trim();
+    if (!p) return;
+    if (suggestedPrompts.includes(p)) {
+      setNewPrompt('');
+      return toast.error('This prompt already exists.');
+    }
+    setSuggestedPrompts([...suggestedPrompts, p]);
+    setNewPrompt('');
+  };
+
+  const handleRemovePrompt = (promptToRemove: string) => {
+    setSuggestedPrompts(suggestedPrompts.filter(p => p !== promptToRemove));
   };
 
   const handleSyncKnowledge = async () => {
@@ -85,7 +117,7 @@ export default function HomeDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey, primaryColor, headerText, welcomeMessage, botAvatar }), 
+        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey, primaryColor, headerText, welcomeMessage, botAvatar, showPrompts, suggestedPrompts }), 
       });
 
       if (syncResponse.ok && configResponse.ok) {
@@ -117,7 +149,7 @@ export default function HomeDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey, primaryColor, headerText, welcomeMessage, botAvatar }),
+        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey, primaryColor, headerText, welcomeMessage, botAvatar, showPrompts, suggestedPrompts }),
       });
 
       if (response.ok) {
@@ -139,9 +171,8 @@ export default function HomeDashboard() {
   const embedCode = `<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
 
   // Pass un-saved values into the iframe to allow instant live previews without a DB roundtrip
-  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}`;
+  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}&showPrompts=${showPrompts}&prompts=${encodeURIComponent(JSON.stringify(suggestedPrompts))}`;
 
-  // Note we use h-full and w-full here to inherit the size of the layout wrapper
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-white text-gray-900 font-sans overflow-hidden">
       
@@ -252,11 +283,73 @@ export default function HomeDashboard() {
                 onChange={(e) => setWelcomeMessage(e.target.value)}
               />
             </div>
+          </div>
 
+          {/* 4. SUGGESTED PROMPTS */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h2 className="text-sm font-semibold text-gray-900">4. Suggested Prompts</h2>
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    checked={showPrompts} 
+                    onChange={(e) => setShowPrompts(e.target.checked)} 
+                  />
+                  <div className={`block w-8 h-4.5 rounded-full transition-colors ${showPrompts ? 'bg-black' : 'bg-gray-300'}`}></div>
+                  <div className={`absolute left-0.5 top-0.5 bg-white w-3.5 h-3.5 rounded-full transition-transform ${showPrompts ? 'transform translate-x-3.5' : ''}`}></div>
+                </div>
+              </label>
+            </div>
+
+            {showPrompts && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="e.g. How do I reset my password?"
+                    className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
+                    value={newPrompt}
+                    onChange={(e) => setNewPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddPrompt();
+                      }
+                    }}
+                  />
+                  <button 
+                    onClick={(e) => { e.preventDefault(); handleAddPrompt(); }}
+                    disabled={!newPrompt.trim()}
+                    className="px-4 bg-gray-100 border border-gray-300 text-gray-700 text-sm font-medium rounded-sm hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {suggestedPrompts.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-sm">
+                    {suggestedPrompts.map(prompt => (
+                      <span key={prompt} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs text-gray-700 shadow-sm">
+                        <span className="truncate max-w-[200px]">{prompt}</span>
+                        <button 
+                          onClick={() => handleRemovePrompt(prompt)} 
+                          className="text-gray-400 hover:text-red-500 focus:outline-none"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <button 
               onClick={handleSaveConfig}
               disabled={isSaving}
-              className="w-full bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium mt-4"
+              className="w-full bg-black text-white p-2.5 rounded-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium mt-6"
             >
               {isSaving ? 'Saving...' : 'Save Configuration'}
             </button>
