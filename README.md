@@ -12,6 +12,8 @@ create table public.bot_config (
   welcome_message text default 'How can I help you today?',
   bot_avatar text null,
   remove_branding boolean default false,
+  show_prompts boolean default true,
+  suggested_prompts jsonb default '[]'::jsonb,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id),
   constraint bot_config_space_id_key unique (space_id)
