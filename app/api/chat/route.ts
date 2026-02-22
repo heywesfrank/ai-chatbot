@@ -60,7 +60,13 @@ export async function POST(req: Request) {
 
     const [configResponse, embeddingResponse] = await Promise.all([configPromise, embeddingPromise]);
 
-    const queryEmbedding = embeddingResponse.data[0].embedding;
+    const queryEmbedding = embeddingResponse.data?.[0]?.embedding;
+    
+    // Fallback null check for embedding failures (avoids app crash)
+    if (!queryEmbedding) {
+      throw new Error('Failed to generate context embedding.');
+    }
+
     const agentPersona = configResponse.data?.system_prompt || "You are a helpful, minimalist support assistant.";
 
     // 3. Search Supabase for the top 5 matching GitBook paragraphs
