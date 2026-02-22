@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useChat } from 'ai/react';
+import { supabaseClient as supabase } from '@/lib/supabase-client';
 
 const flattenText = (node: any): string => {
   if (typeof node === 'string') return node;
@@ -104,6 +105,9 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
 
   const storageKey = `chat_session_${spaceId}`;
   const leadStorageKey = `lead_captured_${spaceId}`;
+  const liveSessionStorageKey = `live_session_id_${spaceId}`;
+  const liveMessagesStorageKey = `live_messages_${spaceId}`;
+  
   const initMsg = { id: 'init', role: 'assistant', content: welcomeMessage } as const;
 
   const getInitialMessages = () => {
@@ -125,13 +129,53 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
     initialMessages: getInitialMessages(),
   });
 
+  // Live Chat State
+  const [liveSessionId, setLiveSessionId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') return sessionStorage.getItem(liveSessionStorageKey) || null;
+    return null;
+  });
+
+  const [liveMessages, setLiveMessages] = useState<{id: string, role: string, content: string}[]>(() => {
+    if (typeof window !== 'undefined') {
+      try { return JSON.parse(sessionStorage.getItem(liveMessagesStorageKey) || '[]'); } catch(e) { return []; }
+    }
+    return [];
+  });
+
   useEffect(() => {
     sessionStorage.setItem(storageKey, JSON.stringify(messages));
   }, [messages, storageKey]);
 
   useEffect(() => {
+    if (liveSessionId) sessionStorage.setItem(liveSessionStorageKey, liveSessionId);
+    sessionStorage.setItem(liveMessagesStorageKey, JSON.stringify(liveMessages));
+  }, [liveSessionId, liveMessages, liveSessionStorageKey, liveMessagesStorageKey]);
+
+  // Real-time listener
+  useEffect(() => {
+    if (!liveSessionId) return;
+
+    const channel = supabase
+      .channel(`realtime:session_${liveSessionId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'live_messages',
+        filter: `session_id=eq.${liveSessionId}`
+      }, payload => {
+        const newMsg = payload.new as any;
+        if (newMsg.role === 'agent') {
+          setLiveMessages(prev => [...prev, { id: newMsg.id, role: newMsg.role, content: newMsg.content }]);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [liveSessionId]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages]);
+  }, [messages, liveMessages]);
 
   useEffect(() => {
     if (enableLeadCapture && typeof window !== 'undefined') {
@@ -146,7 +190,6 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
     sessionStorage.removeItem(storageKey);
     setFeedback({});
     
-    // Reset lead capture if enabled
     if (enableLeadCapture) {
       sessionStorage.removeItem(leadStorageKey);
       setIsLeadCaptured(false);
@@ -154,10 +197,14 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
       setLeadEmail('');
     }
     
-    // Reset active escalation states
     setEscalatingId(null);
     setEscalatedIds({});
     setEscalationEmail('');
+    
+    setLiveSessionId(null);
+    setLiveMessages([]);
+    sessionStorage.removeItem(liveSessionStorageKey);
+    sessionStorage.removeItem(liveMessagesStorageKey);
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -199,18 +246,53 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
     if (!escalationEmail || isSubmittingTicket) return;
     setIsSubmittingTicket(true);
     try {
-      await fetch('/api/ticket', {
+      // Pass the entire AI conversation history for the agent
+      const history = messages.filter(m => m.id !== 'init').map(m => ({ role: m.role, content: m.content }));
+      
+      const res = await fetch('/api/ticket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceId, email: escalationEmail, prompt })
+        body: JSON.stringify({ spaceId, email: escalationEmail, prompt, history })
       });
+      
+      const data = await res.json();
+      if (data.sessionId) {
+        setLiveSessionId(data.sessionId);
+        setLiveMessages([{ id: Date.now().toString(), role: 'user', content: prompt }]);
+      }
+
       setEscalatedIds(prev => ({ ...prev, [msgId]: true }));
       setEscalatingId(null);
-      setEscalationEmail(''); // Clear out the email input after successful submission
+      setEscalationEmail('');
     } catch (e) { 
       console.error('Ticket failed', e); 
     } finally {
       setIsSubmittingTicket(false);
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    if (liveSessionId) {
+      const userMsg = input.trim();
+      const tempId = Date.now().toString();
+      
+      setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content: userMsg }]);
+      handleInputChange({ target: { value: '' } } as any);
+
+      try {
+        await fetch('/api/live-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: liveSessionId, role: 'user', content: userMsg })
+        });
+      } catch (e) {
+        console.error("Live message failed", e);
+      }
+    } else {
+      handleSubmit(e);
     }
   };
 
@@ -267,6 +349,8 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col" aria-live="polite" aria-atomic="false">
         <div className="space-y-4">
+          
+          {/* AI Messages Map */}
           {messages.map((msg, index) => {
             const userPrompt = index > 0 && messages[index - 1].role === 'user' ? messages[index - 1].content : '';
             const isTyping = isLoading && index === messages.length - 1;
@@ -303,13 +387,13 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                       </ReactMarkdown>
                     )}
 
-                    {/* Human Escalation Form (Shows when 'Talk to human' is clicked) */}
-                    {msg.role === 'assistant' && msg.id !== 'init' && !isTyping && (escalatingId === msg.id || escalatedIds[msg.id]) && (
+                    {/* Human Escalation Trigger */}
+                    {msg.role === 'assistant' && msg.id !== 'init' && !isTyping && !liveSessionId && (escalatingId === msg.id || escalatedIds[msg.id]) && (
                       <div className="mt-3 border-t border-gray-100 pt-3">
                         {escalatedIds[msg.id] ? (
                           <div className="text-[11px] text-green-600 font-medium flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            Ticket created! A human will reach out shortly.
+                            Connecting you to an agent...
                           </div>
                         ) : (
                           <div className="flex gap-1.5 animate-in fade-in duration-200">
@@ -327,7 +411,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                               disabled={!escalationEmail.includes('@') || isSubmittingTicket}
                               className="bg-black text-white text-[11px] px-3 font-medium rounded-sm disabled:opacity-50 hover:bg-gray-800 transition-colors"
                             >
-                              {isSubmittingTicket ? 'Sending...' : 'Send'}
+                              {isSubmittingTicket ? 'Starting...' : 'Chat'}
                             </button>
                           </div>
                         )}
@@ -335,7 +419,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                     )}
                   </div>
 
-                  {msg.role === 'assistant' && msg.id !== 'init' && !isTyping && (
+                  {msg.role === 'assistant' && msg.id !== 'init' && !isTyping && !liveSessionId && (
                     <div className="flex items-center gap-1.5 mt-0.5 ml-1 text-gray-400">
                       <button onClick={() => handleCopy(msg.content, msg.id)} className="hover:text-gray-700 transition-colors p-1" title="Copy response">
                         {copiedId === msg.id ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>}
@@ -347,7 +431,6 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
                       </button>
 
-                      {/* Explicit Escalate Trigger */}
                       {!escalatedIds[msg.id] && (
                         <>
                           <div className="w-px h-3 bg-gray-200 mx-1"></div>
@@ -363,7 +446,37 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
             );
           })}
 
-          {isLoading && messages[messages.length - 1]?.role === 'user' && (
+          {/* Realtime Live Messages Map */}
+          {liveMessages.length > 0 && (
+            <div className="flex justify-center my-6 relative">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-gray-100" /></div>
+              <div className="relative flex justify-center"><span className="bg-white px-3 text-[10px] uppercase font-bold tracking-widest text-gray-400">Live Chat</span></div>
+            </div>
+          )}
+
+          {liveMessages.map((msg, index) => {
+            const isUser = msg.role === 'user';
+            return (
+              <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
+                {!isUser && botAvatar && (
+                  <img src={botAvatar} alt="Agent" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-green-200" />
+                )}
+                <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
+                  <div 
+                    className={`px-3 py-2 rounded-md leading-relaxed break-words shadow-sm w-full ${isUser ? 'text-white' : 'border border-gray-200 bg-white text-gray-800'}`}
+                    style={isUser ? { backgroundColor: 'var(--primary-color)' } : {}}
+                  >
+                    <ReactMarkdown className="prose prose-sm max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-600">
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                  {!isUser && <span className="text-[10px] text-gray-400 ml-1">Human Agent</span>}
+                </div>
+              </div>
+            );
+          })}
+
+          {isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user' && (
             <div className="flex justify-start">
                {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-gray-100" />}
               <div className="px-3 py-2 border border-gray-200 bg-white shadow-sm rounded-md flex items-center space-x-1 min-h-[36px]">
@@ -377,13 +490,13 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           {error && (
             <div className="flex justify-center my-2">
               <span className="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-sm text-xs shadow-sm">
-                Sorry, I encountered an error connecting to the knowledge base.
+                Sorry, an error occurred.
               </span>
             </div>
           )}
         </div>
 
-        {messages.length === 1 && showPrompts && suggestedPrompts.length > 0 && (
+        {messages.length === 1 && showPrompts && suggestedPrompts.length > 0 && !liveSessionId && (
           <>
             <div className="flex-1" />
             <div className="w-full flex flex-wrap justify-center gap-2 mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -403,7 +516,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
       </div>
 
       <div className="border-t border-gray-200 p-3 flex bg-white z-10 relative">
-        <form onSubmit={handleSubmit} className="flex w-full">
+        <form onSubmit={handleFormSubmit} className="flex w-full">
           <input 
             type="text" 
             placeholder="Ask a question..."
@@ -411,11 +524,11 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
             style={{ outlineColor: 'var(--primary-color)' }}
             value={input}
             onChange={handleInputChange}
-            disabled={isLoading}
+            disabled={isLoading && !liveSessionId}
           />
           <button 
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={(isLoading && !liveSessionId) || !input.trim()}
             className="ml-2 text-white px-4 py-2 rounded-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-sm"
             style={{ backgroundColor: 'var(--primary-color)' }}
           >
