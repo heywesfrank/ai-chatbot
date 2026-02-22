@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract all configurations including new branding fields
+    // Extract all configurations including new branding & prompt fields
     const { 
       spaceId, 
       systemPrompt, 
@@ -24,7 +24,9 @@ export async function POST(req: Request) {
       primaryColor, 
       headerText, 
       welcomeMessage, 
-      botAvatar 
+      botAvatar,
+      showPrompts,
+      suggestedPrompts
     } = await req.json();
 
     // Validate that all required fields are present
@@ -52,7 +54,9 @@ export async function POST(req: Request) {
           primary_color: primaryColor || '#000000',
           header_text: headerText || 'Documentation Bot',
           welcome_message: welcomeMessage || 'How can I help you today?',
-          bot_avatar: botAvatar || null
+          bot_avatar: botAvatar || null,
+          show_prompts: showPrompts !== undefined ? showPrompts : true,
+          suggested_prompts: suggestedPrompts || []
         }, 
         { onConflict: 'user_id' }
       );
