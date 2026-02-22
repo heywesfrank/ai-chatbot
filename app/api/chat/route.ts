@@ -82,17 +82,21 @@ export async function POST(req: Request) {
     }
 
     // 4. Combine the retrieved paragraphs into one string of context using Strict Types
+    // ADDED: Embed the source URL directly into the text so the model can cite it
     const context = documents && documents.length > 0 
-      ? documents.map((doc: DocumentMatch) => doc.content).join('\n\n') 
+      ? documents.map((doc: DocumentMatch) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n') 
       : "";
 
     // 5. Assemble the final instructions using clean, categorical logic
+    // ADDED: Directives to output markdown links at the bottom.
     const systemInstructions = `
 ${agentPersona}
 
 CORE DIRECTIVES:
 1. CONVERSATIONAL MODE: If the user is making casual conversation (e.g., greetings, goodbyes, expressions of gratitude, or general small talk), respond naturally and politely. Ignore the CONTEXT.
-2. SUPPORT MODE: If the user is asking a question or seeking help, you MUST answer using ONLY the CONTEXT below.
+2. SUPPORT MODE: If the user is asking a question or seeking help, you MUST answer using ONLY the CONTEXT below. When answering from CONTEXT, you MUST append the source URLs you used at the very end of your response using this exact markdown format:
+
+**Sources:** [1](URL) [2](URL)
 3. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.
 
 CONTEXT:
