@@ -158,8 +158,9 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
       </div>
 
       {/* Chat Area */}
+      {/* Using px-4 pt-4 pb-3 so the bottom padding mathematically matches the 12px (p-3) top padding of the input container */}
       <div 
-        className="flex-1 overflow-y-auto p-4 pb-2 flex flex-col"
+        className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col"
         aria-live="polite"
         aria-atomic="false"
       >
@@ -171,8 +172,9 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                 <img src={botAvatar} alt="Bot" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-gray-100" />
               )}
               
+              {/* Shrunk vertical padding to py-2 while keeping px-3. Identical for human and AI */}
               <div 
-                className={`max-w-[85%] p-3 rounded-md leading-relaxed break-words shadow-sm ${
+                className={`max-w-[85%] px-3 py-2 rounded-md leading-relaxed break-words shadow-sm ${
                   msg.role === 'user' 
                     ? 'text-white' 
                     : 'border border-gray-200 bg-white text-gray-800'
@@ -196,7 +198,8 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                {botAvatar && (
                 <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-gray-100" />
               )}
-              <div className="p-4 border border-gray-200 bg-white shadow-sm rounded-md flex space-x-1" aria-label="AI is typing">
+              {/* Matched padding for the loading indicator to look proportionate */}
+              <div className="px-3 py-2 border border-gray-200 bg-white shadow-sm rounded-md flex items-center space-x-1 min-h-[36px]" aria-label="AI is typing">
                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse" />
                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-75" />
                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse delay-150" />
@@ -233,7 +236,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           </>
         )}
         
-        {/* Empty div for auto-scrolling. Removed height constraints so pills can perfectly touch the bottom. */}
+        {/* Empty div for auto-scrolling */}
         <div ref={messagesEndRef} />
       </div>
 
