@@ -1,3 +1,5 @@
+**Note:** This project uses the `gpt-5-nano` model via a custom `openai.responses.create` endpoint. Do not replace this with older models like `gpt-4o-mini` as it relies on specific formatting.
+
 **Supabase Tables and Functions**
 
 create table public.bot_config (
@@ -11,7 +13,8 @@ create table public.bot_config (
   bot_avatar text null,
   remove_branding boolean default false,
   constraint bot_config_pkey primary key (user_id),
-  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
+  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id),
+  constraint bot_config_space_id_key unique (space_id)
 ) TABLESPACE pg_default;
 
 create table public.gitbook_documents (
