@@ -144,6 +144,18 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
     setMessages([initMsg]);
     sessionStorage.removeItem(storageKey);
     setFeedback({});
+    
+    // Reset lead capture if enabled
+    if (enableLeadCapture) {
+      sessionStorage.removeItem(leadStorageKey);
+      setIsLeadCaptured(false);
+      setLeadName('');
+      setLeadEmail('');
+    }
+    
+    // Reset active escalation states
+    setEscalatingId(null);
+    setEscalatedIds({});
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -213,10 +225,10 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           
           <form onSubmit={handleLeadSubmit} className="w-full max-w-[280px] space-y-3">
             <div>
-              <input type="text" required placeholder="Your Name" className="w-full p-2.5 border border-gray-200 rounded-sm focus:outline-none transition-colors text-sm bg-gray-50/50" value={leadName} onChange={e => setLeadName(e.target.value)} />
+              <input type="text" required placeholder="Your Name" className="w-full p-2.5 border border-gray-200 rounded-sm focus:outline-none transition-colors text-sm bg-gray-50/50 text-gray-800" value={leadName} onChange={e => setLeadName(e.target.value)} />
             </div>
             <div>
-              <input type="email" required placeholder="Your Email" className="w-full p-2.5 border border-gray-200 rounded-sm focus:outline-none transition-colors text-sm bg-gray-50/50" value={leadEmail} onChange={e => setLeadEmail(e.target.value)} />
+              <input type="email" required placeholder="Your Email" className="w-full p-2.5 border border-gray-200 rounded-sm focus:outline-none transition-colors text-sm bg-gray-50/50 text-gray-800" value={leadEmail} onChange={e => setLeadEmail(e.target.value)} />
             </div>
             <button type="submit" disabled={isSubmittingLead} className="w-full text-white py-2.5 rounded-sm hover:opacity-90 transition-opacity font-medium shadow-sm mt-2 disabled:opacity-50" style={{ backgroundColor: 'var(--primary-color)' }}>
               {isSubmittingLead ? 'Starting chat...' : 'Start Chat'}
@@ -250,9 +262,6 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           {messages.map((msg, index) => {
             const userPrompt = index > 0 && messages[index - 1].role === 'user' ? messages[index - 1].content : '';
             const isTyping = isLoading && index === messages.length - 1;
-            
-            // Detect if the bot could not find the information using system prompt hook
-            const isUnknownInfo = msg.content.toLowerCase().includes('do not have that information');
 
             return (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -286,21 +295,21 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                       </ReactMarkdown>
                     )}
 
-                    {/* Human Escalation Flow */}
-                    {msg.role === 'assistant' && isUnknownInfo && !isTyping && (
+                    {/* Human Escalation Form (Shows when 'Talk to human' is clicked) */}
+                    {msg.role === 'assistant' && msg.id !== 'init' && !isTyping && (escalatingId === msg.id || escalatedIds[msg.id]) && (
                       <div className="mt-3 border-t border-gray-100 pt-3">
                         {escalatedIds[msg.id] ? (
                           <div className="text-[11px] text-green-600 font-medium flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             Ticket created! A human will reach out shortly.
                           </div>
-                        ) : escalatingId === msg.id ? (
+                        ) : (
                           <div className="flex gap-1.5 animate-in fade-in duration-200">
                             <input 
                               type="email" 
                               required
                               placeholder="Your email address" 
-                              className="border border-gray-300 text-[11px] p-1.5 rounded-sm flex-1 focus:outline-none focus:border-gray-500" 
+                              className="border border-gray-300 text-[11px] p-1.5 rounded-sm flex-1 focus:outline-none focus:border-gray-500 text-gray-800" 
                               value={escalationEmail} 
                               onChange={e => setEscalationEmail(e.target.value)} 
                             />
@@ -312,13 +321,6 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                               Send
                             </button>
                           </div>
-                        ) : (
-                          <button 
-                            onClick={() => setEscalatingId(msg.id)} 
-                            className="text-[11px] font-medium text-gray-500 hover:text-black transition-colors underline underline-offset-2"
-                          >
-                            Need more help? Talk to a human.
-                          </button>
                         )}
                       </div>
                     )}
@@ -335,6 +337,16 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
                       <button onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-600 transition-colors p-1 ${feedback[msg.id] === 'down' ? 'text-red-600' : ''}`} title="Not helpful">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
                       </button>
+
+                      {/* Explicit Escalate Trigger */}
+                      {!escalatedIds[msg.id] && (
+                        <>
+                          <div className="w-px h-3 bg-gray-200 mx-1"></div>
+                          <button onClick={() => setEscalatingId(msg.id)} className="text-[11px] font-medium hover:text-gray-700 transition-colors">
+                            Talk to human
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -386,7 +398,7 @@ function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null,
           <input 
             type="text" 
             placeholder="Ask a question..."
-            className="flex-1 p-2 border border-gray-300 rounded-sm focus:outline-none transition-colors"
+            className="flex-1 p-2 border border-gray-300 rounded-sm focus:outline-none transition-colors text-gray-800"
             style={{ outlineColor: 'var(--primary-color)' }}
             value={input}
             onChange={handleInputChange}
