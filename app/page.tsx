@@ -15,7 +15,10 @@ export default function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.push('/home');
+      if (session) {
+        router.refresh();
+        router.push('/home');
+      }
     });
   }, [router]);
 
@@ -29,6 +32,8 @@ export default function AuthPage() {
         toast.error(error.message);
         setIsLoading(false);
       } else {
+        // Force Next.js to refresh server components and recognize the new cookie
+        router.refresh();
         router.push('/home');
       }
     } else {
@@ -59,6 +64,7 @@ export default function AuthPage() {
       setIsLoading(false);
     } else {
       toast.success('Email confirmed successfully!');
+      router.refresh();
       router.push('/home');
     }
   };
@@ -148,7 +154,7 @@ export default function AuthPage() {
                 required
                 className="w-full px-3 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-300"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} // Only allow numbers
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} 
               />
             </div>
 
