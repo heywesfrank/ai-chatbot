@@ -1,3 +1,4 @@
+// app/(dashboard)/analytics/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -20,24 +21,13 @@ export default function AnalyticsDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Find the active space id for the user
-        const { data: config } = await supabase
-          .from('bot_config')
-          .select('space_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-
-        if (config?.space_id) {
-          // Fetch analytics strictly corresponding to this user's active space
-          const { data: feedbackData } = await supabase
-            .from('chat_feedback')
-            .select('*')
-            .eq('space_id', config.space_id)
-            .order('created_at', { ascending: false });
-
-          if (feedbackData) {
-            setFeedbacks(feedbackData);
-          }
+        const res = await fetch('/api/analytics', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setFeedbacks(data.feedbacks);
         }
       }
       setIsLoading(false);
@@ -46,13 +36,11 @@ export default function AnalyticsDashboard() {
     fetchData();
   }, []);
 
-  // Compute Core SaaS Analytics
   const totalFeedback = feedbacks.length;
   const positive = feedbacks.filter(f => f.rating === 'up').length;
   const negative = feedbacks.filter(f => f.rating === 'down').length;
   const satisfactionRate = totalFeedback > 0 ? Math.round((positive / totalFeedback) * 100) : 0;
   
-  // Isolate "Needs Attention" queries for instant actionable insights
   const needsImprovement = feedbacks.filter(f => f.rating === 'down').slice(0, 10);
 
   if (isLoading) {
@@ -71,13 +59,11 @@ export default function AnalyticsDashboard() {
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
       <div className="max-w-[1200px] mx-auto w-full p-8 pb-20">
         
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-xl font-medium mb-1 tracking-tight">Analytics Dashboard</h1>
           <p className="text-gray-500 text-sm leading-relaxed">Track bot performance, view customer interactions, and discover knowledge gaps.</p>
         </div>
 
-        {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard title="Total Interactions" value={totalFeedback} />
           <StatCard title="Satisfaction Rate" value={`${satisfactionRate}%`} subtitle="Based on total feedback" />
@@ -86,8 +72,7 @@ export default function AnalyticsDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Table: All Logged Feedback */}
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col">
+          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm overflow-hidden flex flex-col">
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-sm font-semibold text-gray-900">Recent Customer Feedback</h2>
             </div>
@@ -140,8 +125,7 @@ export default function AnalyticsDashboard() {
             )}
           </div>
 
-          {/* Side Column: Actionable "Needs Attention" Panel */}
-          <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-5 h-fit">
+          <div className="bg-white border border-gray-200 rounded-sm p-5 h-fit">
             <h2 className="text-sm font-semibold text-gray-900 mb-1">Needs Attention</h2>
             <p className="text-xs text-gray-500 mb-5">Identify knowledge gaps by reviewing responses that were downvoted by users.</p>
             
@@ -174,10 +158,9 @@ export default function AnalyticsDashboard() {
   );
 }
 
-// Reusable micro-component for stat widgets
 function StatCard({ title, value, subtitle }: { title: string, value: string | number, subtitle?: string }) {
   return (
-    <div className="bg-white p-5 border border-gray-200 rounded-sm shadow-[0_2px_10px_rgba(0,0,0,0.01)] flex flex-col justify-center">
+    <div className="bg-white p-5 border border-gray-200 rounded-sm flex flex-col justify-center">
       <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{title}</span>
       <span className="text-3xl font-semibold text-gray-900 mt-1.5">{value}</span>
       {subtitle && <span className="text-xs text-gray-400 mt-1">{subtitle}</span>}
