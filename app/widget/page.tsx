@@ -7,12 +7,18 @@ export default function WidgetWrapper() {
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [config, setConfig] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [urlOverrides, setUrlOverrides] = useState({ color: '', header: '' });
 
   // 1. Initialize spaceId and fetch matching widget configuration
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const sid = urlParams.get('spaceId');
+    
     setSpaceId(sid);
+    setUrlOverrides({
+      color: urlParams.get('color') || '',
+      header: urlParams.get('header') || ''
+    });
 
     if (sid) {
       fetch(`/api/widget-config?spaceId=${sid}`)
@@ -41,15 +47,16 @@ export default function WidgetWrapper() {
   }
 
   // 3. Render fully loaded and custom themed ChatWidget
-  return <ChatWidget spaceId={spaceId} config={config} />;
+  return <ChatWidget spaceId={spaceId} config={config} urlOverrides={urlOverrides} />;
 }
 
-function ChatWidget({ spaceId, config }: { spaceId: string | null, config: any }) {
+function ChatWidget({ spaceId, config, urlOverrides }: { spaceId: string | null, config: any, urlOverrides: any }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Custom Theming Mapping
-  const primaryColor = config?.primary_color || '#000000';
-  const headerText = config?.header_text || 'Documentation Bot';
+  // Custom Theming Mapping with URL override support for live preview
+  const primaryColor = urlOverrides.color || config?.primary_color || '#000000';
+  const headerText = urlOverrides.header || config?.header_text || 'Documentation Bot';
+  
   const welcomeMessage = config?.welcome_message || 'How can I help you today?';
   const botAvatar = config?.bot_avatar || null;
   const removeBranding = config?.remove_branding || false;
