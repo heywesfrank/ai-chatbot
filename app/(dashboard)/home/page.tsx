@@ -19,6 +19,7 @@ export default function HomeDashboard() {
   const [showPrompts, setShowPrompts] = useState(true);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [newPrompt, setNewPrompt] = useState('');
+  const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false);
   
   // --- UI States ---
   const [isSyncing, setIsSyncing] = useState(false);
@@ -39,7 +40,7 @@ export default function HomeDashboard() {
   const hydrateWorkspace = async (uid: string) => {
     const { data, error } = await supabase
       .from('bot_config')
-      .select('space_id, system_prompt, api_key, primary_color, header_text, welcome_message, bot_avatar, show_prompts, suggested_prompts') 
+      .select('space_id, system_prompt, api_key, primary_color, header_text, welcome_message, bot_avatar, show_prompts, suggested_prompts, lead_capture_enabled') 
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle(); 
@@ -58,8 +59,8 @@ export default function HomeDashboard() {
       setWelcomeMessage(data.welcome_message || 'How can I help you today?');
       setBotAvatar(data.bot_avatar || '');
       setShowPrompts(data.show_prompts ?? true);
+      setLeadCaptureEnabled(data.lead_capture_enabled ?? false);
       
-      // Load custom prompts, default to standard array if not defined yet
       setSuggestedPrompts(data.suggested_prompts || [
         "How do I reset my password?",
         "Where can I find the documentation?",
@@ -70,7 +71,6 @@ export default function HomeDashboard() {
         setActiveSpaceId(data.space_id);
       }
     } else {
-      // Default initialization
       setSuggestedPrompts([
         "How do I reset my password?",
         "Where can I find the documentation?",
@@ -117,7 +117,7 @@ export default function HomeDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey, primaryColor, headerText, welcomeMessage, botAvatar, showPrompts, suggestedPrompts }), 
+        body: JSON.stringify({ spaceId, systemPrompt, userId: session.user.id, apiKey, primaryColor, headerText, welcomeMessage, botAvatar, showPrompts, suggestedPrompts, leadCaptureEnabled }), 
       });
 
       if (syncResponse.ok && configResponse.ok) {
@@ -149,7 +149,7 @@ export default function HomeDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey, primaryColor, headerText, welcomeMessage, botAvatar, showPrompts, suggestedPrompts }),
+        body: JSON.stringify({ spaceId, systemPrompt, userId, apiKey, primaryColor, headerText, welcomeMessage, botAvatar, showPrompts, suggestedPrompts, leadCaptureEnabled }),
       });
 
       if (response.ok) {
@@ -171,7 +171,7 @@ export default function HomeDashboard() {
   const embedCode = `<iframe src="https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}" width="400" height="600" style="border: 1px solid #e5e7eb; border-radius: 4px;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
 
   // Pass un-saved values into the iframe to allow instant live previews without a DB roundtrip
-  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}&showPrompts=${showPrompts}&prompts=${encodeURIComponent(JSON.stringify(suggestedPrompts))}`;
+  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(primaryColor)}&header=${encodeURIComponent(headerText)}&showPrompts=${showPrompts}&prompts=${encodeURIComponent(JSON.stringify(suggestedPrompts))}&leadCapture=${leadCaptureEnabled}`;
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-white text-gray-900 font-sans overflow-hidden">
@@ -266,7 +266,7 @@ export default function HomeDashboard() {
               <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Bot Avatar URL</label>
               <input 
                 type="text" 
-                placeholder="https://example.com/avatar.png"
+                placeholder="[https://example.com/avatar.png](https://example.com/avatar.png)"
                 className="w-full p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm"
                 value={botAvatar}
                 onChange={(e) => setBotAvatar(e.target.value)}
@@ -345,7 +345,31 @@ export default function HomeDashboard() {
                 )}
               </div>
             )}
-            
+          </div>
+
+          {/* 5. LEAD GENERATION */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h2 className="text-sm font-semibold text-gray-900">5. Lead Generation</h2>
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    checked={leadCaptureEnabled} 
+                    onChange={(e) => setLeadCaptureEnabled(e.target.checked)} 
+                  />
+                  <div className={`block w-8 h-4.5 rounded-full transition-colors ${leadCaptureEnabled ? 'bg-black' : 'bg-gray-300'}`}></div>
+                  <div className={`absolute left-0.5 top-0.5 bg-white w-3.5 h-3.5 rounded-full transition-transform ${leadCaptureEnabled ? 'transform translate-x-3.5' : ''}`}></div>
+                </div>
+              </label>
+            </div>
+            {leadCaptureEnabled && (
+              <p className="text-xs text-gray-500 animate-in fade-in duration-300">
+                A pre-chat form will require users to enter their Name and Email before they can start interacting with your bot.
+              </p>
+            )}
+
             <button 
               onClick={handleSaveConfig}
               disabled={isSaving}
