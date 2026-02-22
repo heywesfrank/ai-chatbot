@@ -19,21 +19,39 @@ export async function POST(req: Request) {
   const corsHeaders = { 'Access-Control-Allow-Origin': origin };
 
   try {
-    const { spaceId, email, prompt } = await req.json();
+    const { spaceId, email, prompt, history } = await req.json();
 
     if (!spaceId || !email || !prompt) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
-    const { error } = await supabase
-      .from('tickets')
-      .insert({ space_id: spaceId, email, prompt });
+    // Retain legacy ticket mapping for backup
+    await supabase.from('tickets').insert({ space_id: spaceId, email, prompt });
 
-    if (error) throw error;
+    // Initiate the Real-Time Live Session
+    const { data: session, error: sessionError } = await supabase
+      .from('live_sessions')
+      .insert({
+        space_id: spaceId,
+        email,
+        status: 'open',
+        history: JSON.stringify(history || [])
+      })
+      .select()
+      .single();
 
-    return NextResponse.json({ success: true }, { headers: corsHeaders });
+    if (sessionError) throw sessionError;
+
+    // Immediately push the user's initial hand-off prompt into the live message table
+    await supabase.from('live_messages').insert({
+      session_id: session.id,
+      role: 'user',
+      content: prompt
+    });
+
+    return NextResponse.json({ success: true, sessionId: session.id }, { headers: corsHeaders });
   } catch (error: any) {
-    console.error("Ticket API Error:", error);
+    console.error("Handoff API Error:", error);
     return NextResponse.json(
       { error: error.message || 'Failed to submit ticket' }, 
       { status: 500, headers: corsHeaders }
