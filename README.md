@@ -7,16 +7,16 @@ create table public.bot_config (
   system_prompt text not null,
   user_id uuid not null,
   api_key text null,
-  primary_color text default '#000000',
-  header_text text default 'Documentation Bot',
-  welcome_message text default 'How can I help you today?',
+  primary_color text null default '#000000'::text,
+  header_text text null default 'Documentation Bot'::text,
+  welcome_message text null default 'How can I help you today?'::text,
   bot_avatar text null,
-  remove_branding boolean default false,
-  show_prompts boolean default true,
-  suggested_prompts jsonb default '[]'::jsonb,
+  remove_branding boolean null default false,
+  show_prompts boolean null default true,
+  suggested_prompts jsonb null default '[]'::jsonb,
+  lead_capture_enabled boolean null default false,
   constraint bot_config_pkey primary key (user_id),
-  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id),
-  constraint bot_config_space_id_key unique (space_id)
+  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
 create table public.gitbook_documents (
@@ -36,6 +36,24 @@ create table public.chat_feedback (
   response text not null,
   rating text not null,
   created_at timestamp with time zone default timezone('utc'::text, now())
+) TABLESPACE pg_default;
+
+create table public.leads (
+  id bigserial not null,
+  space_id text not null,
+  name text not null,
+  email text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint leads_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create table public.tickets (
+  id bigserial not null,
+  space_id text not null,
+  prompt text not null,
+  email text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint tickets_pkey primary key (id)
 ) TABLESPACE pg_default;
 
   select
