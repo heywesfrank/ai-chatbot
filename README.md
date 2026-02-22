@@ -56,6 +56,26 @@ create table public.tickets (
   constraint tickets_pkey primary key (id)
 ) TABLESPACE pg_default;
 
+create table public.live_messages (
+  id uuid not null default gen_random_uuid (),
+  session_id uuid not null,
+  role text not null,
+  content text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint live_messages_pkey primary key (id),
+  constraint live_messages_session_id_fkey foreign KEY (session_id) references live_sessions (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.live_sessions (
+  id uuid not null default gen_random_uuid (),
+  space_id text not null,
+  email text not null,
+  status text null default 'open'::text,
+  history text null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint live_sessions_pkey primary key (id)
+) TABLESPACE pg_default;
+
   select
     gitbook_documents.id,
     gitbook_documents.space_id,
