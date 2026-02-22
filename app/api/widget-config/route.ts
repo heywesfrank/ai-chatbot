@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabase
       .from('bot_config')
-      .select('primary_color, header_text, welcome_message, bot_avatar, remove_branding')
+      .select('primary_color, header_text, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts')
       .eq('space_id', spaceId)
       .maybeSingle();
 
