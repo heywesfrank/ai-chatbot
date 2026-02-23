@@ -23,6 +23,14 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create table public.space_insights (
+  id bigserial not null,
+  space_id text not null,
+  insights text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint space_insights_pkey primary key (id)
+) TABLESPACE pg_default;
+
 create table public.knowledge_documents (
   id bigserial not null,
   page_url text not null,
