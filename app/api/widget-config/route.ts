@@ -1,3 +1,4 @@
+// app/api/widget-config/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -15,7 +16,7 @@ export async function OPTIONS(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const origin = req.headers.get('origin') || '*';
+  const origin = req.headers.get('origin') || req.headers.get('referer') || '*';
   const corsHeaders = { 'Access-Control-Allow-Origin': origin };
 
   try {
@@ -28,13 +29,25 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabase
       .from('bot_config')
-      .select('primary_color, header_text, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, agents_online')
+      .select('primary_color, header_text, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, agents_online, allowed_domains')
       .eq('space_id', spaceId)
       .maybeSingle();
 
-    if (error) {
-      console.error("Supabase Config Fetch Error:", error.message);
+    if (error) console.error("Supabase Config Fetch Error:", error.message);
+
+    if (data?.allowed_domains) {
+      const allowedList = data.allowed_domains.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean);
+      if (allowedList.length > 0) {
+        const originHost = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase();
+        const isAllowed = allowedList.some((d: string) => originHost.includes(d) || originHost === d);
+        if (!isAllowed && originHost && originHost !== '*') {
+          return NextResponse.json({ error: 'Unauthorized: Domain not authorized.' }, { status: 403, headers: corsHeaders });
+        }
+      }
     }
+
+    // Ensure we don't expose allowed_domains back to the client unnecessarily
+    if (data) delete data.allowed_domains;
 
     return NextResponse.json({ config: data || {} }, { headers: corsHeaders });
 
