@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabase
       .from('bot_config')
-      .select('primary_color, header_text, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled')
+      .select('primary_color, header_text, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, agents_online')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -36,7 +36,6 @@ export async function GET(req: Request) {
       console.error("Supabase Config Fetch Error:", error.message);
     }
 
-    // Safely return defaults if no config is found
     return NextResponse.json({ config: data || {} }, { headers: corsHeaders });
 
   } catch (error: any) {
