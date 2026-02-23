@@ -15,6 +15,10 @@ create table public.bot_config (
   show_prompts boolean null default true,
   suggested_prompts jsonb null default '[]'::jsonb,
   lead_capture_enabled boolean null default false,
+  agents_online boolean null default false,
+  canned_responses jsonb null default '[]'::jsonb,
+  slack_bot_token text null,
+  slack_channel_id text null,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
@@ -73,6 +77,7 @@ create table public.live_sessions (
   email text not null,
   status text null default 'open'::text,
   history text null,
+  slack_thread_ts text null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
   constraint live_sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
