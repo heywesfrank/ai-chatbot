@@ -1,3 +1,4 @@
+// app/api/config/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Build the update payload dynamically to avoid overwriting omitted fields (like agent_status managed in Inbox)
+    // Only update the keys provided in the payload to avoid wiping out Inbox settings
     const updatePayload: any = {
       space_id: body.spaceId,
       system_prompt: body.systemPrompt,
