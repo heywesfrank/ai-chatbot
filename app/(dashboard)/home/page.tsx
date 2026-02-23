@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 
-type Tab = 'data' | 'appearance' | 'behavior' | 'integrations' | 'install';
+type Tab = 'data' | 'appearance' | 'behavior' | 'model' | 'integrations' | 'install';
 type SourceTab = 'website' | 'gitbook' | 'file';
 
 export default function HomeDashboard() {
@@ -45,7 +45,11 @@ export default function HomeDashboard() {
     faqOverrides: [] as { question: string, answer: string }[],
     language: 'Auto-detect',
     theme: 'auto',
-    position: 'right'
+    position: 'right',
+    temperature: 0.5,
+    matchThreshold: 0.2,
+    reasoningEffort: 'medium',
+    verbosity: 'medium'
   });
 
   const updateConfig = (key: keyof typeof config, value: any) => {
@@ -98,6 +102,10 @@ export default function HomeDashboard() {
         webhookUrl: data.webhook_url || '',
         faqOverrides: data.faq_overrides || [],
         language: data.language || 'Auto-detect',
+        temperature: data.temperature ?? prev.temperature,
+        matchThreshold: data.match_threshold ?? prev.matchThreshold,
+        reasoningEffort: data.reasoning_effort || prev.reasoningEffort,
+        verbosity: data.verbosity || prev.verbosity
       }));
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
@@ -308,7 +316,7 @@ export default function HomeDashboard() {
         </div>
 
         <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar shrink-0">
-          {(['data', 'appearance', 'behavior', 'integrations', 'install'] as Tab[]).map((tab) => (
+          {(['data', 'appearance', 'behavior', 'model', 'integrations', 'install'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -536,6 +544,77 @@ export default function HomeDashboard() {
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
                 </label>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'model' && (
+            <div className="space-y-7 animate-in fade-in duration-300">
+              
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Temperature</label>
+                  <span className="text-[11px] font-medium text-gray-500">{config.temperature}</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">Controls the bot's creativity. Lower values are stricter and deterministic, while higher values allow for more varied responses.</p>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="2" 
+                  step="0.1" 
+                  className="w-full accent-black cursor-pointer" 
+                  value={config.temperature} 
+                  onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))} 
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <div className="flex justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Match Threshold</label>
+                  <span className="text-[11px] font-medium text-gray-500">{config.matchThreshold}</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">Minimum similarity score for retrieving context from your documents. A higher threshold strictly fetches only highly relevant context.</p>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1" 
+                  step="0.05" 
+                  className="w-full accent-black cursor-pointer" 
+                  value={config.matchThreshold} 
+                  onChange={(e) => updateConfig('matchThreshold', parseFloat(e.target.value))} 
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider mb-1.5">Reasoning Effort</label>
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">Constrains effort on reasoning. Higher reasoning takes longer to generate responses but handles complex questions better.</p>
+                <select 
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors" 
+                  value={config.reasoningEffort} 
+                  onChange={(e) => updateConfig('reasoningEffort', e.target.value)}
+                >
+                  <option value="none">None</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra High</option>
+                </select>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider mb-1.5">Verbosity</label>
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">Controls the general length and depth of the generated text.</p>
+                <select 
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors" 
+                  value={config.verbosity} 
+                  onChange={(e) => updateConfig('verbosity', e.target.value)}
+                >
+                  <option value="low">Low (Concise)</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High (Detailed)</option>
+                </select>
+              </div>
+
             </div>
           )}
 
