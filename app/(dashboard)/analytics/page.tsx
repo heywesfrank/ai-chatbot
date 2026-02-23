@@ -2,6 +2,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
+import { toast } from 'sonner';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import ReactMarkdown from 'react-markdown';
 
 interface FeedbackData {
   id: string;
@@ -11,9 +14,17 @@ interface FeedbackData {
   created_at: string;
 }
 
+interface VolumeData {
+  date: string;
+  interactions: number;
+}
+
 export default function AnalyticsDashboard() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [feedbacks, setFeedbacks] = useState<FeedbackData[]>([]);
+  const [volumeData, setVolumeData] = useState<VolumeData[]>([]);
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,6 +39,8 @@ export default function AnalyticsDashboard() {
         if (res.ok) {
           const data = await res.json();
           setFeedbacks(data.feedbacks);
+          setVolumeData(data.volumeData);
+          setAiInsights(data.aiInsights);
         }
       }
       setIsLoading(false);
@@ -35,6 +48,34 @@ export default function AnalyticsDashboard() {
 
     fetchData();
   }, []);
+
+  const handleExport = async (type: 'leads' | 'chats') => {
+    try {
+      setIsExporting(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch(`/api/export?type=${type}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+
+      if (!res.ok) throw new Error('Export failed');
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${type}-export.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success(`Successfully exported ${type}`);
+    } catch (e) {
+      toast.error(`Failed to export ${type}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const totalFeedback = feedbacks.length;
   const positive = feedbacks.filter(f => f.rating === 'up').length;
@@ -59,9 +100,27 @@ export default function AnalyticsDashboard() {
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
       <div className="max-w-[1200px] mx-auto w-full p-8 pb-20">
         
-        <div className="mb-8">
-          <h1 className="text-xl font-medium mb-1 tracking-tight">Analytics Dashboard</h1>
-          <p className="text-gray-500 text-sm leading-relaxed">Track bot performance, view customer interactions, and discover knowledge gaps.</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-medium mb-1 tracking-tight">Analytics Dashboard</h1>
+            <p className="text-gray-500 text-sm leading-relaxed">Track bot performance, view customer interactions, and discover knowledge gaps.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => handleExport('leads')}
+              disabled={isExporting}
+              className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+            >
+              Export Leads
+            </button>
+            <button 
+              onClick={() => handleExport('chats')}
+              disabled={isExporting}
+              className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+            >
+              Export Chats
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -69,6 +128,47 @@ export default function AnalyticsDashboard() {
           <StatCard title="Satisfaction Rate" value={`${satisfactionRate}%`} subtitle="Based on total feedback" />
           <StatCard title="Helpful Responses" value={positive} />
           <StatCard title="Failed Responses" value={negative} />
+        </div>
+
+        {/* Charts and AI Insights Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm p-5 flex flex-col">
+             <h2 className="text-sm font-semibold text-gray-900 mb-6">Conversation Volume (30 Days)</h2>
+             <div className="flex-1 w-full min-h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={volumeData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                    <XAxis dataKey="date" tick={{fontSize: 11, fill: '#9ca3af'}} axisLine={false} tickLine={false} dy={10} minTickGap={30} />
+                    <YAxis tick={{fontSize: 11, fill: '#9ca3af'}} axisLine={false} tickLine={false} allowDecimals={false} dx={-10} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '6px', fontSize: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }} 
+                      itemStyle={{ color: '#111827', fontWeight: 500 }}
+                    />
+                    <Line type="monotone" dataKey="interactions" stroke="#000000" strokeWidth={2} dot={false} activeDot={{r: 4, fill: '#000000', strokeWidth: 0}} />
+                  </LineChart>
+                </ResponsiveContainer>
+             </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-sm p-5 flex flex-col">
+             <div className="flex items-center gap-2 mb-1.5">
+                <svg className="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                <h2 className="text-sm font-semibold text-gray-900">AI Knowledge Gaps</h2>
+             </div>
+             <p className="text-xs text-gray-500 mb-5 leading-relaxed">Nightly automated summary of what users searched for but couldn't find.</p>
+             
+             <div className="flex-1 bg-gray-50/50 border border-gray-100 rounded p-4 overflow-y-auto">
+                {aiInsights ? (
+                   <ReactMarkdown className="prose prose-sm prose-p:mb-2 prose-p:leading-relaxed prose-ul:pl-4 prose-li:mb-1.5 prose-li:text-gray-700 text-gray-800 text-[13px]">
+                     {aiInsights}
+                   </ReactMarkdown>
+                ) : (
+                   <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 py-6">
+                     <p className="text-xs">Not enough failed requests yet to generate insights.</p>
+                   </div>
+                )}
+             </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
