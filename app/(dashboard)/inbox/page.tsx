@@ -11,10 +11,14 @@ export default function InboxDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // NEW: Typing broadcast refs
   const channelRef = useRef<any>(null);
   const [isUserTyping, setIsUserTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // New configurations
+  const [agentsOnline, setAgentsOnline] = useState(false);
+  const [cannedResponses, setCannedResponses] = useState<string[]>([]);
+  const [spaceId, setSpaceId] = useState<string | null>(null);
 
   useEffect(() => {
     let channel: any;
@@ -24,10 +28,17 @@ export default function InboxDashboard() {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       
       if (authSession) {
-        const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', authSession.user.id).maybeSingle();
+        const { data: config } = await supabase
+          .from('bot_config')
+          .select('space_id, agents_online, canned_responses')
+          .eq('user_id', authSession.user.id)
+          .maybeSingle();
         
         if (config?.space_id) {
-          // Fetch existing sessions
+          setSpaceId(config.space_id);
+          setAgentsOnline(config.agents_online || false);
+          setCannedResponses(config.canned_responses || []);
+
           const { data: rawSessions } = await supabase
             .from('live_sessions')
             .select('*')
@@ -36,7 +47,6 @@ export default function InboxDashboard() {
             
           if (rawSessions) setSessions(rawSessions);
 
-          // Listen for new sessions needing help
           channel = supabase.channel('dashboard_sessions')
             .on('postgres_changes', { 
               event: 'INSERT', 
@@ -49,18 +59,13 @@ export default function InboxDashboard() {
             .subscribe();
         }
       }
-      
-      // We moved this outside the return statement so it actually runs!
       setIsLoading(false);
     };
 
     fetchSessions();
 
-    // Properly return the cleanup function to React
     return () => { 
-      if (channel) {
-        supabase.removeChannel(channel); 
-      }
+      if (channel) supabase.removeChannel(channel); 
     };
   }, []);
 
@@ -87,10 +92,9 @@ export default function InboxDashboard() {
         filter: `session_id=eq.${activeSession.id}` 
       }, payload => {
         const newMsg = payload.new;
-        // Only append messages from the user (we optimistic update our own)
         if (newMsg.role === 'user') {
           setMessages(prev => [...prev, newMsg]);
-          setIsUserTyping(false); // Stop typing indicator immediately
+          setIsUserTyping(false); 
         }
       })
       .on('broadcast', { event: 'typing' }, payload => {
@@ -114,6 +118,14 @@ export default function InboxDashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages, isUserTyping]);
 
+  const toggleAgentStatus = async () => {
+    const newVal = !agentsOnline;
+    setAgentsOnline(newVal);
+    if (spaceId) {
+      await supabase.from('bot_config').update({ agents_online: newVal }).eq('space_id', spaceId);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     if (channelRef.current) {
@@ -136,10 +148,10 @@ export default function InboxDashboard() {
     
     setMessages(prev => [...prev, { id: tempId, role: 'agent', content: msg, created_at: timestamp }]);
 
-    await supabase.from('live_messages').insert({
-      session_id: activeSession.id,
-      role: 'agent',
-      content: msg
+    await fetch('/api/live-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: activeSession.id, role: 'agent', content: msg })
     });
   };
 
@@ -166,10 +178,16 @@ export default function InboxDashboard() {
 
   return (
     <div className="flex h-full w-full bg-[#FAFAFA] text-gray-900 font-sans">
-      {/* Session List */}
       <div className="w-[300px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
-        <div className="p-5 border-b border-gray-100">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
           <h1 className="text-base font-medium tracking-tight">Active Inquiries</h1>
+          <button 
+            onClick={toggleAgentStatus}
+            className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none ${agentsOnline ? 'bg-green-500' : 'bg-gray-300'}`}
+            title={`Status: ${agentsOnline ? 'Online' : 'Offline'}`}
+          >
+            <span className={`${agentsOnline ? 'translate-x-4' : 'translate-x-1'} inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform shadow-sm`} />
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto">
           {sessions.length === 0 ? (
@@ -194,7 +212,6 @@ export default function InboxDashboard() {
         </div>
       </div>
 
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-white">
         {!activeSession ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 bg-[#FAFAFA]">
@@ -241,7 +258,6 @@ export default function InboxDashboard() {
                     <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                       {msg.content}
                     </div>
-                    {/* Timestamp & Tag row */}
                     <div className="flex items-center gap-1.5 mt-1 mx-1 text-[10px] text-gray-400">
                        <span className="capitalize font-medium">{msg.role}</span>
                        {msg.created_at && (
@@ -263,14 +279,27 @@ export default function InboxDashboard() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA]">
+            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col">
+              {cannedResponses.length > 0 && activeSession.status === 'open' && (
+                <div className="mb-3 flex overflow-x-auto no-scrollbar gap-2 pb-1">
+                  {cannedResponses.map((canned, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setInput(canned)}
+                      className="text-[11px] px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 hover:text-gray-900 transition-colors whitespace-nowrap shadow-sm flex-shrink-0"
+                    >
+                      {canned.length > 30 ? canned.substring(0, 30) + '...' : canned}
+                    </button>
+                  ))}
+                </div>
+              )}
               <form onSubmit={handleSend} className="flex gap-2">
                 <input 
                   type="text" 
                   placeholder={activeSession.status === 'open' ? "Type a message..." : "Ticket is resolved."}
                   className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
                   value={input}
-                  onChange={handleInputChange} // Uses Broadcast Wrapper
+                  onChange={handleInputChange} 
                   disabled={activeSession.status === 'closed'}
                 />
                 <button 
