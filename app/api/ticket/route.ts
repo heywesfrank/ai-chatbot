@@ -1,6 +1,9 @@
+// app/api/ticket/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import Sentiment from 'sentiment';
 
+const sentiment = new Sentiment();
 export const runtime = 'edge';
 
 export async function OPTIONS(req: Request) {
@@ -40,10 +43,13 @@ export async function POST(req: Request) {
 
     if (sessionError) throw sessionError;
 
+    const sentimentScore = sentiment.analyze(prompt).score;
+
     await supabase.from('live_messages').insert({
       session_id: session.id,
       role: 'user',
-      content: prompt
+      content: prompt,
+      sentiment_score: sentimentScore
     });
 
     const { data: config } = await supabase
@@ -54,7 +60,7 @@ export async function POST(req: Request) {
 
     if (config?.slack_bot_token && config?.slack_channel_id) {
       try {
-        const slackRes = await fetch('[https://slack.com/api/chat.postMessage](https://slack.com/api/chat.postMessage)', {
+        const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
