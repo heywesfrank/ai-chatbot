@@ -1,14 +1,16 @@
 // app/(dashboard)/home/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 
 type Tab = 'data' | 'appearance' | 'behavior' | 'install';
+type SourceTab = 'gitbook' | 'website' | 'file';
 
 export default function HomeDashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('data');
+  const [sourceTab, setSourceTab] = useState<SourceTab>('website');
   
   // UI States
   const [isSyncing, setIsSyncing] = useState(false);
@@ -16,6 +18,10 @@ export default function HomeDashboard() {
   const [activeSpaceId, setActiveSpaceId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [newPrompt, setNewPrompt] = useState('');
+
+  // Source States
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Consolidated Configuration State
   const [config, setConfig] = useState({
@@ -58,8 +64,6 @@ export default function HomeDashboard() {
       .limit(1)
       .maybeSingle(); 
 
-    if (error) console.error("Supabase Hydration Error:", error.message);
-
     if (data) {
       setConfig(prev => ({
         ...prev,
@@ -93,38 +97,70 @@ export default function HomeDashboard() {
     updateConfig('suggestedPrompts', config.suggestedPrompts.filter(p => p !== promptToRemove));
   };
 
-  const handleSyncKnowledge = async () => {
-    if (!config.apiKey || !config.spaceId) return toast.error('API Key and Space ID are required.');
-    
+  const callIngestApi = async (payload: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return toast.error('Authentication required.');
 
     setIsSyncing(true);
     try {
-      const syncResponse = await fetch('/api/ingest', {
+      const response = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ apiKey: config.apiKey, spaceId: config.spaceId }),
+        body: JSON.stringify({ ...payload, spaceId: config.spaceId }),
       });
 
-      const configResponse = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ ...config, userId: session.user.id }), 
-      });
-
-      if (syncResponse.ok && configResponse.ok) {
-        toast.success('Knowledge base synced and configuration saved!');
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Synced successfully! ${data.count || 0} segments learned.`);
+        
+        // Save config if space ID is new
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ ...config, userId: session.user.id }), 
+        });
+        
         setActiveSpaceId(config.spaceId);
-        setRefreshKey(prev => prev + 1); 
+        setRefreshKey(prev => prev + 1);
       } else {
-        toast.error('Failed to sync or save configuration. Check credentials.');
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to sync data.');
       }
     } catch (error) {
       toast.error('An unexpected error occurred.');
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleSyncGitbook = () => {
+    if (!config.apiKey || !config.spaceId) return toast.error('API Key and Space ID are required.');
+    callIngestApi({ type: 'gitbook', apiKey: config.apiKey });
+  };
+
+  const handleSyncWebsite = () => {
+    if (!websiteUrl || !config.spaceId) return toast.error('URL and Space ID are required.');
+    callIngestApi({ type: 'website', url: websiteUrl });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!config.spaceId) return toast.error('Please generate or enter a Space ID first.');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'text/plain' && file.type !== 'text/csv' && file.type !== 'application/json') {
+      return toast.error('Please upload a .txt, .csv, or .json file. (PDF coming soon)');
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        callIngestApi({ type: 'file', text, filename: file.name });
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSaveConfig = async () => {
@@ -155,6 +191,11 @@ export default function HomeDashboard() {
     }
   };
 
+  const generateSpaceId = () => {
+    const id = Math.random().toString(36).substring(2, 10);
+    updateConfig('spaceId', id);
+  };
+
   if (!userId) return null; 
 
   const embedCode = `<script>
@@ -162,7 +203,7 @@ export default function HomeDashboard() {
     var position = "${config.position}";
     var theme = "${config.theme}";
     var iframe = document.createElement('iframe');
-    iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme;
+    iframe.src = "[https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=$](https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=$){activeSpaceId}&position=" + position + "&theme=" + theme;
     iframe.style.position = 'fixed';
     iframe.style.bottom = '20px';
     iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
@@ -223,7 +264,7 @@ export default function HomeDashboard() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar">
+        <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar shrink-0">
           {(['data', 'appearance', 'behavior', 'install'] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -243,22 +284,81 @@ export default function HomeDashboard() {
           {/* DATA TAB */}
           {activeTab === 'data' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">GitBook Token</label>
-                  <input type="password" placeholder="pat_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.apiKey} onChange={(e) => updateConfig('apiKey', e.target.value)} />
+              
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider flex justify-between">
+                  <span>Project ID</span>
+                  {!config.spaceId && (
+                    <button onClick={generateSpaceId} className="text-blue-500 hover:text-blue-600 transition-colors">Generate</button>
+                  )}
+                </label>
+                <input type="text" placeholder="A unique identifier for your bot" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-gray-50" value={config.spaceId} onChange={(e) => updateConfig('spaceId', e.target.value)} />
+                <p className="text-[10px] text-gray-400 mt-1">Required to link your data to your widget.</p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <div className="flex space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-200 mb-4">
+                  {(['website', 'gitbook', 'file'] as SourceTab[]).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setSourceTab(tab)}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${sourceTab === tab ? 'bg-white shadow-sm text-gray-900 border border-gray-200/50' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Space ID</label>
-                  <input type="text" placeholder="e.g. xYz123..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.spaceId} onChange={(e) => updateConfig('spaceId', e.target.value)} />
-                </div>
-                <button 
-                  onClick={handleSyncKnowledge}
-                  disabled={isSyncing}
-                  className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors text-sm font-medium shadow-sm"
-                >
-                  {isSyncing ? 'Syncing Knowledge Base...' : 'Sync Data'}
-                </button>
+
+                {sourceTab === 'website' && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                     <div>
+                      <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">URL or Sitemap.xml</label>
+                      <input type="url" placeholder="[https://example.com/sitemap.xml](https://example.com/sitemap.xml)" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
+                      <p className="text-[10px] text-gray-400 mt-1">Max 50 pages crawled per sitemap to prevent overload.</p>
+                    </div>
+                    <button 
+                      onClick={handleSyncWebsite}
+                      disabled={isSyncing || !websiteUrl || !config.spaceId}
+                      className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors text-sm font-medium shadow-sm"
+                    >
+                      {isSyncing ? 'Crawling...' : 'Fetch Website'}
+                    </button>
+                  </div>
+                )}
+
+                {sourceTab === 'file' && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                     <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center text-center bg-gray-50/50">
+                        <svg className="w-6 h-6 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <p className="text-sm text-gray-600 mb-1 font-medium">Upload Document</p>
+                        <p className="text-[10px] text-gray-400 mb-4">Supports .txt, .csv, .json</p>
+                        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.json" />
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isSyncing || !config.spaceId}
+                          className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          {isSyncing ? 'Uploading...' : 'Select File'}
+                        </button>
+                     </div>
+                  </div>
+                )}
+
+                {sourceTab === 'gitbook' && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">GitBook Token</label>
+                      <input type="password" placeholder="pat_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.apiKey} onChange={(e) => updateConfig('apiKey', e.target.value)} />
+                    </div>
+                    <button 
+                      onClick={handleSyncGitbook}
+                      disabled={isSyncing || !config.apiKey || !config.spaceId}
+                      className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors text-sm font-medium shadow-sm"
+                    >
+                      {isSyncing ? 'Syncing...' : 'Sync GitBook'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -402,7 +502,7 @@ export default function HomeDashboard() {
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <h2 className="text-base font-medium mb-1 text-gray-900">Playground Empty</h2>
-            <p className="text-gray-500 text-sm leading-relaxed">Sync your GitBook on the left to start testing your bot.</p>
+            <p className="text-gray-500 text-sm leading-relaxed">Generate a Space ID and add data on the left to start testing your bot.</p>
           </div>
         ) : (
           <div className="w-[380px] h-[600px] bg-white rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] overflow-hidden border border-gray-200/50 relative animate-in fade-in zoom-in-95 duration-500">
