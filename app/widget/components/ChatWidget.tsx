@@ -293,7 +293,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   if (!isLeadCaptured) {
     return (
-      <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+      <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
         <Header />
         <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-300">
           <div className="w-12 h-12 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mb-4 border border-[var(--border-color)]">
@@ -324,7 +324,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-[var(--bg-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+    <div className="flex flex-col h-screen w-full bg-[var(--bg-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       <Header />
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col bg-[var(--bg-primary)]" aria-live="polite" aria-atomic="false">
