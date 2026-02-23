@@ -19,6 +19,7 @@
     "react": "^18",
     "react-dom": "^18",
     "react-markdown": "^9.0.1",
+    "recharts": "^2.12.7",
     "sonner": "^1.4.41",
     "xml2js": "^0.6.2"
   },
