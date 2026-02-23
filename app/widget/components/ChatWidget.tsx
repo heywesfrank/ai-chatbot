@@ -67,7 +67,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   });
 
   const [liveSessionId, setLiveSessionId, removeLiveSessionId] = useLocalStorage<string | null>(`live_session_id_${spaceId}`, null);
-  const [liveMessages, setLiveMessages, removeLiveMessages] = useLocalStorage<{id: string, role: string, content: string}[]>(`live_messages_${spaceId}`, []);
+  const [liveMessages, setLiveMessages, removeLiveMessages] = useLocalStorage<any[]>(`live_messages_${spaceId}`, []);
+
+  const [isAgentTyping, setIsAgentTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingChannelRef = useRef<any>(null);
 
   const prevMessagesLength = useRef(messages.length);
   const prevLiveMessagesLength = useRef(liveMessages.length);
@@ -101,8 +105,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   useEffect(() => {
     if (!liveSessionId) return;
 
+    const channelName = `session_${liveSessionId}`;
     const channel = supabase
-      .channel(`realtime:session_${liveSessionId}`)
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -111,12 +116,26 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       }, payload => {
         const newMsg = payload.new as any;
         if (newMsg.role === 'agent') {
-          setLiveMessages(prev => [...prev, { id: newMsg.id, role: newMsg.role, content: newMsg.content }]);
+          // Include created_at locally
+          setLiveMessages(prev => [...prev, { id: newMsg.id, role: newMsg.role, content: newMsg.content, created_at: newMsg.created_at }]);
+          setIsAgentTyping(false); // Stop typing indicator
         }
       })
-      .subscribe();
+      .on('broadcast', { event: 'typing' }, payload => {
+        if (payload.payload?.role === 'agent') {
+          setIsAgentTyping(true);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setIsAgentTyping(false), 3000);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') typingChannelRef.current = channel;
+      });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+      supabase.removeChannel(channel); 
+      typingChannelRef.current = null;
+    };
   }, [liveSessionId, setLiveMessages]);
 
   useEffect(() => {
@@ -181,9 +200,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       const data = await res.json();
       if (data.sessionId) {
         setLiveSessionId(data.sessionId);
+        const timestamp = new Date().toISOString();
         setLiveMessages([
-          { id: Date.now().toString(), role: 'system', content: 'Connecting you to an agent...' },
-          { id: (Date.now() + 1).toString(), role: 'user', content: prompt }
+          { id: Date.now().toString(), role: 'system', content: 'Connecting you to an agent...', created_at: timestamp },
+          { id: (Date.now() + 1).toString(), role: 'user', content: prompt, created_at: timestamp }
         ]);
       }
       setEscalatingId(null);
@@ -201,8 +221,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     if (liveSessionId) {
       const userMsg = input.trim();
       const tempId = Date.now().toString();
+      const timestamp = new Date().toISOString();
       
-      setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content: userMsg }]);
+      setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content: userMsg, created_at: timestamp }]);
       handleInputChange({ target: { value: '' } } as any);
 
       try {
@@ -216,6 +237,18 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       }
     } else {
       handleSubmit(e);
+    }
+  };
+
+  // Wrapper for sending user typing events to dashboard
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleInputChange(e);
+    if (liveSessionId && typingChannelRef.current) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { role: 'user' }
+      });
     }
   };
 
@@ -338,8 +371,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             />
           ))}
 
-          {isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex justify-start">
+          {/* COMBINED Agent & AI Typing Indicator */}
+          {((isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user') || isAgentTyping) && (
+            <div className="flex justify-start animate-in fade-in duration-300">
                {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)]" />}
               <div className="px-3 py-2 border border-[var(--border-color)] bg-[var(--msg-bot-bg)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]">
                 <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
@@ -379,9 +413,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
       <ChatInput 
         input={input} 
-        handleInputChange={handleInputChange} 
+        handleInputChange={onInputChange} 
         handleFormSubmit={handleFormSubmit} 
-        disabled={isLoading && !liveSessionId}
+        disabled={(isLoading && !liveSessionId)}
         primaryColor={primaryColor} 
       />
 
