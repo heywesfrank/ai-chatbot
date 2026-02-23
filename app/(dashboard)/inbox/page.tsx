@@ -1,3 +1,4 @@
+// app/(dashboard)/inbox/page.tsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -173,9 +174,18 @@ export default function InboxDashboard() {
 
   const handleResolve = async () => {
     if (!activeSession) return;
-    await supabase.from('live_sessions').update({ status: 'closed' }).eq('id', activeSession.id);
-    setSessions(prev => prev.map(s => s.id === activeSession.id ? { ...s, status: 'closed' } : s));
-    setActiveSession({ ...activeSession, status: 'closed' });
+
+    // Calculate resolution time dynamically
+    const diffMs = Date.now() - new Date(activeSession.created_at).getTime();
+    const resolutionTime = Math.round(diffMs / 60000); // converting to minutes
+
+    await supabase.from('live_sessions').update({ 
+      status: 'closed',
+      resolution_time: resolutionTime
+    }).eq('id', activeSession.id);
+    
+    setSessions(prev => prev.map(s => s.id === activeSession.id ? { ...s, status: 'closed', resolution_time: resolutionTime } : s));
+    setActiveSession({ ...activeSession, status: 'closed', resolution_time: resolutionTime });
   };
 
   const parsedHistory = activeSession?.history ? JSON.parse(activeSession.history) : [];
