@@ -1,4 +1,3 @@
-// app/(dashboard)/inbox/page.tsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -15,9 +14,10 @@ export default function InboxDashboard() {
   const [isUserTyping, setIsUserTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // New configurations
+  // Agent Status & Canned Responses
   const [agentsOnline, setAgentsOnline] = useState(false);
   const [cannedResponses, setCannedResponses] = useState<string[]>([]);
+  const [newCannedInput, setNewCannedInput] = useState('');
   const [spaceId, setSpaceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -126,6 +126,22 @@ export default function InboxDashboard() {
     }
   };
 
+  const handleAddCanned = async () => {
+    const val = newCannedInput.trim();
+    if (val && !cannedResponses.includes(val)) {
+      const newArr = [...cannedResponses, val];
+      setCannedResponses(newArr);
+      setNewCannedInput('');
+      if (spaceId) await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
+    }
+  };
+
+  const handleRemoveCanned = async (text: string) => {
+    const newArr = cannedResponses.filter(c => c !== text);
+    setCannedResponses(newArr);
+    if (spaceId) await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     if (channelRef.current) {
@@ -178,20 +194,31 @@ export default function InboxDashboard() {
 
   return (
     <div className="flex h-full w-full bg-[#FAFAFA] text-gray-900 font-sans">
-      <div className="w-[300px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h1 className="text-base font-medium tracking-tight">Active Inquiries</h1>
-          <button 
-            onClick={toggleAgentStatus}
-            className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none ${agentsOnline ? 'bg-green-500' : 'bg-gray-300'}`}
-            title={`Status: ${agentsOnline ? 'Online' : 'Offline'}`}
-          >
-            <span className={`${agentsOnline ? 'translate-x-4' : 'translate-x-1'} inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform shadow-sm`} />
-          </button>
+      {/* Left Sidebar */}
+      <div className="w-[320px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
+        
+        {/* Agent Status Toggle Header */}
+        <div className="p-5 border-b border-gray-100 bg-[#FAFAFA]">
+          <div className="flex items-center justify-between mb-1.5">
+            <h1 className="text-sm font-semibold tracking-tight text-gray-900">Agent Status</h1>
+            <button 
+              onClick={toggleAgentStatus}
+              className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none shadow-inner ${agentsOnline ? 'bg-green-500' : 'bg-gray-300'}`}
+              title={`Status: ${agentsOnline ? 'Online' : 'Offline'}`}
+            >
+              <span className={`${agentsOnline ? 'translate-x-4' : 'translate-x-1'} inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform shadow-sm`} />
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-500 leading-snug">Toggle whether agents are currently online to chat. When offline, users are routed to email.</p>
         </div>
+
+        {/* Sessions List */}
         <div className="flex-1 overflow-y-auto">
+          <div className="px-5 py-3 border-b border-gray-50 bg-white">
+            <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Inquiries</h2>
+          </div>
           {sessions.length === 0 ? (
-            <div className="p-6 text-center text-sm text-gray-500">No active conversations.</div>
+            <div className="p-6 text-center text-xs text-gray-400">No active conversations.</div>
           ) : (
             sessions.map(session => (
               <button
@@ -210,8 +237,50 @@ export default function InboxDashboard() {
             ))
           )}
         </div>
+
+        {/* Canned Responses Manager */}
+        <div className="p-5 border-t border-gray-100 bg-[#FAFAFA] flex flex-col max-h-[40%]">
+          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Canned Responses</h2>
+          <div className="flex gap-2 mb-3 shrink-0">
+            <input 
+              type="text" 
+              value={newCannedInput}
+              onChange={(e) => setNewCannedInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddCanned()}
+              placeholder="Add a quick reply..."
+              className="flex-1 p-2 border border-gray-200 rounded-md text-xs outline-none focus:border-black transition-colors bg-white shadow-sm"
+            />
+            <button 
+              onClick={handleAddCanned}
+              disabled={!newCannedInput.trim()}
+              className="px-3 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              Add
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5 overflow-y-auto no-scrollbar pb-2">
+            {cannedResponses.map((canned, idx) => (
+              <div 
+                key={idx} 
+                onClick={() => setInput(canned)}
+                className="flex items-center justify-between p-2 bg-white border border-gray-100 rounded-md text-[11px] text-gray-700 shadow-sm group cursor-pointer hover:border-gray-300 transition-colors"
+                title="Click to use response"
+              >
+                <span className="truncate flex-1 pr-2">{canned}</span>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleRemoveCanned(canned); }} 
+                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 outline-none p-1"
+                  title="Remove response"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
+      {/* Main Chat View */}
       <div className="flex-1 flex flex-col bg-white">
         {!activeSession ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 bg-[#FAFAFA]">
@@ -279,27 +348,14 @@ export default function InboxDashboard() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col">
-              {cannedResponses.length > 0 && activeSession.status === 'open' && (
-                <div className="mb-3 flex overflow-x-auto no-scrollbar gap-2 pb-1">
-                  {cannedResponses.map((canned, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setInput(canned)}
-                      className="text-[11px] px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 hover:text-gray-900 transition-colors whitespace-nowrap shadow-sm flex-shrink-0"
-                    >
-                      {canned.length > 30 ? canned.substring(0, 30) + '...' : canned}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA]">
               <form onSubmit={handleSend} className="flex gap-2">
                 <input 
                   type="text" 
                   placeholder={activeSession.status === 'open' ? "Type a message..." : "Ticket is resolved."}
                   className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
                   value={input}
-                  onChange={handleInputChange} 
+                  onChange={handleInputChange}
                   disabled={activeSession.status === 'closed'}
                 />
                 <button 
