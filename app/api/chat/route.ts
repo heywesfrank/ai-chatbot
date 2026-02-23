@@ -127,7 +127,8 @@ CONTEXT:
 ${context || "No context available."}
 `.trim();
 
-    const stream = await openai.responses.create({
+    // Bypass strict SDK TypeScript definitions for newer API fields
+    const requestPayload: any = {
       model: 'gpt-5-nano',
       instructions: systemInstructions,
       input: messages.map((m: any) => ({ 
@@ -142,7 +143,9 @@ ${context || "No context available."}
         verbosity: configData?.verbosity || 'medium'
       },
       stream: true, 
-    });
+    };
+
+    const stream = await openai.responses.create(requestPayload);
 
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
