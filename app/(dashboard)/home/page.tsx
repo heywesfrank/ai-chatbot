@@ -1,10 +1,9 @@
-// app/(dashboard)/home/page.tsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 
-type Tab = 'data' | 'appearance' | 'behavior' | 'inbox' | 'install';
+type Tab = 'data' | 'appearance' | 'behavior' | 'integrations' | 'install';
 type SourceTab = 'website' | 'gitbook' | 'file';
 
 export default function HomeDashboard() {
@@ -37,8 +36,6 @@ export default function HomeDashboard() {
       "How do I contact support?"
     ],
     leadCaptureEnabled: false,
-    agentsOnline: false,
-    cannedResponses: [] as string[],
     slackBotToken: '',
     slackChannelId: '',
     theme: 'auto',
@@ -79,8 +76,6 @@ export default function HomeDashboard() {
         showPrompts: data.show_prompts ?? true,
         leadCaptureEnabled: data.lead_capture_enabled ?? false,
         suggestedPrompts: data.suggested_prompts || prev.suggestedPrompts,
-        agentsOnline: data.agents_online ?? false,
-        cannedResponses: data.canned_responses || [],
         slackBotToken: data.slack_bot_token || '',
         slackChannelId: data.slack_channel_id || ''
       }));
@@ -108,9 +103,7 @@ export default function HomeDashboard() {
 
   const callIngestApi = async (payload: any) => {
     const activeId = config.spaceId || Math.random().toString(36).substring(2, 10);
-    if (!config.spaceId) {
-      updateConfig('spaceId', activeId);
-    }
+    if (!config.spaceId) updateConfig('spaceId', activeId);
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return toast.error('Authentication required.');
@@ -167,9 +160,7 @@ export default function HomeDashboard() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result as string;
-      if (text) {
-        callIngestApi({ type: 'file', text, filename: file.name });
-      }
+      if (text) callIngestApi({ type: 'file', text, filename: file.name });
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -177,9 +168,7 @@ export default function HomeDashboard() {
 
   const handleSaveConfig = async () => {
     const activeId = config.spaceId || Math.random().toString(36).substring(2, 10);
-    if (!config.spaceId) {
-      updateConfig('spaceId', activeId);
-    }
+    if (!config.spaceId) updateConfig('spaceId', activeId);
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return toast.error('Authentication required.');
@@ -213,7 +202,7 @@ export default function HomeDashboard() {
     var position = "${config.position}";
     var theme = "${config.theme}";
     var iframe = document.createElement('iframe');
-    iframe.src = "[https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=$](https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=$){activeSpaceId}&position=" + position + "&theme=" + theme;
+    iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme;
     iframe.style.position = 'fixed';
     iframe.style.bottom = '20px';
     iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
@@ -271,7 +260,7 @@ export default function HomeDashboard() {
         </div>
 
         <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar shrink-0">
-          {(['data', 'appearance', 'behavior', 'inbox', 'install'] as Tab[]).map((tab) => (
+          {(['data', 'appearance', 'behavior', 'integrations', 'install'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -304,7 +293,7 @@ export default function HomeDashboard() {
                 <div className="space-y-4 animate-in fade-in duration-200">
                    <div>
                     <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Website URL or Sitemap.xml</label>
-                    <input type="url" placeholder="[https://example.com/sitemap.xml](https://example.com/sitemap.xml)" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
+                    <input type="url" placeholder="https://example.com/sitemap.xml" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
                     <p className="text-[10px] text-gray-400 mt-1">Max 50 pages crawled per sitemap to prevent overload.</p>
                   </div>
                   <button onClick={handleSyncWebsite} disabled={isSyncing || !websiteUrl} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm">
@@ -451,80 +440,21 @@ export default function HomeDashboard() {
             </div>
           )}
 
-          {activeTab === 'inbox' && (
+          {activeTab === 'integrations' && (
             <div className="space-y-7 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Agent Status</label>
-                  <p className="text-xs text-gray-500 mt-0.5">Toggle whether agents are currently online to chat.</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={config.agentsOnline} onChange={(e) => updateConfig('agentsOnline', e.target.checked)} />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
-                </label>
-              </div>
-
-              <div className="border-t border-gray-100 pt-6 space-y-4">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Canned Responses</label>
-                  <p className="text-xs text-gray-500 mt-0.5 mb-3">Quick replies for agents in the inbox.</p>
-                  
-                  <div className="flex gap-2 mb-3">
-                      <input 
-                        type="text" 
-                        placeholder="Add a canned response..."
-                        className="flex-1 p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white"
-                        id="newCanned"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const val = e.currentTarget.value.trim();
-                            if (val && !config.cannedResponses.includes(val)) {
-                              updateConfig('cannedResponses', [...config.cannedResponses, val]);
-                              e.currentTarget.value = '';
-                            }
-                          }
-                        }}
-                      />
-                      <button onClick={(e) => {
-                        e.preventDefault();
-                        const input = document.getElementById('newCanned') as HTMLInputElement;
-                        const val = input.value.trim();
-                        if (val && !config.cannedResponses.includes(val)) {
-                          updateConfig('cannedResponses', [...config.cannedResponses, val]);
-                          input.value = '';
-                        }
-                      }} className="px-3 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">Add</button>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Slack Integration</label>
+                <p className="text-xs text-gray-500 mt-0.5 mb-4 leading-relaxed">Route tickets to a Slack channel and reply directly to users from a Slack thread.</p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Bot User OAuth Token</label>
+                    <input type="password" placeholder="xoxb-..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackBotToken} onChange={(e) => updateConfig('slackBotToken', e.target.value)} />
                   </div>
-                  {config.cannedResponses.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      {config.cannedResponses.map((prompt: string) => (
-                        <div key={prompt} className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-md text-xs text-gray-700">
-                          <span className="truncate flex-1" title={prompt}>{prompt}</span>
-                          <button onClick={() => updateConfig('cannedResponses', config.cannedResponses.filter((p: string) => p !== prompt))} className="text-gray-400 hover:text-red-500 ml-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-6 space-y-4">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Slack Integration</label>
-                  <p className="text-xs text-gray-500 mt-0.5 mb-3 leading-relaxed">Reply to tickets directly from a Slack channel thread.</p>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">Bot Token</label>
-                      <input type="password" placeholder="xoxb-..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackBotToken} onChange={(e) => updateConfig('slackBotToken', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">Channel ID</label>
-                      <input type="text" placeholder="C..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackChannelId} onChange={(e) => updateConfig('slackChannelId', e.target.value)} />
-                    </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Channel ID</label>
+                    <input type="text" placeholder="C01234567" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackChannelId} onChange={(e) => updateConfig('slackChannelId', e.target.value)} />
+                    <p className="text-[10px] text-gray-400 mt-1">Right-click a channel in Slack {'>'} View details {'>'} Bottom of modal.</p>
                   </div>
                 </div>
               </div>
