@@ -1,3 +1,4 @@
+// app/(dashboard)/home/page.tsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -36,7 +37,6 @@ export default function HomeDashboard() {
       "How do I contact support?"
     ],
     leadCaptureEnabled: false,
-    slackBotToken: '',
     slackChannelId: '',
     theme: 'auto',
     position: 'right'
@@ -47,6 +47,18 @@ export default function HomeDashboard() {
   };
 
   useEffect(() => {
+    // Check for Slack OAuth Redirect statuses
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('slack') === 'success') {
+      toast.success('Successfully connected to Slack!');
+      window.history.replaceState(null, '', '/home');
+      setActiveTab('integrations');
+    } else if (searchParams.get('error') === 'slack_auth_failed') {
+      toast.error('Failed to connect to Slack. Please try again.');
+      window.history.replaceState(null, '', '/home');
+      setActiveTab('integrations');
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUserId(session.user.id);
@@ -76,7 +88,6 @@ export default function HomeDashboard() {
         showPrompts: data.show_prompts ?? true,
         leadCaptureEnabled: data.lead_capture_enabled ?? false,
         suggestedPrompts: data.suggested_prompts || prev.suggestedPrompts,
-        slackBotToken: data.slack_bot_token || '',
         slackChannelId: data.slack_channel_id || ''
       }));
       if (data.space_id) {
@@ -193,6 +204,21 @@ export default function HomeDashboard() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDisconnectSlack = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    updateConfig('slackChannelId', '');
+    
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ spaceId: activeSpaceId, userId, slackBotToken: null, slackChannelId: null }),
+    });
+    
+    toast.success('Disconnected from Slack');
   };
 
   if (!userId) return null; 
@@ -444,19 +470,32 @@ export default function HomeDashboard() {
             <div className="space-y-7 animate-in fade-in duration-300">
               <div>
                 <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Slack Integration</label>
-                <p className="text-xs text-gray-500 mt-0.5 mb-4 leading-relaxed">Route tickets to a Slack channel and reply directly to users from a Slack thread.</p>
+                <p className="text-xs text-gray-500 mt-0.5 mb-4 leading-relaxed">Connect Slack to automatically route user tickets to a channel and reply to them directly from Slack.</p>
                 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Bot User OAuth Token</label>
-                    <input type="password" placeholder="xoxb-..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackBotToken} onChange={(e) => updateConfig('slackBotToken', e.target.value)} />
+                {config.slackChannelId ? (
+                  <div className="p-4 border border-green-200 bg-green-50 rounded-md flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Connected to Slack</p>
+                      <p className="text-xs text-green-700 mt-0.5">Routing tickets to connected channel.</p>
+                    </div>
+                    <button 
+                      onClick={handleDisconnectSlack}
+                      className="px-3 py-1.5 bg-white border border-green-200 text-green-700 text-xs font-medium rounded-md hover:bg-green-50 transition-colors shadow-sm"
+                    >
+                      Disconnect
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Channel ID</label>
-                    <input type="text" placeholder="C01234567" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackChannelId} onChange={(e) => updateConfig('slackChannelId', e.target.value)} />
-                    <p className="text-[10px] text-gray-400 mt-1">Right-click a channel in Slack {'>'} View details {'>'} Bottom of modal.</p>
-                  </div>
-                </div>
+                ) : (
+                  <a 
+                    href={`https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,incoming-webhook,channels:history,groups:history&state=${activeSpaceId}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-900 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.523-2.522v-2.522h2.523zM15.165 17.688a2.527 2.527 0 0 1-2.523-2.523 2.526 2.526 0 0 1 2.523-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52H15.165z"/>
+                    </svg>
+                    Connect to Slack
+                  </a>
+                )}
               </div>
             </div>
           )}
