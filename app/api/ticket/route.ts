@@ -25,10 +25,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
-    // Retain legacy ticket mapping for backup
     await supabase.from('tickets').insert({ space_id: spaceId, email, prompt });
 
-    // Initiate the Real-Time Live Session
     const { data: session, error: sessionError } = await supabase
       .from('live_sessions')
       .insert({
@@ -42,12 +40,42 @@ export async function POST(req: Request) {
 
     if (sessionError) throw sessionError;
 
-    // Immediately push the user's initial hand-off prompt into the live message table
     await supabase.from('live_messages').insert({
       session_id: session.id,
       role: 'user',
       content: prompt
     });
+
+    const { data: config } = await supabase
+      .from('bot_config')
+      .select('slack_bot_token, slack_channel_id')
+      .eq('space_id', spaceId)
+      .maybeSingle();
+
+    if (config?.slack_bot_token && config?.slack_channel_id) {
+      try {
+        const slackRes = await fetch('[https://slack.com/api/chat.postMessage](https://slack.com/api/chat.postMessage)', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.slack_bot_token}`
+          },
+          body: JSON.stringify({
+            channel: config.slack_channel_id,
+            text: `*New Ticket from ${email}*\n\n*Message:*\n${prompt}`,
+          })
+        });
+
+        const slackData = await slackRes.json();
+        if (slackData.ok && slackData.ts) {
+          await supabase.from('live_sessions')
+            .update({ slack_thread_ts: slackData.ts })
+            .eq('id', session.id);
+        }
+      } catch (slackErr) {
+        console.error("Failed to post to slack", slackErr);
+      }
+    }
 
     return NextResponse.json({ success: true, sessionId: session.id }, { headers: corsHeaders });
   } catch (error: any) {
