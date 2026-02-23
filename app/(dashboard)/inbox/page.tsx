@@ -15,7 +15,6 @@ export default function InboxDashboard() {
   const [isUserTyping, setIsUserTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Agent Status & Canned Responses
   const [agentsOnline, setAgentsOnline] = useState(false);
   const [cannedResponses, setCannedResponses] = useState<string[]>([]);
   const [newCannedInput, setNewCannedInput] = useState('');
@@ -29,21 +28,33 @@ export default function InboxDashboard() {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       
       if (authSession) {
-        const { data: config } = await supabase
+        let configData = null;
+        
+        const { data: ownConfig } = await supabase
           .from('bot_config')
           .select('space_id, agents_online, canned_responses')
           .eq('user_id', authSession.user.id)
           .maybeSingle();
+
+        if (ownConfig?.space_id) {
+          configData = ownConfig;
+        } else {
+          const { data: member } = await supabase.from('team_members').select('space_id').eq('email', authSession.user.email).maybeSingle();
+          if (member?.space_id) {
+            const { data: teamConfig } = await supabase.from('bot_config').select('space_id, agents_online, canned_responses').eq('space_id', member.space_id).maybeSingle();
+            configData = teamConfig;
+          }
+        }
         
-        if (config?.space_id) {
-          setSpaceId(config.space_id);
-          setAgentsOnline(config.agents_online || false);
-          setCannedResponses(config.canned_responses || []);
+        if (configData?.space_id) {
+          setSpaceId(configData.space_id);
+          setAgentsOnline(configData.agents_online || false);
+          setCannedResponses(configData.canned_responses || []);
 
           const { data: rawSessions } = await supabase
             .from('live_sessions')
             .select('*')
-            .eq('space_id', config.space_id)
+            .eq('space_id', configData.space_id)
             .order('created_at', { ascending: false });
             
           if (rawSessions) setSessions(rawSessions);
@@ -53,7 +64,7 @@ export default function InboxDashboard() {
               event: 'INSERT', 
               schema: 'public', 
               table: 'live_sessions', 
-              filter: `space_id=eq.${config.space_id}` 
+              filter: `space_id=eq.${configData.space_id}` 
             }, payload => {
               setSessions(prev => [payload.new, ...prev]);
             })
@@ -175,9 +186,8 @@ export default function InboxDashboard() {
   const handleResolve = async () => {
     if (!activeSession) return;
 
-    // Calculate resolution time dynamically
     const diffMs = Date.now() - new Date(activeSession.created_at).getTime();
-    const resolutionTime = Math.round(diffMs / 60000); // converting to minutes
+    const resolutionTime = Math.round(diffMs / 60000); 
 
     await supabase.from('live_sessions').update({ 
       status: 'closed',
@@ -204,10 +214,8 @@ export default function InboxDashboard() {
 
   return (
     <div className="flex h-full w-full bg-[#FAFAFA] text-gray-900 font-sans">
-      {/* Left Sidebar */}
       <div className="w-[320px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
         
-        {/* Agent Status Toggle Header */}
         <div className="p-5 border-b border-gray-100 bg-[#FAFAFA]">
           <div className="flex items-center justify-between mb-1.5">
             <h1 className="text-sm font-semibold tracking-tight text-gray-900">Agent Status</h1>
@@ -222,7 +230,6 @@ export default function InboxDashboard() {
           <p className="text-[11px] text-gray-500 leading-snug">Toggle whether agents are currently online to chat. When offline, users are routed to email.</p>
         </div>
 
-        {/* Sessions List */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-5 py-3 border-b border-gray-50 bg-white">
             <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Inquiries</h2>
@@ -248,7 +255,6 @@ export default function InboxDashboard() {
           )}
         </div>
 
-        {/* Canned Responses Manager */}
         <div className="p-5 border-t border-gray-100 bg-[#FAFAFA] flex flex-col max-h-[40%]">
           <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Canned Responses</h2>
           <div className="flex gap-2 mb-3 shrink-0">
@@ -290,7 +296,6 @@ export default function InboxDashboard() {
         </div>
       </div>
 
-      {/* Main Chat View */}
       <div className="flex-1 flex flex-col bg-white">
         {!activeSession ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 bg-[#FAFAFA]">
