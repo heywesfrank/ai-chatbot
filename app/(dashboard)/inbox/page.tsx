@@ -1,3 +1,4 @@
+// app/(dashboard)/inbox/page.tsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -9,6 +10,11 @@ export default function InboxDashboard() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // NEW: Typing broadcast refs
+  const channelRef = useRef<any>(null);
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     let channel: any;
@@ -72,7 +78,8 @@ export default function InboxDashboard() {
   useEffect(() => {
     if (!activeSession) return;
     
-    const channel = supabase.channel(`dashboard_messages_${activeSession.id}`)
+    const channelName = `session_${activeSession.id}`;
+    const channel = supabase.channel(channelName)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -83,16 +90,40 @@ export default function InboxDashboard() {
         // Only append messages from the user (we optimistic update our own)
         if (newMsg.role === 'user') {
           setMessages(prev => [...prev, newMsg]);
+          setIsUserTyping(false); // Stop typing indicator immediately
         }
       })
-      .subscribe();
+      .on('broadcast', { event: 'typing' }, payload => {
+        if (payload.payload?.role === 'user') {
+          setIsUserTyping(true);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setIsUserTyping(false), 3000);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') channelRef.current = channel;
+      });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+      supabase.removeChannel(channel); 
+      channelRef.current = null;
+    };
   }, [activeSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages]);
+  }, [messages, isUserTyping]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { role: 'agent' }
+      });
+    }
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +132,9 @@ export default function InboxDashboard() {
     const msg = input.trim();
     setInput('');
     const tempId = Date.now().toString();
-    setMessages(prev => [...prev, { id: tempId, role: 'agent', content: msg }]);
+    const timestamp = new Date().toISOString();
+    
+    setMessages(prev => [...prev, { id: tempId, role: 'agent', content: msg, created_at: timestamp }]);
 
     await supabase.from('live_messages').insert({
       session_id: activeSession.id,
@@ -188,7 +221,7 @@ export default function InboxDashboard() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col">
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col relative">
               {parsedHistory.length > 0 && (
                 <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 mb-6 text-xs text-gray-500">
                   <h3 className="font-semibold mb-2 text-gray-700 border-b border-gray-200 pb-2">Previous AI Context</h3>
@@ -208,9 +241,24 @@ export default function InboxDashboard() {
                     <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                       {msg.content}
                     </div>
-                    <span className="text-[10px] text-gray-400 mt-1 mx-1 capitalize font-medium">{msg.role}</span>
+                    {/* Timestamp & Tag row */}
+                    <div className="flex items-center gap-1.5 mt-1 mx-1 text-[10px] text-gray-400">
+                       <span className="capitalize font-medium">{msg.role}</span>
+                       {msg.created_at && (
+                         <>
+                           <span className="w-px h-2 bg-gray-300 mx-0.5"></span>
+                           <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                         </>
+                       )}
+                    </div>
                   </div>
                 ))}
+                
+                {isUserTyping && (
+                  <div className="flex items-center gap-2 mt-2 ml-2 animate-in fade-in duration-300">
+                    <span className="text-[11px] italic text-gray-500 font-medium">User is typing...</span>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
             </div>
@@ -220,9 +268,9 @@ export default function InboxDashboard() {
                 <input 
                   type="text" 
                   placeholder={activeSession.status === 'open' ? "Type a message..." : "Ticket is resolved."}
-                  className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange} // Uses Broadcast Wrapper
                   disabled={activeSession.status === 'closed'}
                 />
                 <button 
