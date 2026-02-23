@@ -85,9 +85,15 @@ export default function MessageBubble({
           className={`px-3.5 py-2.5 rounded-2xl leading-relaxed break-words shadow-sm w-full ${isUser ? 'text-[var(--msg-user-text)] rounded-tr-sm' : 'bg-[var(--msg-bot-bg)] text-[var(--msg-bot-text)] border border-[var(--border-color)] rounded-tl-sm'}`}
           style={isUser ? { backgroundColor: 'var(--primary-color)' } : {}}
         >
-          {isUser ? msg.content : (
+          {isUser ? (
             <ReactMarkdown 
-              className="prose prose-sm max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)]"
+              className="prose prose-sm max-w-none prose-p:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-current prose-a:underline prose-img:rounded-xl prose-img:shadow-sm prose-img:max-w-full prose-img:my-1"
+            >
+              {msg.content}
+            </ReactMarkdown>
+          ) : (
+            <ReactMarkdown 
+              className="prose prose-sm max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)] prose-img:rounded-xl prose-img:max-w-full"
               components={{
                 pre: ({ children, ...props }) => {
                   const codeText = flattenText(children);
