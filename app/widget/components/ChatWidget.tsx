@@ -214,6 +214,48 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    if (!liveSessionId) return;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${liveSessionId}/${Date.now()}.${fileExt}`;
+      
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('chat_attachments')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      // Get the public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('chat_attachments')
+        .getPublicUrl(fileName);
+
+      const fileUrl = publicUrlData.publicUrl;
+      const isImage = file.type.startsWith('image/');
+      
+      // Format as Markdown: image preview or simple link
+      const content = isImage ? `![${file.name}](${fileUrl})` : `[📎 ${file.name}](${fileUrl})`;
+
+      // Push to UI Optimistically
+      const tempId = Date.now().toString();
+      const timestamp = new Date().toISOString();
+      setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content, created_at: timestamp }]);
+
+      // Persist to Live Chat Table
+      await fetch('/api/live-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: liveSessionId, role: 'user', content })
+      });
+
+    } catch (e) {
+      console.error('File upload failed', e);
+    }
+  };
+
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -417,6 +459,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         handleFormSubmit={handleFormSubmit} 
         disabled={(isLoading && !liveSessionId)}
         primaryColor={primaryColor} 
+        isLiveChat={!!liveSessionId}
+        onFileUpload={handleFileUpload}
       />
 
       {!removeBranding && (
