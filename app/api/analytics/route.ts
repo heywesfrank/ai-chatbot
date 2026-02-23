@@ -12,18 +12,16 @@ export async function GET(req: Request) {
     
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Get the user's space_id
     const { data: config } = await supabase
       .from('bot_config')
-      .select('space_id')
+      .select('space_id, ai_insights')
       .eq('user_id', user.id)
       .maybeSingle();
 
     if (!config?.space_id) {
-      return NextResponse.json({ feedbacks: [] });
+      return NextResponse.json({ feedbacks: [], volumeData: [], aiInsights: null });
     }
 
-    // 2. Fetch feedback securely bypassing RLS
     const { data: feedbacks, error } = await supabase
       .from('chat_feedback')
       .select('*')
@@ -32,7 +30,40 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ feedbacks: feedbacks || [] });
+    // Build 30-day volume data for charts
+    const volumeMap: Record<string, number> = {};
+    const now = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const displayStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      volumeMap[dateStr] = 0;
+    }
+
+    if (feedbacks) {
+      feedbacks.forEach(f => {
+        const dateStr = new Date(f.created_at).toISOString().split('T')[0];
+        if (volumeMap[dateStr] !== undefined) {
+          volumeMap[dateStr]++;
+        }
+      });
+    }
+
+    const volumeData = Object.keys(volumeMap).map(date => {
+      const d = new Date(date);
+      return {
+        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        interactions: volumeMap[date]
+      };
+    });
+
+    return NextResponse.json({ 
+      feedbacks: feedbacks || [], 
+      volumeData, 
+      aiInsights: config.ai_insights 
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
