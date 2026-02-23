@@ -18,6 +18,9 @@ export default function HomeDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [newPrompt, setNewPrompt] = useState('');
 
+  const [newFaqQuestion, setNewFaqQuestion] = useState('');
+  const [newFaqAnswer, setNewFaqAnswer] = useState('');
+
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [gitbookSpaceId, setGitbookSpaceId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +41,9 @@ export default function HomeDashboard() {
     ],
     leadCaptureEnabled: false,
     slackChannelId: '',
+    webhookUrl: '',
+    faqOverrides: [] as { question: string, answer: string }[],
+    language: 'Auto-detect',
     theme: 'auto',
     position: 'right'
   });
@@ -88,7 +94,10 @@ export default function HomeDashboard() {
         showPrompts: data.show_prompts ?? true,
         leadCaptureEnabled: data.lead_capture_enabled ?? false,
         suggestedPrompts: data.suggested_prompts || prev.suggestedPrompts,
-        slackChannelId: data.slack_channel_id || ''
+        slackChannelId: data.slack_channel_id || '',
+        webhookUrl: data.webhook_url || '',
+        faqOverrides: data.faq_overrides || [],
+        language: data.language || 'Auto-detect',
       }));
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
@@ -110,6 +119,19 @@ export default function HomeDashboard() {
 
   const handleRemovePrompt = (promptToRemove: string) => {
     updateConfig('suggestedPrompts', config.suggestedPrompts.filter(p => p !== promptToRemove));
+  };
+
+  const handleAddFaq = () => {
+    if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) return;
+    updateConfig('faqOverrides', [...config.faqOverrides, { question: newFaqQuestion.trim(), answer: newFaqAnswer.trim() }]);
+    setNewFaqQuestion('');
+    setNewFaqAnswer('');
+  };
+
+  const handleRemoveFaq = (index: number) => {
+    const newFaqs = [...config.faqOverrides];
+    newFaqs.splice(index, 1);
+    updateConfig('faqOverrides', newFaqs);
   };
 
   const callIngestApi = async (payload: any) => {
@@ -403,13 +425,37 @@ export default function HomeDashboard() {
 
           {activeTab === 'behavior' && (
             <div className="space-y-7 animate-in fade-in duration-300">
+              
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">System Prompt</label>
+                  <textarea 
+                    className="w-full p-3 border border-gray-200 rounded-md text-sm h-32 outline-none focus:border-black resize-none leading-relaxed transition-colors"
+                    value={config.systemPrompt}
+                    onChange={(e) => updateConfig('systemPrompt', e.target.value)}
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">System Prompt</label>
-                <textarea 
-                  className="w-full p-3 border border-gray-200 rounded-md text-sm h-32 outline-none focus:border-black resize-none leading-relaxed transition-colors"
-                  value={config.systemPrompt}
-                  onChange={(e) => updateConfig('systemPrompt', e.target.value)}
-                />
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Bot Language</label>
+                <select 
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors"
+                  value={config.language}
+                  onChange={(e) => updateConfig('language', e.target.value)}
+                >
+                  <option value="Auto-detect">Auto-detect (Native Language)</option>
+                  <option value="English">English</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="French">French</option>
+                  <option value="German">German</option>
+                  <option value="Portuguese">Portuguese</option>
+                  <option value="Italian">Italian</option>
+                  <option value="Dutch">Dutch</option>
+                  <option value="Japanese">Japanese</option>
+                  <option value="Korean">Korean</option>
+                  <option value="Chinese">Chinese</option>
+                </select>
               </div>
 
               <div className="space-y-4">
@@ -453,6 +499,33 @@ export default function HomeDashboard() {
                 )}
               </div>
 
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Custom FAQ Overrides</label>
+                  <p className="text-xs text-gray-500 mt-0.5">Bypass the AI for specific exact-match questions.</p>
+                </div>
+                <div className="space-y-3 p-4 bg-gray-50 rounded-md border border-gray-100">
+                  <div className="flex flex-col gap-2">
+                    <input type="text" placeholder="Exact Question (e.g. What is your pricing?)" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={newFaqQuestion} onChange={(e) => setNewFaqQuestion(e.target.value)} />
+                    <textarea placeholder="Exact Answer" className="w-full p-2 border border-gray-200 rounded-md text-sm h-16 outline-none focus:border-black resize-none transition-colors bg-white" value={newFaqAnswer} onChange={(e) => setNewFaqAnswer(e.target.value)} />
+                    <button onClick={(e) => { e.preventDefault(); handleAddFaq(); }} disabled={!newFaqQuestion.trim() || !newFaqAnswer.trim()} className="self-end px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm">Add Override</button>
+                  </div>
+                  {config.faqOverrides.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      {config.faqOverrides.map((faq, idx) => (
+                        <div key={idx} className="flex flex-col p-3 bg-white border border-gray-200 rounded-md shadow-sm relative group">
+                          <p className="text-xs font-semibold text-gray-900 mb-1 pr-6">Q: {faq.question}</p>
+                          <p className="text-xs text-gray-600 pr-6 truncate">A: {faq.answer}</p>
+                          <button onClick={() => handleRemoveFaq(idx)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 focus:outline-none">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-center justify-between border-t border-gray-100 pt-6">
                 <div className="pr-4">
                   <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Lead Capture</label>
@@ -491,11 +564,23 @@ export default function HomeDashboard() {
                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-900 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.523-2.522v-2.522h2.523zM15.165 17.688a2.527 2.527 0 0 1-2.523-2.523 2.526 2.526 0 0 1 2.523-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52H15.165z"/>
+                      <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521z-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.523-2.522v-2.522h2.523zM15.165 17.688a2.527 2.527 0 0 1-2.523-2.523 2.526 2.526 0 0 1 2.523-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52H15.165z"/>
                     </svg>
                     Connect to Slack
                   </a>
                 )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Lead Capture Webhook</label>
+                <p className="text-xs text-gray-500 mt-0.5 mb-4 leading-relaxed">Send captured leads directly to Zapier, Make.com, or your own CRM.</p>
+                <input 
+                  type="url" 
+                  placeholder="https://hooks.zapier.com/hooks/catch/..." 
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors"
+                  value={config.webhookUrl} 
+                  onChange={(e) => updateConfig('webhookUrl', e.target.value)} 
+                />
               </div>
             </div>
           )}
