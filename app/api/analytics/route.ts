@@ -1,6 +1,9 @@
 // app/api/analytics/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import Sentiment from 'sentiment';
+
+const sentiment = new Sentiment();
 
 export async function GET(req: Request) {
   try {
@@ -19,7 +22,10 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     if (!config?.space_id) {
-      return NextResponse.json({ feedbacks: [], volumeData: [], aiInsights: null });
+      return NextResponse.json({ 
+        feedbacks: [], volumeData: [], aiInsights: null, 
+        avgResolutionTime: 0, frustrationScore: 0, frustratedConversations: [] 
+      });
     }
 
     // 1. Fetch raw feedback data
@@ -68,10 +74,79 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
+    // 4. Advanced Analytics (Resolution Time & Sentiment)
+    const { data: sessions } = await supabase
+      .from('live_sessions')
+      .select('id, created_at, status, email')
+      .eq('space_id', config.space_id);
+    
+    const sessionIds = sessions ? sessions.map(s => s.id) : [];
+
+    let avgResolutionTime = 0;
+    let frustrationScore = 0;
+    let frustratedConversations: any[] = [];
+
+    if (sessionIds.length > 0) {
+      const { data: messages } = await supabase
+        .from('live_messages')
+        .select('session_id, created_at, role, content')
+        .in('session_id', sessionIds);
+      
+      if (messages) {
+        // A) Resolution Time (Open -> Closed)
+        const closed = sessions!.filter(s => s.status === 'closed');
+        let totalTime = 0;
+        let closedCount = 0;
+
+        closed.forEach(session => {
+          const sMsgs = messages.filter(m => m.session_id === session.id);
+          if (sMsgs.length > 0) {
+            const lastMsg = sMsgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const diff = new Date(lastMsg.created_at).getTime() - new Date(session.created_at).getTime();
+            if (diff > 0) {
+              totalTime += diff;
+              closedCount++;
+            }
+          }
+        });
+
+        if (closedCount > 0) {
+          avgResolutionTime = Math.round(totalTime / closedCount / 60000); // Convert ms to minutes
+        }
+
+        // B) Sentiment Analysis
+        const userMsgs = messages.filter(m => m.role === 'user');
+        let totalNegative = 0;
+        const angrySessionsMap = new Map();
+
+        userMsgs.forEach(m => {
+          const result = sentiment.analyze(m.content);
+          if (result.score < 0) {
+            totalNegative++;
+            if (!angrySessionsMap.has(m.session_id)) {
+              const sessionDetails = sessions!.find(s => s.id === m.session_id);
+              angrySessionsMap.set(m.session_id, {
+                id: m.session_id,
+                email: sessionDetails?.email || 'Anonymous',
+                messages: []
+              });
+            }
+            angrySessionsMap.get(m.session_id).messages.push(m.content);
+          }
+        });
+
+        frustrationScore = userMsgs.length > 0 ? Math.round((totalNegative / userMsgs.length) * 100) : 0;
+        frustratedConversations = Array.from(angrySessionsMap.values());
+      }
+    }
+
     return NextResponse.json({ 
       feedbacks: feedbacks || [], 
       volumeData, 
-      aiInsights: latestInsight?.insights || null 
+      aiInsights: latestInsight?.insights || null,
+      avgResolutionTime,
+      frustrationScore,
+      frustratedConversations
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
