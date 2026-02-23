@@ -77,7 +77,7 @@ export async function GET(req: Request) {
     // 4. Advanced Analytics (Resolution Time & Sentiment)
     const { data: sessions } = await supabase
       .from('live_sessions')
-      .select('id, created_at, status, email')
+      .select('id, created_at, status, email, resolution_time')
       .eq('space_id', config.space_id);
     
     const sessionIds = sessions ? sessions.map(s => s.id) : [];
@@ -89,7 +89,7 @@ export async function GET(req: Request) {
     if (sessionIds.length > 0) {
       const { data: messages } = await supabase
         .from('live_messages')
-        .select('session_id, created_at, role, content')
+        .select('session_id, created_at, role, content, sentiment_score')
         .in('session_id', sessionIds);
       
       if (messages) {
@@ -99,19 +99,26 @@ export async function GET(req: Request) {
         let closedCount = 0;
 
         closed.forEach(session => {
-          const sMsgs = messages.filter(m => m.session_id === session.id);
-          if (sMsgs.length > 0) {
-            const lastMsg = sMsgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-            const diff = new Date(lastMsg.created_at).getTime() - new Date(session.created_at).getTime();
-            if (diff > 0) {
-              totalTime += diff;
-              closedCount++;
+          let rTime = session.resolution_time;
+
+          // Fallback to dynamic calculation if resolution_time hasn't been cached yet (older entries)
+          if (rTime == null) {
+            const sMsgs = messages.filter(m => m.session_id === session.id);
+            if (sMsgs.length > 0) {
+              const lastMsg = sMsgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+              const diff = new Date(lastMsg.created_at).getTime() - new Date(session.created_at).getTime();
+              rTime = diff > 0 ? Math.round(diff / 60000) : 0;
+            } else {
+              rTime = 0;
             }
           }
+
+          totalTime += rTime;
+          closedCount++;
         });
 
         if (closedCount > 0) {
-          avgResolutionTime = Math.round(totalTime / closedCount / 60000); // Convert ms to minutes
+          avgResolutionTime = Math.round(totalTime / closedCount);
         }
 
         // B) Sentiment Analysis
@@ -120,8 +127,10 @@ export async function GET(req: Request) {
         const angrySessionsMap = new Map();
 
         userMsgs.forEach(m => {
-          const result = sentiment.analyze(m.content);
-          if (result.score < 0) {
+          // Use cached score if it exists, otherwise fall back to analyzing on-the-fly for old messages
+          const score = m.sentiment_score !== null ? m.sentiment_score : sentiment.analyze(m.content).score;
+
+          if (score < 0) {
             totalNegative++;
             if (!angrySessionsMap.has(m.session_id)) {
               const sessionDetails = sessions!.find(s => s.id === m.session_id);
