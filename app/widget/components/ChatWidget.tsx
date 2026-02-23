@@ -52,6 +52,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const welcomeMessage = config?.welcome_message || 'How can I help you today?';
   const botAvatar = config?.bot_avatar || null;
   const removeBranding = config?.remove_branding || false;
+  const agentsOnline = config?.agents_online ?? false;
 
   const defaultPrompts = ["How do I reset my password?", "Where can I find the documentation?", "How do I contact support?"];
   const showPrompts = urlOverrides.showPrompts !== null ? urlOverrides.showPrompts : (config?.show_prompts ?? true);
@@ -76,7 +77,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const prevMessagesLength = useRef(messages.length);
   const prevLiveMessagesLength = useRef(liveMessages.length);
 
-  // Resize Message to Host iframe
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.parent.postMessage({ type: 'kb-widget-resize', isOpen }, '*');
@@ -116,9 +116,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       }, payload => {
         const newMsg = payload.new as any;
         if (newMsg.role === 'agent') {
-          // Include created_at locally
           setLiveMessages(prev => [...prev, { id: newMsg.id, role: newMsg.role, content: newMsg.content, created_at: newMsg.created_at }]);
-          setIsAgentTyping(false); // Stop typing indicator
+          setIsAgentTyping(false);
         }
       })
       .on('broadcast', { event: 'typing' }, payload => {
@@ -201,8 +200,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       if (data.sessionId) {
         setLiveSessionId(data.sessionId);
         const timestamp = new Date().toISOString();
+        const notification = agentsOnline ? 'Connecting you to an agent...' : 'Ticket created! We will reply to your email soon.';
         setLiveMessages([
-          { id: Date.now().toString(), role: 'system', content: 'Connecting you to an agent...', created_at: timestamp },
+          { id: Date.now().toString(), role: 'system', content: notification, created_at: timestamp },
           { id: (Date.now() + 1).toString(), role: 'user', content: prompt, created_at: timestamp }
         ]);
       }
@@ -221,14 +221,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${liveSessionId}/${Date.now()}.${fileExt}`;
       
-      // Upload to Supabase Storage
       const { error } = await supabase.storage
         .from('chat_attachments')
         .upload(fileName, file);
 
       if (error) throw error;
 
-      // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('chat_attachments')
         .getPublicUrl(fileName);
@@ -236,15 +234,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       const fileUrl = publicUrlData.publicUrl;
       const isImage = file.type.startsWith('image/');
       
-      // Format as Markdown: image preview or simple link
       const content = isImage ? `![${file.name}](${fileUrl})` : `[📎 ${file.name}](${fileUrl})`;
 
-      // Push to UI Optimistically
       const tempId = Date.now().toString();
       const timestamp = new Date().toISOString();
       setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content, created_at: timestamp }]);
 
-      // Persist to Live Chat Table
       await fetch('/api/live-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -282,7 +277,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     }
   };
 
-  // Wrapper for sending user typing events to dashboard
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleInputChange(e);
     if (liveSessionId && typingChannelRef.current) {
@@ -390,6 +384,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               isSubmittingTicket={isSubmittingTicket}
               escalatingId={escalatingId}
               setEscalatingId={setEscalatingId}
+              agentsOnline={agentsOnline}
             />
           ))}
 
@@ -410,10 +405,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               handleCopy={handleCopy}
               copiedId={copiedId}
               liveSessionId={liveSessionId}
+              agentsOnline={agentsOnline}
             />
           ))}
 
-          {/* COMBINED Agent & AI Typing Indicator */}
           {((isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user') || isAgentTyping) && (
             <div className="flex justify-start animate-in fade-in duration-300">
                {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)]" />}
