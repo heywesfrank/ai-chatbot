@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract all configurations including new lead capture field
+    // Extract all configurations including new live chat features
     const { 
       spaceId, 
       systemPrompt, 
@@ -27,10 +27,13 @@ export async function POST(req: Request) {
       botAvatar,
       showPrompts,
       suggestedPrompts,
-      leadCaptureEnabled
+      leadCaptureEnabled,
+      agentsOnline,
+      cannedResponses,
+      slackBotToken,
+      slackChannelId
     } = await req.json();
 
-    // Validate that all required fields are present
     if (!spaceId || !systemPrompt || !userId) {
       return NextResponse.json(
         { error: 'Space ID, System Prompt, and User ID are required.' }, 
@@ -38,12 +41,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Ensure the authenticated user is only editing their own data
     if (user.id !== userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Update the bot configuration and link it to the authenticated user.
     const { error } = await supabase
       .from('bot_config')
       .upsert(
@@ -58,7 +59,11 @@ export async function POST(req: Request) {
           bot_avatar: botAvatar || null,
           show_prompts: showPrompts !== undefined ? showPrompts : true,
           suggested_prompts: suggestedPrompts || [],
-          lead_capture_enabled: leadCaptureEnabled !== undefined ? leadCaptureEnabled : false
+          lead_capture_enabled: leadCaptureEnabled !== undefined ? leadCaptureEnabled : false,
+          agents_online: agentsOnline !== undefined ? agentsOnline : false,
+          canned_responses: cannedResponses || [],
+          slack_bot_token: slackBotToken || null,
+          slack_channel_id: slackChannelId || null
         }, 
         { onConflict: 'user_id' }
       );
