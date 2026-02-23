@@ -40,10 +40,10 @@ export async function POST(req: Request) {
     const { messages, spaceId } = await req.json();
     const lastMessageContent = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
     
-    // 1. Fetch Configuration (Persona, FAQs, Language)
+    // 1. Fetch Configuration (Persona, FAQs, Language, Model Params)
     const { data: configData } = await supabase
       .from('bot_config')
-      .select('system_prompt, faq_overrides, language')
+      .select('system_prompt, faq_overrides, language, temperature, match_threshold, reasoning_effort, verbosity')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
     // Calls the updated match_documents which queries knowledge_documents
     const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.2,
+      match_threshold: configData?.match_threshold ?? 0.2, // Configurable Threshold
       match_count: 5,       
       p_space_id: spaceId 
     });
@@ -134,6 +134,13 @@ ${context || "No context available."}
         role: m.role, 
         content: m.content 
       })),
+      temperature: configData?.temperature ?? 0.5,
+      reasoning: {
+        effort: configData?.reasoning_effort || 'medium'
+      },
+      text: {
+        verbosity: configData?.verbosity || 'medium'
+      },
       stream: true, 
     });
 
