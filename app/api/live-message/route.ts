@@ -31,6 +31,35 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
+    // Optional sync out to Slack Thread if the agent replies from Next.js Inbox
+    if (role === 'agent') {
+      const { data: session } = await supabase
+        .from('live_sessions')
+        .select('space_id, slack_thread_ts')
+        .eq('id', sessionId)
+        .single();
+        
+      if (session && session.slack_thread_ts) {
+        const { data: config } = await supabase
+          .from('bot_config')
+          .select('slack_bot_token, slack_channel_id')
+          .eq('space_id', session.space_id)
+          .single();
+          
+        if (config?.slack_bot_token) {
+          await fetch('[https://slack.com/api/chat.postMessage](https://slack.com/api/chat.postMessage)', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.slack_bot_token}` },
+            body: JSON.stringify({
+              channel: config.slack_channel_id,
+              text: content,
+              thread_ts: session.slack_thread_ts
+            })
+          });
+        }
+      }
+    }
+
     return NextResponse.json({ success: true }, { headers: corsHeaders });
   } catch (error: any) {
     console.error("Live Message API Error:", error);
