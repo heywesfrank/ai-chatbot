@@ -19,12 +19,25 @@ interface VolumeData {
   interactions: number;
 }
 
+interface FrustratedConversation {
+  id: string;
+  email: string;
+  messages: string[];
+}
+
 export default function AnalyticsDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [feedbacks, setFeedbacks] = useState<FeedbackData[]>([]);
   const [volumeData, setVolumeData] = useState<VolumeData[]>([]);
   const [aiInsights, setAiInsights] = useState<string | null>(null);
+  
+  const [avgResolutionTime, setAvgResolutionTime] = useState(0);
+  const [frustrationScore, setFrustrationScore] = useState(0);
+  const [frustratedConversations, setFrustratedConversations] = useState<FrustratedConversation[]>([]);
+
+  const [addingFaq, setAddingFaq] = useState<string | null>(null);
+  const [faqAnswer, setFaqAnswer] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,6 +54,9 @@ export default function AnalyticsDashboard() {
           setFeedbacks(data.feedbacks);
           setVolumeData(data.volumeData);
           setAiInsights(data.aiInsights);
+          setAvgResolutionTime(data.avgResolutionTime || 0);
+          setFrustrationScore(data.frustrationScore || 0);
+          setFrustratedConversations(data.frustratedConversations || []);
         }
       }
       setIsLoading(false);
@@ -76,6 +92,24 @@ export default function AnalyticsDashboard() {
       setIsExporting(false);
     }
   };
+
+  const handleAddFaq = async (prompt: string) => {
+    if (!faqAnswer.trim()) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/faq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ question: prompt, answer: faqAnswer })
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Added to FAQ Overrides');
+      setAddingFaq(null);
+      setFaqAnswer('');
+    } catch (e) {
+      toast.error('Failed to add FAQ override');
+    }
+  }
 
   const totalFeedback = feedbacks.length;
   const positive = feedbacks.filter(f => f.rating === 'up').length;
@@ -123,11 +157,13 @@ export default function AnalyticsDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
           <StatCard title="Total Interactions" value={totalFeedback} />
-          <StatCard title="Satisfaction Rate" value={`${satisfactionRate}%`} subtitle="Based on total feedback" />
-          <StatCard title="Helpful Responses" value={positive} />
-          <StatCard title="Failed Responses" value={negative} />
+          <StatCard title="Satisfaction" value={`${satisfactionRate}%`} subtitle="Based on feedback" />
+          <StatCard title="Helpful" value={positive} />
+          <StatCard title="Failed" value={negative} />
+          <StatCard title="Avg Resolution" value={avgResolutionTime > 0 ? `${avgResolutionTime}m` : 'N/A'} subtitle="Live Chat" />
+          <StatCard title="Frustration" value={`${frustrationScore}%`} subtitle="Negative messages" />
         </div>
 
         {/* Charts and AI Insights Row */}
@@ -225,33 +261,86 @@ export default function AnalyticsDashboard() {
             )}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-sm p-5 h-fit">
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">Needs Attention</h2>
-            <p className="text-xs text-gray-500 mb-5">Identify knowledge gaps by reviewing responses that were downvoted by users.</p>
-            
-            <div className="flex flex-col gap-3">
-              {needsImprovement.length > 0 ? (
-                needsImprovement.map((f) => (
-                  <div key={f.id} className="p-3 border border-red-100 bg-red-50/20 rounded-sm hover:border-red-200 transition-colors">
-                    <div className="flex items-start gap-2 mb-1.5">
-                      <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider mt-0.5 border border-red-200">
-                        Failed
-                      </span>
-                      <p className="text-sm font-medium text-gray-900 break-words">{f.prompt}</p>
-                    </div>
-                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed ml-10">
-                      {f.response}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-10 bg-gray-50 border border-gray-100 rounded-sm border-dashed">
-                  <p className="text-sm text-gray-500">No negative feedback yet! 🎉</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <div className="flex flex-col gap-8">
+            <div className="bg-white border border-gray-200 rounded-sm p-5 h-fit">
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Needs Attention</h2>
+              <p className="text-xs text-gray-500 mb-5">Identify knowledge gaps by reviewing responses that were downvoted by users.</p>
+              
+              <div className="flex flex-col gap-3">
+                {needsImprovement.length > 0 ? (
+                  needsImprovement.map((f) => (
+                    <div key={f.id} className="p-3 border border-red-100 bg-red-50/20 rounded-sm hover:border-red-200 transition-colors">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="flex items-start gap-2">
+                          <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider mt-0.5 border border-red-200">
+                            Failed
+                          </span>
+                          <p className="text-sm font-medium text-gray-900 break-words line-clamp-2">{f.prompt}</p>
+                        </div>
+                        <button 
+                          onClick={() => { setAddingFaq(f.id); setFaqAnswer(''); }}
+                          className="text-[10px] bg-white border border-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-50 transition-colors shrink-0 shadow-sm font-medium"
+                        >
+                          Add to FAQ
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed ml-10 mb-2">
+                        {f.response}
+                      </p>
 
+                      {addingFaq === f.id && (
+                        <div className="ml-10 mt-2 flex flex-col gap-2 bg-white p-2 rounded border border-gray-200 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                          <textarea 
+                            placeholder="Write the correct answer here..."
+                            className="w-full text-xs p-2 border border-gray-200 rounded focus:outline-none focus:border-black resize-none min-h-[60px] bg-gray-50"
+                            value={faqAnswer}
+                            onChange={(e) => setFaqAnswer(e.target.value)}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setAddingFaq(null)} className="text-[10px] px-2 py-1 text-gray-500 hover:text-gray-700 font-medium transition-colors">Cancel</button>
+                            <button onClick={() => handleAddFaq(f.prompt)} disabled={!faqAnswer.trim()} className="text-[10px] bg-black text-white px-3 py-1 rounded disabled:opacity-50 font-medium shadow-sm transition-opacity hover:bg-gray-800">Save Override</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 bg-gray-50 border border-gray-100 rounded-sm border-dashed">
+                    <p className="text-sm text-gray-500">No negative feedback yet! 🎉</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-sm p-5 h-fit">
+              <div className="flex items-center gap-2 mb-1.5">
+                <svg className="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 14h4m-2-8v4m-8 6a9 9 0 1118 0 9 9 0 01-18 0z" /></svg>
+                <h2 className="text-sm font-semibold text-gray-900">Frustrated Customers</h2>
+              </div>
+              <p className="text-xs text-gray-500 mb-5 leading-relaxed">Live chat conversations where negative sentiment was detected.</p>
+              <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+                {frustratedConversations.length > 0 ? (
+                  frustratedConversations.map(conv => (
+                    <div key={conv.id} className="p-3 border border-orange-100 bg-orange-50/30 rounded-sm">
+                      <p className="text-[11px] font-semibold text-gray-900 mb-2 truncate" title={conv.email}>{conv.email}</p>
+                      <div className="flex flex-col gap-1.5">
+                        {conv.messages.map((m, i) => (
+                          <div key={i} className="text-[11px] text-gray-700 bg-white p-2 border border-orange-100 rounded shadow-sm break-words">
+                            "{m}"
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 border border-gray-100 rounded-sm border-dashed">
+                    <p className="text-sm text-gray-500">No frustrated customers found.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
@@ -260,10 +349,10 @@ export default function AnalyticsDashboard() {
 
 function StatCard({ title, value, subtitle }: { title: string, value: string | number, subtitle?: string }) {
   return (
-    <div className="bg-white p-5 border border-gray-200 rounded-sm flex flex-col justify-center">
-      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{title}</span>
-      <span className="text-3xl font-semibold text-gray-900 mt-1.5">{value}</span>
-      {subtitle && <span className="text-xs text-gray-400 mt-1">{subtitle}</span>}
+    <div className="bg-white p-4 border border-gray-200 rounded-sm flex flex-col justify-center">
+      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{title}</span>
+      <span className="text-2xl font-semibold text-gray-900 mt-1.5">{value}</span>
+      {subtitle && <span className="text-[10px] text-gray-400 mt-1">{subtitle}</span>}
     </div>
   );
 }
