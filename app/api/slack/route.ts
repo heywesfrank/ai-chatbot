@@ -7,21 +7,24 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Challenge validation for initial Slack App setup verification
+    // 1. URL Verification Challenge (Required for Slack to verify the endpoint)
     if (body.type === 'url_verification') {
-      return new Response(body.challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+      return new Response(body.challenge, { 
+        status: 200, 
+        headers: { 'Content-Type': 'text/plain' } 
+      });
     }
 
-    // Process Incoming Messages
+    // 2. Process Incoming Messages from Agents
     if (body.event && body.event.type === 'message') {
       const { bot_id, thread_ts, text } = body.event;
 
-      // Ignore messages from bots or un-threaded root messages to prevent recursion
+      // Ignore messages from bots or un-threaded root messages to prevent infinite loops
       if (bot_id || !thread_ts) {
         return NextResponse.json({ success: true });
       }
 
-      // Map slack_thread_ts back to Live Session ID
+      // Map slack_thread_ts back to the Live Session ID in your database
       const { data: session } = await supabase
         .from('live_sessions')
         .select('id')
@@ -29,7 +32,7 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (session) {
-        // Send Slack agent reply into Supabase to route natively to the Chat Widget UI
+        // Insert the Slack agent's reply into Supabase so it shows up in the Chat Widget
         await supabase.from('live_messages').insert({
           session_id: session.id,
           role: 'agent',
