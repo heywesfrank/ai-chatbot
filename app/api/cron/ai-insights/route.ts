@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         
         const systemInstructions = 'You are an AI analyst. Review the following failed user queries from a documentation chatbot. Categorize the missing knowledge into 2-3 short, actionable bullet points explaining what is missing from the docs. Be extremely concise, minimalist, and direct.';
         
-        // Use custom gpt-5-nano endpoint
+        // Use custom gpt-5-nano endpoint and format
         const stream = await openai.responses.create({
           model: 'gpt-5-nano',
           instructions: systemInstructions,
@@ -56,11 +56,15 @@ export async function GET(req: Request) {
           }
         }
 
-        // Save the final aggregated insights back to the config
-        await supabase
-          .from('bot_config')
-          .update({ ai_insights: insights.trim() })
-          .eq('space_id', space.space_id);
+        // Insert the final aggregated insights into the new analytics table
+        if (insights.trim()) {
+          await supabase
+            .from('space_insights')
+            .insert({ 
+              space_id: space.space_id, 
+              insights: insights.trim() 
+            });
+        }
       }
     }
 
