@@ -57,7 +57,7 @@ export default function MessageBubble({
 
   // Parse Custom **Sources:** Markdown from the AI
   if (!isUser && content) {
-    const sourceRegex = /(?:\n+)?\*\*Sources:\*\*\s*(.*)$/is;
+    const sourceRegex = /(?:\n+)?\*\*Sources:\*\*\s*([\s\S]*)$/i;
     const match = content.match(sourceRegex);
     if (match) {
       content = content.replace(sourceRegex, '').trim();
