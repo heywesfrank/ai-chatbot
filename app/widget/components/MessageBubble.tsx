@@ -14,6 +14,13 @@ const flattenText = (node: any): string => {
   return '';
 };
 
+// Helper to format Date into a clean '2:32 PM' string
+const formatTime = (dateString?: string | Date) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 export default function MessageBubble({
   msg,
   isUser,
@@ -45,6 +52,23 @@ export default function MessageBubble({
   }
 
   const isAgent = msg.role === 'agent';
+  let content = msg.content || '';
+  let sources: { text: string; url: string }[] = [];
+
+  // Parse Custom **Sources:** Markdown from the AI
+  if (!isUser && content) {
+    const sourceRegex = /(?:\n+)?\*\*Sources:\*\*\s*(.*)$/is;
+    const match = content.match(sourceRegex);
+    if (match) {
+      content = content.replace(sourceRegex, '').trim();
+      const linksText = match[1];
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      let linkMatch;
+      while ((linkMatch = linkRegex.exec(linksText)) !== null) {
+        sources.push({ text: linkMatch[1], url: linkMatch[2] });
+      }
+    }
+  }
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
@@ -78,13 +102,34 @@ export default function MessageBubble({
                 }
               }}
             >
-              {msg.content}
+              {content}
             </ReactMarkdown>
           )}
 
+          {/* Parsed Citation Reference Cards */}
+          {sources.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-[var(--border-strong)] flex flex-col gap-2 animate-in fade-in duration-300">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">References</span>
+              <div className="flex flex-wrap gap-1.5">
+                {sources.map((src, i) => (
+                  <a 
+                    key={i} 
+                    href={src.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] bg-[var(--bg-primary)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:border-[var(--primary-color)] px-2 py-1.5 rounded-md transition-colors decoration-transparent shadow-sm group/link"
+                  >
+                    <svg className="w-3.5 h-3.5 text-[var(--text-secondary)] group-hover/link:text-[var(--primary-color)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    Source {src.text}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {!isUser && msg.id !== 'init' && !isTyping && !liveSessionId && escalatingId === msg.id && (
-            <div className="mt-3 border-t border-[var(--border-strong)] pt-3">
-              <div className="flex gap-1.5 animate-in fade-in duration-200">
+            <div className="mt-3 border-t border-[var(--border-strong)] pt-3 animate-in fade-in duration-200">
+              <div className="flex gap-1.5">
                 <input 
                   type="email" 
                   aria-label="Email for live agent escalation"
@@ -108,26 +153,37 @@ export default function MessageBubble({
           )}
         </div>
 
-        {!isUser && msg.id !== 'init' && !isTyping && !liveSessionId && (
-          <div className="flex items-center gap-1.5 mt-0.5 ml-1 text-[var(--text-secondary)]">
-            <button aria-label="Copy message" onClick={() => handleCopy(msg.content, msg.id)} className="hover:text-[var(--text-primary)] transition-colors p-1" title="Copy response">
-              {copiedId === msg.id ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
-            </button>
-            <button aria-label="Thumbs up" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'up')} className={`hover:text-green-500 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'up' ? 'text-green-500' : ''}`} title="Helpful">
-              <ThumbsUpIcon className="w-3.5 h-3.5" />
-            </button>
-            <button aria-label="Thumbs down" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-500 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'down' ? 'text-red-500' : ''}`} title="Not helpful">
-              <ThumbsDownIcon className="w-3.5 h-3.5" />
-            </button>
+        {/* Timestamps & Actions */}
+        <div className="flex items-center gap-1.5 mt-0.5 mx-1 text-[10px] text-[var(--text-secondary)]">
+          <span className="opacity-70">{formatTime(msg.createdAt || msg.created_at)}</span>
 
-            <div className="w-px h-3 bg-[var(--border-strong)] mx-1"></div>
-            <button aria-label="Talk to human" onClick={() => setEscalatingId(msg.id)} className="text-[11px] font-medium hover:text-[var(--text-primary)] transition-colors">
-              Talk to human
-            </button>
-          </div>
-        )}
+          {!isUser && msg.id !== 'init' && !isTyping && !liveSessionId && (
+            <>
+              <span className="w-px h-2.5 bg-[var(--border-strong)] mx-0.5"></span>
+              <button aria-label="Copy message" onClick={() => handleCopy(content, msg.id)} className="hover:text-[var(--text-primary)] transition-colors p-1" title="Copy response">
+                {copiedId === msg.id ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
+              </button>
+              <button aria-label="Thumbs up" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'up')} className={`hover:text-green-500 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'up' ? 'text-green-500' : ''}`} title="Helpful">
+                <ThumbsUpIcon className="w-3.5 h-3.5" />
+              </button>
+              <button aria-label="Thumbs down" onClick={() => submitFeedback(msg.id, userPrompt, msg.content, 'down')} className={`hover:text-red-500 transition-colors p-1 ${feedback?.hasOwnProperty(msg.id) && feedback[msg.id] === 'down' ? 'text-red-500' : ''}`} title="Not helpful">
+                <ThumbsDownIcon className="w-3.5 h-3.5" />
+              </button>
 
-        {isAgent && <span className="text-[10px] text-[var(--text-secondary)] ml-1">Human Agent</span>}
+              <span className="w-px h-2.5 bg-[var(--border-strong)] mx-0.5"></span>
+              <button aria-label="Talk to human" onClick={() => setEscalatingId(msg.id)} className="font-medium hover:text-[var(--text-primary)] transition-colors">
+                Talk to human
+              </button>
+            </>
+          )}
+
+          {isAgent && (
+            <>
+              <span className="w-px h-2.5 bg-[var(--border-strong)] mx-0.5"></span>
+              <span className="font-medium text-green-600">Human Agent</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
