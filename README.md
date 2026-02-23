@@ -82,6 +82,7 @@ create table public.live_messages (
   role text not null,
   content text not null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  sentiment_score numeric null,
   constraint live_messages_pkey primary key (id),
   constraint live_messages_session_id_fkey foreign KEY (session_id) references live_sessions (id) on delete CASCADE
 ) TABLESPACE pg_default;
@@ -92,8 +93,9 @@ create table public.live_sessions (
   email text not null,
   status text null default 'open'::text,
   history text null,
-  slack_thread_ts text null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  slack_thread_ts text null,
+  resolution_time integer null,
   constraint live_sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
 
