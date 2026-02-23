@@ -19,6 +19,9 @@ create table public.bot_config (
   canned_responses jsonb null default '[]'::jsonb,
   slack_bot_token text null,
   slack_channel_id text null,
+  webhook_url text null,
+  faq_overrides jsonb null default '[]'::jsonb,
+  language text null default 'Auto-detect'::text,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
