@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 
-type Tab = 'data' | 'appearance' | 'behavior' | 'model' | 'integrations' | 'install';
+type Tab = 'data' | 'appearance' | 'behavior' | 'model' | 'integrations' | 'team' | 'install';
 type SourceTab = 'website' | 'gitbook' | 'file';
 
 export default function HomeDashboard() {
@@ -12,6 +12,7 @@ export default function HomeDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('data');
   const [sourceTab, setSourceTab] = useState<SourceTab>('website');
   
+  const [isOwner, setIsOwner] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState('');
@@ -20,6 +21,9 @@ export default function HomeDashboard() {
 
   const [newFaqQuestion, setNewFaqQuestion] = useState('');
   const [newFaqAnswer, setNewFaqAnswer] = useState('');
+  
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [newMemberEmail, setNewMemberEmail] = useState('');
 
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [gitbookSpaceId, setGitbookSpaceId] = useState('');
@@ -49,15 +53,25 @@ export default function HomeDashboard() {
     temperature: 0.5,
     matchThreshold: 0.2,
     reasoningEffort: 'medium',
-    verbosity: 'medium'
+    verbosity: 'medium',
+    allowedDomains: ''
   });
 
   const updateConfig = (key: keyof typeof config, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
+    if (isOwner) setConfig(prev => ({ ...prev, [key]: value }));
+  };
+
+  const fetchTeam = async (spaceId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch(`/api/team?spaceId=${spaceId}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+    if (res.ok) {
+       const data = await res.json();
+       setTeamMembers(data.members || []);
+    }
   };
 
   useEffect(() => {
-    // Check for Slack OAuth Redirect statuses
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('slack') === 'success') {
       toast.success('Successfully connected to Slack!');
@@ -72,51 +86,66 @@ export default function HomeDashboard() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUserId(session.user.id);
-        hydrateWorkspace(session.user.id);
+        hydrateWorkspace(session.user.id, session.user.email || '');
       }
     });
   }, []);
 
-  const hydrateWorkspace = async (uid: string) => {
-    const { data } = await supabase
-      .from('bot_config')
-      .select('*')
-      .eq('user_id', uid)
-      .limit(1)
-      .maybeSingle(); 
+  const hydrateWorkspace = async (uid: string, email: string) => {
+    let spaceData = null;
+    let owner = true;
 
+    const { data } = await supabase.from('bot_config').select('*').eq('user_id', uid).maybeSingle();
+    
     if (data) {
+      spaceData = data;
+    } else {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', email).maybeSingle();
+      if (member) {
+        const { data: teamData } = await supabase.from('bot_config').select('*').eq('space_id', member.space_id).maybeSingle();
+        if (teamData) {
+          spaceData = teamData;
+          owner = false;
+        }
+      }
+    }
+
+    setIsOwner(owner);
+
+    if (spaceData) {
       setConfig(prev => ({
         ...prev,
-        spaceId: data.space_id || '',
-        systemPrompt: data.system_prompt || prev.systemPrompt,
-        apiKey: data.api_key || '', 
-        primaryColor: data.primary_color || prev.primaryColor,
-        headerText: data.header_text || prev.headerText,
-        welcomeMessage: data.welcome_message || prev.welcomeMessage,
-        botAvatar: data.bot_avatar || '',
-        showPrompts: data.show_prompts ?? true,
-        leadCaptureEnabled: data.lead_capture_enabled ?? false,
-        suggestedPrompts: data.suggested_prompts || prev.suggestedPrompts,
-        slackChannelId: data.slack_channel_id || '',
-        webhookUrl: data.webhook_url || '',
-        faqOverrides: data.faq_overrides || [],
-        language: data.language || 'Auto-detect',
-        temperature: data.temperature ?? prev.temperature,
-        matchThreshold: data.match_threshold ?? prev.matchThreshold,
-        reasoningEffort: data.reasoning_effort || prev.reasoningEffort,
-        verbosity: data.verbosity || prev.verbosity
+        spaceId: spaceData.space_id || '',
+        systemPrompt: spaceData.system_prompt || prev.systemPrompt,
+        apiKey: spaceData.api_key || '', 
+        primaryColor: spaceData.primary_color || prev.primaryColor,
+        headerText: spaceData.header_text || prev.headerText,
+        welcomeMessage: spaceData.welcome_message || prev.welcomeMessage,
+        botAvatar: spaceData.bot_avatar || '',
+        showPrompts: spaceData.show_prompts ?? true,
+        leadCaptureEnabled: spaceData.lead_capture_enabled ?? false,
+        suggestedPrompts: spaceData.suggested_prompts || prev.suggestedPrompts,
+        slackChannelId: spaceData.slack_channel_id || '',
+        webhookUrl: spaceData.webhook_url || '',
+        faqOverrides: spaceData.faq_overrides || [],
+        language: spaceData.language || 'Auto-detect',
+        temperature: spaceData.temperature ?? prev.temperature,
+        matchThreshold: spaceData.match_threshold ?? prev.matchThreshold,
+        reasoningEffort: spaceData.reasoning_effort || prev.reasoningEffort,
+        verbosity: spaceData.verbosity || prev.verbosity,
+        allowedDomains: spaceData.allowed_domains || ''
       }));
-      if (data.space_id) {
-        setActiveSpaceId(data.space_id);
-        if (data.api_key) setGitbookSpaceId(data.space_id);
+      if (spaceData.space_id) {
+        setActiveSpaceId(spaceData.space_id);
+        if (spaceData.api_key) setGitbookSpaceId(spaceData.space_id);
+        fetchTeam(spaceData.space_id);
       }
     }
   };
 
   const handleAddPrompt = () => {
     const p = newPrompt.trim();
-    if (!p) return;
+    if (!p || !isOwner) return;
     if (config.suggestedPrompts.includes(p)) {
       setNewPrompt('');
       return toast.error('This prompt already exists.');
@@ -126,20 +155,58 @@ export default function HomeDashboard() {
   };
 
   const handleRemovePrompt = (promptToRemove: string) => {
-    updateConfig('suggestedPrompts', config.suggestedPrompts.filter(p => p !== promptToRemove));
+    if (isOwner) updateConfig('suggestedPrompts', config.suggestedPrompts.filter(p => p !== promptToRemove));
   };
 
   const handleAddFaq = () => {
-    if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) return;
+    if (!newFaqQuestion.trim() || !newFaqAnswer.trim() || !isOwner) return;
     updateConfig('faqOverrides', [...config.faqOverrides, { question: newFaqQuestion.trim(), answer: newFaqAnswer.trim() }]);
     setNewFaqQuestion('');
     setNewFaqAnswer('');
   };
 
   const handleRemoveFaq = (index: number) => {
+    if (!isOwner) return;
     const newFaqs = [...config.faqOverrides];
     newFaqs.splice(index, 1);
     updateConfig('faqOverrides', newFaqs);
+  };
+
+  const handleAddMember = async () => {
+    if (!newMemberEmail.trim() || !isOwner) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    const res = await fetch('/api/team', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ spaceId: activeSpaceId, email: newMemberEmail.trim() })
+    });
+    
+    if (res.ok) {
+      toast.success('Agent invited!');
+      setNewMemberEmail('');
+      fetchTeam(activeSpaceId);
+    } else {
+      toast.error('Failed to invite agent.');
+    }
+  };
+
+  const handleRemoveMember = async (id: string) => {
+    if (!isOwner) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch('/api/team', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ spaceId: activeSpaceId, id })
+    });
+    if (res.ok) {
+      toast.success('Agent removed.');
+      fetchTeam(activeSpaceId);
+    } else {
+      toast.error('Failed to remove agent.');
+    }
   };
 
   const callIngestApi = async (payload: any) => {
@@ -237,6 +304,7 @@ export default function HomeDashboard() {
   };
 
   const handleDisconnectSlack = async () => {
+    if (!isOwner) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     
@@ -301,6 +369,12 @@ export default function HomeDashboard() {
     <div className="flex flex-col md:flex-row h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-hidden">
       
       <div className="w-full md:w-[420px] border-r border-gray-200 bg-white flex flex-col z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative">
+        {!isOwner && (
+          <div className="bg-blue-50 border-b border-blue-100 p-3 text-[11px] text-blue-700 flex items-center justify-center gap-2 shrink-0 font-medium">
+             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+             Read-only view. Only the owner can save changes.
+          </div>
+        )}
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-20">
           <div>
             <h1 className="text-lg font-medium tracking-tight">Workspace</h1>
@@ -308,7 +382,7 @@ export default function HomeDashboard() {
           </div>
           <button 
             onClick={handleSaveConfig}
-            disabled={isSaving}
+            disabled={isSaving || !isOwner}
             className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-500 transition-colors text-xs font-medium shadow-sm"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
@@ -316,7 +390,7 @@ export default function HomeDashboard() {
         </div>
 
         <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar shrink-0">
-          {(['data', 'appearance', 'behavior', 'model', 'integrations', 'install'] as Tab[]).map((tab) => (
+          {(['data', 'appearance', 'behavior', 'model', 'integrations', 'team', 'install'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -349,10 +423,10 @@ export default function HomeDashboard() {
                 <div className="space-y-4 animate-in fade-in duration-200">
                    <div>
                     <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Website URL or Sitemap.xml</label>
-                    <input type="url" placeholder="https://example.com/sitemap.xml" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
+                    <input type="url" placeholder="https://example.com/sitemap.xml" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
                     <p className="text-[10px] text-gray-400 mt-1">Max 50 pages crawled per sitemap to prevent overload.</p>
                   </div>
-                  <button onClick={handleSyncWebsite} disabled={isSyncing || !websiteUrl} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm">
+                  <button onClick={handleSyncWebsite} disabled={isSyncing || !websiteUrl || !isOwner} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm font-medium shadow-sm">
                     {isSyncing ? 'Crawling...' : 'Fetch Website'}
                   </button>
                 </div>
@@ -364,8 +438,8 @@ export default function HomeDashboard() {
                       <svg className="w-6 h-6 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       <p className="text-sm text-gray-600 mb-1 font-medium">Upload Document</p>
                       <p className="text-[10px] text-gray-400 mb-4">Supports .txt, .csv, .json</p>
-                      <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.json" />
-                      <button onClick={() => fileInputRef.current?.click()} disabled={isSyncing} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50">
+                      <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.json" disabled={!isOwner} />
+                      <button onClick={() => fileInputRef.current?.click()} disabled={isSyncing || !isOwner} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50">
                         {isSyncing ? 'Uploading...' : 'Select File'}
                       </button>
                    </div>
@@ -376,13 +450,13 @@ export default function HomeDashboard() {
                 <div className="space-y-4 animate-in fade-in duration-200">
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">GitBook Space ID</label>
-                    <input type="text" placeholder="e.g. xYz123..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={gitbookSpaceId} onChange={(e) => setGitbookSpaceId(e.target.value)} />
+                    <input type="text" placeholder="e.g. xYz123..." disabled={!isOwner} className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={gitbookSpaceId} onChange={(e) => setGitbookSpaceId(e.target.value)} />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">GitBook Token</label>
-                    <input type="password" placeholder="pat_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.apiKey} onChange={(e) => updateConfig('apiKey', e.target.value)} />
+                    <input type="password" placeholder="pat_..." disabled={!isOwner} className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.apiKey} onChange={(e) => updateConfig('apiKey', e.target.value)} />
                   </div>
-                  <button onClick={handleSyncGitbook} disabled={isSyncing || !config.apiKey || !gitbookSpaceId} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm">
+                  <button onClick={handleSyncGitbook} disabled={isSyncing || !config.apiKey || !gitbookSpaceId || !isOwner} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm disabled:opacity-50">
                     {isSyncing ? 'Syncing...' : 'Sync GitBook'}
                   </button>
                 </div>
@@ -395,26 +469,26 @@ export default function HomeDashboard() {
               <div>
                 <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Primary Color</label>
                 <div className="flex items-center space-x-3">
-                  <input type="color" className="w-10 h-10 p-0 border-0 rounded-md cursor-pointer" value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
-                  <input type="text" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors" value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
+                  <input type="color" className="w-10 h-10 p-0 border-0 rounded-md cursor-pointer" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
+                  <input type="text" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Header Text</label>
-                <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.headerText} onChange={(e) => updateConfig('headerText', e.target.value)} />
+                <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.headerText} onChange={(e) => updateConfig('headerText', e.target.value)} />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Welcome Message</label>
-                <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.welcomeMessage} onChange={(e) => updateConfig('welcomeMessage', e.target.value)} />
+                <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.welcomeMessage} onChange={(e) => updateConfig('welcomeMessage', e.target.value)} />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Bot Avatar URL</label>
-                <input type="text" placeholder="https://..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
+                <input type="text" placeholder="https://..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
               </div>
               <div className="flex gap-4 pt-2">
                 <div className="flex-1">
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Theme</label>
-                  <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white" value={config.theme} onChange={(e) => updateConfig('theme', e.target.value)}>
+                  <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white" disabled={!isOwner} value={config.theme} onChange={(e) => updateConfig('theme', e.target.value)}>
                     <option value="auto">Auto</option>
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
@@ -422,7 +496,7 @@ export default function HomeDashboard() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Position</label>
-                  <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white" value={config.position} onChange={(e) => updateConfig('position', e.target.value)}>
+                  <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white" disabled={!isOwner} value={config.position} onChange={(e) => updateConfig('position', e.target.value)}>
                     <option value="right">Right</option>
                     <option value="left">Left</option>
                   </select>
@@ -440,6 +514,7 @@ export default function HomeDashboard() {
                   <textarea 
                     className="w-full p-3 border border-gray-200 rounded-md text-sm h-32 outline-none focus:border-black resize-none leading-relaxed transition-colors"
                     value={config.systemPrompt}
+                    disabled={!isOwner}
                     onChange={(e) => updateConfig('systemPrompt', e.target.value)}
                   />
                 </div>
@@ -450,6 +525,7 @@ export default function HomeDashboard() {
                 <select 
                   className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors"
                   value={config.language}
+                  disabled={!isOwner}
                   onChange={(e) => updateConfig('language', e.target.value)}
                 >
                   <option value="Auto-detect">Auto-detect (Native Language)</option>
@@ -473,7 +549,7 @@ export default function HomeDashboard() {
                     <p className="text-xs text-gray-500 mt-0.5">Show helpful quick-replies.</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={config.showPrompts} onChange={(e) => updateConfig('showPrompts', e.target.checked)} />
+                    <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.showPrompts} onChange={(e) => updateConfig('showPrompts', e.target.checked)} />
                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
                   </label>
                 </div>
@@ -484,19 +560,20 @@ export default function HomeDashboard() {
                       <input 
                         type="text" 
                         placeholder="Add a prompt..."
+                        disabled={!isOwner}
                         className="flex-1 p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white"
                         value={newPrompt}
                         onChange={(e) => setNewPrompt(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPrompt(); } }}
                       />
-                      <button onClick={(e) => { e.preventDefault(); handleAddPrompt(); }} disabled={!newPrompt.trim()} className="px-3 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors">Add</button>
+                      <button onClick={(e) => { e.preventDefault(); handleAddPrompt(); }} disabled={!newPrompt.trim() || !isOwner} className="px-3 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors">Add</button>
                     </div>
                     {config.suggestedPrompts.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {config.suggestedPrompts.map(prompt => (
                           <span key={prompt} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-md text-xs text-gray-700 shadow-sm">
                             <span className="truncate max-w-[200px]">{prompt}</span>
-                            <button onClick={() => handleRemovePrompt(prompt)} className="text-gray-400 hover:text-red-500 focus:outline-none">
+                            <button onClick={() => handleRemovePrompt(prompt)} disabled={!isOwner} className="text-gray-400 hover:text-red-500 focus:outline-none disabled:opacity-50">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           </span>
@@ -514,9 +591,9 @@ export default function HomeDashboard() {
                 </div>
                 <div className="space-y-3 p-4 bg-gray-50 rounded-md border border-gray-100">
                   <div className="flex flex-col gap-2">
-                    <input type="text" placeholder="Exact Question (e.g. What is your pricing?)" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={newFaqQuestion} onChange={(e) => setNewFaqQuestion(e.target.value)} />
-                    <textarea placeholder="Exact Answer" className="w-full p-2 border border-gray-200 rounded-md text-sm h-16 outline-none focus:border-black resize-none transition-colors bg-white" value={newFaqAnswer} onChange={(e) => setNewFaqAnswer(e.target.value)} />
-                    <button onClick={(e) => { e.preventDefault(); handleAddFaq(); }} disabled={!newFaqQuestion.trim() || !newFaqAnswer.trim()} className="self-end px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm">Add Override</button>
+                    <input type="text" placeholder="Exact Question (e.g. What is your pricing?)" disabled={!isOwner} className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={newFaqQuestion} onChange={(e) => setNewFaqQuestion(e.target.value)} />
+                    <textarea placeholder="Exact Answer" disabled={!isOwner} className="w-full p-2 border border-gray-200 rounded-md text-sm h-16 outline-none focus:border-black resize-none transition-colors bg-white" value={newFaqAnswer} onChange={(e) => setNewFaqAnswer(e.target.value)} />
+                    <button onClick={(e) => { e.preventDefault(); handleAddFaq(); }} disabled={!newFaqQuestion.trim() || !newFaqAnswer.trim() || !isOwner} className="self-end px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm">Add Override</button>
                   </div>
                   {config.faqOverrides.length > 0 && (
                     <div className="space-y-2 mt-4">
@@ -524,7 +601,7 @@ export default function HomeDashboard() {
                         <div key={idx} className="flex flex-col p-3 bg-white border border-gray-200 rounded-md shadow-sm relative group">
                           <p className="text-xs font-semibold text-gray-900 mb-1 pr-6">Q: {faq.question}</p>
                           <p className="text-xs text-gray-600 pr-6 truncate">A: {faq.answer}</p>
-                          <button onClick={() => handleRemoveFaq(idx)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 focus:outline-none">
+                          <button onClick={() => handleRemoveFaq(idx)} disabled={!isOwner} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 focus:outline-none disabled:opacity-50">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                           </button>
                         </div>
@@ -540,7 +617,7 @@ export default function HomeDashboard() {
                   <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Require users to enter their name and email before starting a chat.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                  <input type="checkbox" className="sr-only peer" checked={config.leadCaptureEnabled} onChange={(e) => updateConfig('leadCaptureEnabled', e.target.checked)} />
+                  <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.leadCaptureEnabled} onChange={(e) => updateConfig('leadCaptureEnabled', e.target.checked)} />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
                 </label>
               </div>
@@ -561,6 +638,7 @@ export default function HomeDashboard() {
                   min="0" 
                   max="2" 
                   step="0.1" 
+                  disabled={!isOwner}
                   className="w-full accent-black cursor-pointer" 
                   value={config.temperature} 
                   onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))} 
@@ -578,6 +656,7 @@ export default function HomeDashboard() {
                   min="0" 
                   max="1" 
                   step="0.05" 
+                  disabled={!isOwner}
                   className="w-full accent-black cursor-pointer" 
                   value={config.matchThreshold} 
                   onChange={(e) => updateConfig('matchThreshold', parseFloat(e.target.value))} 
@@ -590,6 +669,7 @@ export default function HomeDashboard() {
                 <select 
                   className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors" 
                   value={config.reasoningEffort} 
+                  disabled={!isOwner}
                   onChange={(e) => updateConfig('reasoningEffort', e.target.value)}
                 >
                   <option value="none">None</option>
@@ -607,6 +687,7 @@ export default function HomeDashboard() {
                 <select 
                   className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors" 
                   value={config.verbosity} 
+                  disabled={!isOwner}
                   onChange={(e) => updateConfig('verbosity', e.target.value)}
                 >
                   <option value="low">Low (Concise)</option>
@@ -615,6 +696,54 @@ export default function HomeDashboard() {
                 </select>
               </div>
 
+            </div>
+          )}
+
+          {activeTab === 'team' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Team Members</label>
+                <p className="text-xs text-gray-500 mt-0.5 mb-4 leading-relaxed">Invite agents to handle tickets and review analytics. Only the owner can edit configuration.</p>
+
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="email"
+                    placeholder="agent@example.com"
+                    disabled={!isOwner}
+                    className="flex-1 p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors"
+                    value={newMemberEmail}
+                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                  />
+                  <button
+                    onClick={handleAddMember}
+                    disabled={!newMemberEmail || !isOwner}
+                    className="px-4 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm"
+                  >
+                    Invite
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-md shadow-sm">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{member.email}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">{member.role}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveMember(member.id)}
+                        disabled={!isOwner}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {teamMembers.length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-4">No team members invited yet.</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -632,15 +761,16 @@ export default function HomeDashboard() {
                     </div>
                     <button 
                       onClick={handleDisconnectSlack}
-                      className="px-3 py-1.5 bg-white border border-green-200 text-green-700 text-xs font-medium rounded-md hover:bg-green-50 transition-colors shadow-sm"
+                      disabled={!isOwner}
+                      className="px-3 py-1.5 bg-white border border-green-200 text-green-700 text-xs font-medium rounded-md hover:bg-green-50 transition-colors shadow-sm disabled:opacity-50"
                     >
                       Disconnect
                     </button>
                   </div>
                 ) : (
                   <a 
-                    href={`https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,incoming-webhook,channels:history,groups:history&state=${activeSpaceId}`}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-900 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm"
+                    href={isOwner ? `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,incoming-webhook,channels:history,groups:history&state=${activeSpaceId}` : '#'}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-900 text-sm font-medium rounded-md shadow-sm ${isOwner ? 'hover:bg-gray-50 transition-colors' : 'opacity-50 cursor-not-allowed'}`}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521z-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.523-2.522v-2.522h2.523zM15.165 17.688a2.527 2.527 0 0 1-2.523-2.523 2.526 2.526 0 0 1 2.523-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52H15.165z"/>
@@ -656,7 +786,8 @@ export default function HomeDashboard() {
                 <input 
                   type="url" 
                   placeholder="https://hooks.zapier.com/hooks/catch/..." 
-                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors"
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white"
+                  disabled={!isOwner}
                   value={config.webhookUrl} 
                   onChange={(e) => updateConfig('webhookUrl', e.target.value)} 
                 />
@@ -675,6 +806,19 @@ export default function HomeDashboard() {
                   value={config.spaceId || 'Will be generated upon saving/syncing'} 
                 />
                 <p className="text-[10px] text-gray-400 mt-1">The unique internal identifier linking the widget to your bot.</p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider mb-1.5">Allowed Domains</label>
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">Restrict where your chat widget can be loaded. Leave empty to allow all domains. (Comma separated: <code>example.com, localhost</code>)</p>
+                <input 
+                  type="text" 
+                  placeholder="example.com, localhost"
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white"
+                  disabled={!isOwner}
+                  value={config.allowedDomains} 
+                  onChange={(e) => updateConfig('allowedDomains', e.target.value)} 
+                />
               </div>
 
               <div className="border-t border-gray-100 pt-6">
