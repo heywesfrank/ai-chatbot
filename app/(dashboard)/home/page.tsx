@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 
-type Tab = 'data' | 'appearance' | 'behavior' | 'install';
+type Tab = 'data' | 'appearance' | 'behavior' | 'inbox' | 'install';
 type SourceTab = 'website' | 'gitbook' | 'file';
 
 export default function HomeDashboard() {
@@ -12,19 +12,16 @@ export default function HomeDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('data');
   const [sourceTab, setSourceTab] = useState<SourceTab>('website');
   
-  // UI States
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [newPrompt, setNewPrompt] = useState('');
 
-  // Source States
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [gitbookSpaceId, setGitbookSpaceId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Consolidated Configuration State
   const [config, setConfig] = useState({
     apiKey: '',
     spaceId: '',
@@ -40,6 +37,10 @@ export default function HomeDashboard() {
       "How do I contact support?"
     ],
     leadCaptureEnabled: false,
+    agentsOnline: false,
+    cannedResponses: [] as string[],
+    slackBotToken: '',
+    slackChannelId: '',
     theme: 'auto',
     position: 'right'
   });
@@ -58,7 +59,7 @@ export default function HomeDashboard() {
   }, []);
 
   const hydrateWorkspace = async (uid: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('bot_config')
       .select('*')
       .eq('user_id', uid)
@@ -77,11 +78,14 @@ export default function HomeDashboard() {
         botAvatar: data.bot_avatar || '',
         showPrompts: data.show_prompts ?? true,
         leadCaptureEnabled: data.lead_capture_enabled ?? false,
-        suggestedPrompts: data.suggested_prompts || prev.suggestedPrompts
+        suggestedPrompts: data.suggested_prompts || prev.suggestedPrompts,
+        agentsOnline: data.agents_online ?? false,
+        cannedResponses: data.canned_responses || [],
+        slackBotToken: data.slack_bot_token || '',
+        slackChannelId: data.slack_channel_id || ''
       }));
       if (data.space_id) {
         setActiveSpaceId(data.space_id);
-        // If they have an API key, pre-fill GitBook ID with their space ID just in case
         if (data.api_key) setGitbookSpaceId(data.space_id);
       }
     }
@@ -123,7 +127,6 @@ export default function HomeDashboard() {
         const data = await response.json();
         toast.success(`Synced successfully! ${data.count || 0} segments learned.`);
         
-        // Save config immediately to ensure the new spaceId is persisted
         await fetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
@@ -158,7 +161,7 @@ export default function HomeDashboard() {
     if (!file) return;
 
     if (file.type !== 'text/plain' && file.type !== 'text/csv' && file.type !== 'application/json') {
-      return toast.error('Please upload a .txt, .csv, or .json file. (PDF coming soon)');
+      return toast.error('Please upload a .txt, .csv, or .json file.');
     }
 
     const reader = new FileReader();
@@ -210,7 +213,7 @@ export default function HomeDashboard() {
     var position = "${config.position}";
     var theme = "${config.theme}";
     var iframe = document.createElement('iframe');
-    iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme;
+    iframe.src = "[https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=$](https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=$){activeSpaceId}&position=" + position + "&theme=" + theme;
     iframe.style.position = 'fixed';
     iframe.style.bottom = '20px';
     iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
@@ -252,10 +255,7 @@ export default function HomeDashboard() {
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-hidden">
       
-      {/* LEFT PANE: CONFIGURATION */}
       <div className="w-full md:w-[420px] border-r border-gray-200 bg-white flex flex-col z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative">
-        
-        {/* Sticky Header */}
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-20">
           <div>
             <h1 className="text-lg font-medium tracking-tight">Workspace</h1>
@@ -270,9 +270,8 @@ export default function HomeDashboard() {
           </button>
         </div>
 
-        {/* Tab Navigation */}
         <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar shrink-0">
-          {(['data', 'appearance', 'behavior', 'install'] as Tab[]).map((tab) => (
+          {(['data', 'appearance', 'behavior', 'inbox', 'install'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -285,13 +284,10 @@ export default function HomeDashboard() {
           ))}
         </div>
 
-        {/* Tab Content Area */}
         <div className="p-6 overflow-y-auto flex-1 pb-20 bg-white">
           
-          {/* DATA TAB */}
           {activeTab === 'data' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              
               <div className="flex space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-200 mb-4">
                 {(['website', 'gitbook', 'file'] as SourceTab[]).map(tab => (
                   <button
@@ -308,14 +304,10 @@ export default function HomeDashboard() {
                 <div className="space-y-4 animate-in fade-in duration-200">
                    <div>
                     <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">Website URL or Sitemap.xml</label>
-                    <input type="url" placeholder="https://example.com/sitemap.xml" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
+                    <input type="url" placeholder="[https://example.com/sitemap.xml](https://example.com/sitemap.xml)" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
                     <p className="text-[10px] text-gray-400 mt-1">Max 50 pages crawled per sitemap to prevent overload.</p>
                   </div>
-                  <button 
-                    onClick={handleSyncWebsite}
-                    disabled={isSyncing || !websiteUrl}
-                    className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors text-sm font-medium shadow-sm"
-                  >
+                  <button onClick={handleSyncWebsite} disabled={isSyncing || !websiteUrl} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm">
                     {isSyncing ? 'Crawling...' : 'Fetch Website'}
                   </button>
                 </div>
@@ -328,11 +320,7 @@ export default function HomeDashboard() {
                       <p className="text-sm text-gray-600 mb-1 font-medium">Upload Document</p>
                       <p className="text-[10px] text-gray-400 mb-4">Supports .txt, .csv, .json</p>
                       <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.json" />
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSyncing}
-                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
+                      <button onClick={() => fileInputRef.current?.click()} disabled={isSyncing} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50">
                         {isSyncing ? 'Uploading...' : 'Select File'}
                       </button>
                    </div>
@@ -349,11 +337,7 @@ export default function HomeDashboard() {
                     <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">GitBook Token</label>
                     <input type="password" placeholder="pat_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.apiKey} onChange={(e) => updateConfig('apiKey', e.target.value)} />
                   </div>
-                  <button 
-                    onClick={handleSyncGitbook}
-                    disabled={isSyncing || !config.apiKey || !gitbookSpaceId}
-                    className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors text-sm font-medium shadow-sm"
-                  >
+                  <button onClick={handleSyncGitbook} disabled={isSyncing || !config.apiKey || !gitbookSpaceId} className="w-full bg-white border border-gray-200 text-gray-900 p-2.5 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm">
                     {isSyncing ? 'Syncing...' : 'Sync GitBook'}
                   </button>
                 </div>
@@ -361,7 +345,6 @@ export default function HomeDashboard() {
             </div>
           )}
 
-          {/* APPEARANCE TAB */}
           {activeTab === 'appearance' && (
             <div className="space-y-5 animate-in fade-in duration-300">
               <div>
@@ -403,7 +386,6 @@ export default function HomeDashboard() {
             </div>
           )}
 
-          {/* BEHAVIOR TAB */}
           {activeTab === 'behavior' && (
             <div className="space-y-7 animate-in fade-in duration-300">
               <div>
@@ -469,7 +451,86 @@ export default function HomeDashboard() {
             </div>
           )}
 
-          {/* INSTALL TAB */}
+          {activeTab === 'inbox' && (
+            <div className="space-y-7 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Agent Status</label>
+                  <p className="text-xs text-gray-500 mt-0.5">Toggle whether agents are currently online to chat.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={config.agentsOnline} onChange={(e) => updateConfig('agentsOnline', e.target.checked)} />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                </label>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Canned Responses</label>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-3">Quick replies for agents in the inbox.</p>
+                  
+                  <div className="flex gap-2 mb-3">
+                      <input 
+                        type="text" 
+                        placeholder="Add a canned response..."
+                        className="flex-1 p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white"
+                        id="newCanned"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = e.currentTarget.value.trim();
+                            if (val && !config.cannedResponses.includes(val)) {
+                              updateConfig('cannedResponses', [...config.cannedResponses, val]);
+                              e.currentTarget.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <button onClick={(e) => {
+                        e.preventDefault();
+                        const input = document.getElementById('newCanned') as HTMLInputElement;
+                        const val = input.value.trim();
+                        if (val && !config.cannedResponses.includes(val)) {
+                          updateConfig('cannedResponses', [...config.cannedResponses, val]);
+                          input.value = '';
+                        }
+                      }} className="px-3 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">Add</button>
+                  </div>
+                  {config.cannedResponses.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      {config.cannedResponses.map((prompt: string) => (
+                        <div key={prompt} className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-md text-xs text-gray-700">
+                          <span className="truncate flex-1" title={prompt}>{prompt}</span>
+                          <button onClick={() => updateConfig('cannedResponses', config.cannedResponses.filter((p: string) => p !== prompt))} className="text-gray-400 hover:text-red-500 ml-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Slack Integration</label>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-3 leading-relaxed">Reply to tickets directly from a Slack channel thread.</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">Bot Token</label>
+                      <input type="password" placeholder="xoxb-..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackBotToken} onChange={(e) => updateConfig('slackBotToken', e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">Channel ID</label>
+                      <input type="text" placeholder="C..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.slackChannelId} onChange={(e) => updateConfig('slackChannelId', e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'install' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div>
@@ -503,7 +564,6 @@ export default function HomeDashboard() {
         </div>
       </div>
 
-      {/* RIGHT PANE: EXCLUSIVE LIVE PREVIEW */}
       <div className="flex-1 p-8 flex flex-col items-center justify-center relative overflow-hidden bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
         {!activeSpaceId ? (
           <div className="flex flex-col items-center justify-center text-center max-w-sm bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
