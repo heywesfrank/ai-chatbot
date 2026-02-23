@@ -108,19 +108,19 @@ export default function MessageBubble({
 
           {/* Parsed Citation Reference Cards */}
           {sources.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[var(--border-strong)] flex flex-col gap-2 animate-in fade-in duration-300">
+            <div className="mt-3 pt-3 border-t border-[var(--border-strong)] flex flex-col gap-2 animate-in fade-in duration-300 overflow-hidden">
               <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">References</span>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-1.5">
                 {sources.map((src, i) => (
                   <a 
                     key={i} 
                     href={src.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] bg-[var(--bg-primary)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:border-[var(--primary-color)] px-2 py-1.5 rounded-md transition-colors decoration-transparent shadow-sm group/link"
+                    className="inline-flex items-center gap-1.5 text-[11px] bg-[var(--bg-primary)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:border-[var(--primary-color)] px-2.5 py-1.5 rounded-md transition-colors decoration-transparent shadow-sm group/link max-w-full"
                   >
-                    <svg className="w-3.5 h-3.5 text-[var(--text-secondary)] group-hover/link:text-[var(--primary-color)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                    Source {src.text}
+                    <svg className="w-3.5 h-3.5 flex-shrink-0 text-[var(--text-secondary)] group-hover/link:text-[var(--primary-color)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    <span className="truncate">Source {src.text}</span>
                   </a>
                 ))}
               </div>
