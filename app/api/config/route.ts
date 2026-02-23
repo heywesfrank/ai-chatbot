@@ -21,15 +21,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Space ID, System Prompt, and User ID are required.' }, { status: 400 });
     }
 
-    if (user.id !== body.userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Role-Based Protection: Agents cannot overwrite core config
+    const { data: existing } = await supabase.from('bot_config').select('user_id').eq('space_id', body.spaceId).maybeSingle();
+    if (existing && existing.user_id !== user.id) {
+       return NextResponse.json({ error: 'Forbidden. Only the workspace owner can modify core settings.' }, { status: 403 });
     }
 
-    // Only update the keys provided in the payload to avoid wiping out Inbox settings
     const updatePayload: any = {
       space_id: body.spaceId,
       system_prompt: body.systemPrompt,
-      user_id: body.userId,
+      user_id: user.id, // Only the true owner updates this payload
     };
 
     if (body.apiKey !== undefined) updatePayload.api_key = body.apiKey || null;
@@ -42,10 +43,10 @@ export async function POST(req: Request) {
     if (body.leadCaptureEnabled !== undefined) updatePayload.lead_capture_enabled = body.leadCaptureEnabled;
     if (body.slackBotToken !== undefined) updatePayload.slack_bot_token = body.slackBotToken || null;
     if (body.slackChannelId !== undefined) updatePayload.slack_channel_id = body.slackChannelId || null;
-    
     if (body.webhookUrl !== undefined) updatePayload.webhook_url = body.webhookUrl || null;
     if (body.faqOverrides !== undefined) updatePayload.faq_overrides = body.faqOverrides;
     if (body.language !== undefined) updatePayload.language = body.language || 'Auto-detect';
+    if (body.allowedDomains !== undefined) updatePayload.allowed_domains = body.allowedDomains || null;
 
     // Model configurations
     if (body.temperature !== undefined) updatePayload.temperature = body.temperature;
@@ -55,9 +56,7 @@ export async function POST(req: Request) {
 
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
