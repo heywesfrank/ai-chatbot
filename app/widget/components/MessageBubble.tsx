@@ -14,7 +14,6 @@ const flattenText = (node: any): string => {
   return '';
 };
 
-// Helper to format Date into a clean '2:32 PM' string
 const formatTime = (dateString?: string | Date) => {
   if (!dateString) return '';
   const d = new Date(dateString);
@@ -37,14 +36,15 @@ export default function MessageBubble({
   isSubmittingTicket,
   escalatingId,
   setEscalatingId,
+  agentsOnline,
 }: any) {
   const [escalationEmail, setEscalationEmail] = useState('');
 
   if (msg.role === 'system') {
     return (
       <div className="flex justify-center my-3 animate-in fade-in duration-300">
-         <div className="text-[11px] text-green-600 font-medium flex items-center gap-1.5 bg-green-50 border border-green-100 px-3 py-1.5 rounded-full shadow-sm">
-           <CheckIcon className="w-3.5 h-3.5" />
+         <div className="text-[11px] text-green-600 font-medium flex items-center gap-1.5 bg-green-50 border border-green-100 px-3 py-1.5 rounded-full shadow-sm text-center">
+           <CheckIcon className="w-3.5 h-3.5 shrink-0" />
            {msg.content}
          </div>
       </div>
@@ -55,7 +55,6 @@ export default function MessageBubble({
   let content = msg.content || '';
   let sources: { text: string; url: string }[] = [];
 
-  // Parse Custom **Sources:** Markdown from the AI
   if (!isUser && content) {
     const sourceRegex = /(?:\n+)?\*\*Sources:\*\*\s*([\s\S]*)$/i;
     const match = content.match(sourceRegex);
@@ -112,7 +111,6 @@ export default function MessageBubble({
             </ReactMarkdown>
           )}
 
-          {/* Parsed Citation Reference Cards */}
           {sources.length > 0 && (
             <div className="mt-3 pt-3 border-t border-[var(--border-strong)] flex flex-col gap-2 animate-in fade-in duration-300 overflow-hidden">
               <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">References</span>
@@ -152,14 +150,18 @@ export default function MessageBubble({
                   disabled={!escalationEmail.includes('@') || isSubmittingTicket}
                   className="bg-[var(--text-primary)] text-[var(--bg-primary)] text-[11px] px-3.5 font-medium rounded-md disabled:opacity-50 hover:opacity-80 transition-opacity shadow-sm"
                 >
-                  {isSubmittingTicket ? 'Starting...' : 'Chat'}
+                  {isSubmittingTicket ? 'Sending...' : (agentsOnline ? 'Chat' : 'Send')}
                 </button>
               </div>
+              {!agentsOnline && (
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1.5 leading-tight">
+                  Agents are offline. We will reply via email.
+                </p>
+              )}
             </div>
           )}
         </div>
 
-        {/* Timestamps & Actions */}
         <div className="flex items-center gap-1.5 mt-0.5 mx-1 text-[10px] text-[var(--text-secondary)]">
           <span className="opacity-70">{formatTime(msg.createdAt || msg.created_at)}</span>
 
@@ -178,7 +180,7 @@ export default function MessageBubble({
 
               <span className="w-px h-2.5 bg-[var(--border-strong)] mx-0.5"></span>
               <button aria-label="Talk to human" onClick={() => setEscalatingId(msg.id)} className="font-medium hover:text-[var(--text-primary)] transition-colors">
-                Talk to human
+                {agentsOnline ? 'Talk to human' : 'Email support'}
               </button>
             </>
           )}
