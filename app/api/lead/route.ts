@@ -31,6 +31,31 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
+    // Check if the user has a Lead webhook configured
+    const { data: config } = await supabase
+      .from('bot_config')
+      .select('webhook_url')
+      .eq('space_id', spaceId)
+      .maybeSingle();
+
+    if (config?.webhook_url) {
+      try {
+        await fetch(config.webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            spaceId, 
+            name, 
+            email, 
+            timestamp: new Date().toISOString() 
+          })
+        });
+      } catch (webhookErr) {
+        console.error("Webhook trigger failed:", webhookErr);
+        // Do not throw; we still successfully captured the lead in Supabase
+      }
+    }
+
     return NextResponse.json({ success: true }, { headers: corsHeaders });
   } catch (error: any) {
     console.error("Lead API Error:", error);
