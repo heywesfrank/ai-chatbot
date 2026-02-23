@@ -31,6 +31,19 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create table public.team_members (
+  id bigserial not null,
+  space_id text not null,
+  email text not null,
+  role text null default 'agent'::text,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint team_members_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_team_members_space_id on public.team_members using btree (space_id) TABLESPACE pg_default;
+
+create index IF not exists idx_team_members_email on public.team_members using btree (email) TABLESPACE pg_default;
+
 create table public.space_insights (
   id bigserial not null,
   space_id text not null,
