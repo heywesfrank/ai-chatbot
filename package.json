@@ -12,17 +12,22 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.0.0",
     "ai": "^3.1.0",
+    "cheerio": "^1.0.0",
     "next": "14.2.3",
     "openai": "^4.0.0",
+    "pdf-parse": "^1.1.1",
     "react": "^18",
     "react-dom": "^18",
     "react-markdown": "^9.0.1",
-    "sonner": "^1.4.41"
+    "sonner": "^1.4.41",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.0",
+    "@types/cheerio": "^0.22.35",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
