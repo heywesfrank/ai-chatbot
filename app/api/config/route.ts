@@ -42,6 +42,11 @@ export async function POST(req: Request) {
     if (body.leadCaptureEnabled !== undefined) updatePayload.lead_capture_enabled = body.leadCaptureEnabled;
     if (body.slackBotToken !== undefined) updatePayload.slack_bot_token = body.slackBotToken || null;
     if (body.slackChannelId !== undefined) updatePayload.slack_channel_id = body.slackChannelId || null;
+    
+    // New fields
+    if (body.webhookUrl !== undefined) updatePayload.webhook_url = body.webhookUrl || null;
+    if (body.faqOverrides !== undefined) updatePayload.faq_overrides = body.faqOverrides;
+    if (body.language !== undefined) updatePayload.language = body.language || 'Auto-detect';
 
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
 
