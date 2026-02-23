@@ -22,6 +22,10 @@ create table public.bot_config (
   webhook_url text null,
   faq_overrides jsonb null default '[]'::jsonb,
   language text null default 'Auto-detect'::text,
+  temperature numeric null default 0.5,
+  match_threshold numeric null default 0.2,
+  reasoning_effort text null default 'medium'::text,
+  verbosity text null default 'medium'::text,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
