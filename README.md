@@ -1,6 +1,6 @@
 **Note:** This project uses the `gpt-5-nano` model via a custom `openai.responses.create` endpoint. Do not replace this with older models like `gpt-4o-mini` as it relies on specific formatting.
 
-**Supabase Tables and Functions**
+**Supabase Tables, Buckets, and Functions**
 
 create table public.bot_config (
   space_id text not null,
@@ -87,3 +87,10 @@ create table public.live_sessions (
     and gitbook_documents.space_id = p_space_id
   order by gitbook_documents.embedding <=> query_embedding
   limit match_count;
+
+  -- Create a public bucket for attachments
+insert into storage.buckets (id, name, public) values ('chat_attachments', 'chat_attachments', true);
+
+-- Allow public uploads to this bucket (for widget users)
+create policy "Allow public uploads" on storage.objects for insert with check ( bucket_id = 'chat_attachments' );
+create policy "Allow public viewing" on storage.objects for select using ( bucket_id = 'chat_attachments' );
