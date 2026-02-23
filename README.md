@@ -19,13 +19,14 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
-create table public.gitbook_documents (
+create table public.knowledge_documents (
   id bigserial not null,
   page_url text not null,
   content text not null,
   embedding public.vector null,
   space_id text null,
-  constraint gitbook_documents_pkey primary key (id)
+  source_type text null default 'gitbook'::text,
+  constraint knowledge_documents_pkey primary key (id)
 ) TABLESPACE pg_default;
 
 create table public.chat_feedback (
@@ -77,15 +78,15 @@ create table public.live_sessions (
 ) TABLESPACE pg_default;
 
   select
-    gitbook_documents.id,
-    gitbook_documents.space_id,
-    gitbook_documents.page_url,
-    gitbook_documents.content,
-    1 - (gitbook_documents.embedding <=> query_embedding) as similarity
-  from gitbook_documents
-  where 1 - (gitbook_documents.embedding <=> query_embedding) > match_threshold
-    and gitbook_documents.space_id = p_space_id
-  order by gitbook_documents.embedding <=> query_embedding
+    knowledge_documents.id,
+    knowledge_documents.space_id,
+    knowledge_documents.page_url,
+    knowledge_documents.content,
+    1 - (knowledge_documents.embedding <=> query_embedding) as similarity
+  from knowledge_documents
+  where 1 - (knowledge_documents.embedding <=> query_embedding) > match_threshold
+    and knowledge_documents.space_id = p_space_id
+  order by knowledge_documents.embedding <=> query_embedding
   limit match_count;
 
   -- Create a public bucket for attachments
