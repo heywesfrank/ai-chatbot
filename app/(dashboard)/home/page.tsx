@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 
-type Tab = 'data' | 'appearance' | 'behavior' | 'model' | 'integrations' | 'team' | 'install';
+type Tab = 'data' | 'appearance' | 'behavior' | 'model' | 'integrations' | 'install';
 type SourceTab = 'website' | 'gitbook' | 'file';
 
 export default function HomeDashboard() {
@@ -21,9 +21,6 @@ export default function HomeDashboard() {
 
   const [newFaqQuestion, setNewFaqQuestion] = useState('');
   const [newFaqAnswer, setNewFaqAnswer] = useState('');
-  
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [newMemberEmail, setNewMemberEmail] = useState('');
 
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [gitbookSpaceId, setGitbookSpaceId] = useState('');
@@ -59,16 +56,6 @@ export default function HomeDashboard() {
 
   const updateConfig = (key: keyof typeof config, value: any) => {
     if (isOwner) setConfig(prev => ({ ...prev, [key]: value }));
-  };
-
-  const fetchTeam = async (spaceId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const res = await fetch(`/api/team?spaceId=${spaceId}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-    if (res.ok) {
-       const data = await res.json();
-       setTeamMembers(data.members || []);
-    }
   };
 
   useEffect(() => {
@@ -138,7 +125,6 @@ export default function HomeDashboard() {
       if (spaceData.space_id) {
         setActiveSpaceId(spaceData.space_id);
         if (spaceData.api_key) setGitbookSpaceId(spaceData.space_id);
-        fetchTeam(spaceData.space_id);
       }
     }
   };
@@ -170,43 +156,6 @@ export default function HomeDashboard() {
     const newFaqs = [...config.faqOverrides];
     newFaqs.splice(index, 1);
     updateConfig('faqOverrides', newFaqs);
-  };
-
-  const handleAddMember = async () => {
-    if (!newMemberEmail.trim() || !isOwner) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    const res = await fetch('/api/team', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ spaceId: activeSpaceId, email: newMemberEmail.trim() })
-    });
-    
-    if (res.ok) {
-      toast.success('Agent invited!');
-      setNewMemberEmail('');
-      fetchTeam(activeSpaceId);
-    } else {
-      toast.error('Failed to invite agent.');
-    }
-  };
-
-  const handleRemoveMember = async (id: string) => {
-    if (!isOwner) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const res = await fetch('/api/team', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ spaceId: activeSpaceId, id })
-    });
-    if (res.ok) {
-      toast.success('Agent removed.');
-      fetchTeam(activeSpaceId);
-    } else {
-      toast.error('Failed to remove agent.');
-    }
   };
 
   const callIngestApi = async (payload: any) => {
@@ -390,7 +339,7 @@ export default function HomeDashboard() {
         </div>
 
         <div className="flex px-6 border-b border-gray-100 space-x-6 text-sm bg-white overflow-x-auto no-scrollbar shrink-0">
-          {(['data', 'appearance', 'behavior', 'model', 'integrations', 'team', 'install'] as Tab[]).map((tab) => (
+          {(['data', 'appearance', 'behavior', 'model', 'integrations', 'install'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -696,54 +645,6 @@ export default function HomeDashboard() {
                 </select>
               </div>
 
-            </div>
-          )}
-
-          {activeTab === 'team' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Team Members</label>
-                <p className="text-xs text-gray-500 mt-0.5 mb-4 leading-relaxed">Invite agents to handle tickets and review analytics. Only the owner can edit configuration.</p>
-
-                <div className="flex gap-2 mb-4">
-                  <input
-                    type="email"
-                    placeholder="agent@example.com"
-                    disabled={!isOwner}
-                    className="flex-1 p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors"
-                    value={newMemberEmail}
-                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                  />
-                  <button
-                    onClick={handleAddMember}
-                    disabled={!newMemberEmail || !isOwner}
-                    className="px-4 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm"
-                  >
-                    Invite
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {teamMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-md shadow-sm">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{member.email}</p>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">{member.role}</p>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveMember(member.id)}
-                        disabled={!isOwner}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                  {teamMembers.length === 0 && (
-                    <p className="text-xs text-gray-400 text-center py-4">No team members invited yet.</p>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
