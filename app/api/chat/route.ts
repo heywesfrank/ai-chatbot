@@ -1,3 +1,4 @@
+// app/api/chat/route.ts
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
@@ -36,17 +37,14 @@ export async function POST(req: Request) {
   const corsHeaders = { 'Access-Control-Allow-Origin': origin };
 
   try {
-    // 1. Destructure messages and spaceId from the request
     const { messages, spaceId } = await req.json();
     
-    // Concatenate the last 3 user messages to give the embedding model conversational context
     const recentMessagesContext = messages
       .filter((m: any) => m.role === 'user')
       .slice(-3)
       .map((m: any) => m.content)
       .join('\n');
 
-    // 2. Parallelize independent database calls
     const configPromise = supabase
       .from('bot_config')
       .select('system_prompt')
@@ -62,14 +60,13 @@ export async function POST(req: Request) {
 
     const queryEmbedding = embeddingResponse.data?.[0]?.embedding;
     
-    // Fallback null check for embedding failures (avoids app crash)
     if (!queryEmbedding) {
       throw new Error('Failed to generate context embedding.');
     }
 
     const agentPersona = configResponse.data?.system_prompt || "You are a helpful, minimalist support assistant.";
 
-    // 3. Search Supabase for the top 5 matching GitBook paragraphs
+    // Calls the updated match_documents which queries knowledge_documents
     const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
       query_embedding: queryEmbedding,
       match_threshold: 0.2,
@@ -81,14 +78,10 @@ export async function POST(req: Request) {
       console.error("Supabase Search Error:", supabaseError);
     }
 
-    // 4. Combine the retrieved paragraphs into one string of context using Strict Types
-    // ADDED: Embed the source URL directly into the text so the model can cite it
     const context = documents && documents.length > 0 
       ? documents.map((doc: DocumentMatch) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n') 
       : "";
 
-    // 5. Assemble the final instructions using clean, categorical logic
-    // ADDED: Directives to output markdown links at the bottom.
     const systemInstructions = `
 ${agentPersona}
 
@@ -103,7 +96,6 @@ CONTEXT:
 ${context || "No context available."}
 `.trim();
 
-    // 6. Call Custom gpt-5-nano with stream=true
     const stream = await openai.responses.create({
       model: 'gpt-5-nano',
       instructions: systemInstructions,
@@ -114,17 +106,14 @@ ${context || "No context available."}
       stream: true, 
     });
 
-    // 7. Format the custom response stream into the Vercel AI DataStream Protocol
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of stream) {
             if (event.type === 'response.output_text.delta') {
-              // TypeScript fix: ResponseTextDeltaEvent strictly uses `delta`
               const deltaText = event.delta || '';
               if (deltaText) {
-                // Formatting payload as: 0:"The text chunk"\n for Vercel AI SDK
                 controller.enqueue(encoder.encode(`0:${JSON.stringify(deltaText)}\n`));
               }
             }
