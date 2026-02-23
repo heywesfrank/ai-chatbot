@@ -1,6 +1,9 @@
+// app/api/live-message/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import Sentiment from 'sentiment';
 
+const sentiment = new Sentiment();
 export const runtime = 'edge';
 
 export async function OPTIONS(req: Request) {
@@ -25,9 +28,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
+    let sentimentScore = null;
+    if (role === 'user') {
+      sentimentScore = sentiment.analyze(content).score;
+    }
+
     const { error } = await supabase
       .from('live_messages')
-      .insert({ session_id: sessionId, role, content });
+      .insert({ session_id: sessionId, role, content, sentiment_score: sentimentScore });
 
     if (error) throw error;
 
@@ -47,7 +55,7 @@ export async function POST(req: Request) {
           .single();
           
         if (config?.slack_bot_token) {
-          await fetch('[https://slack.com/api/chat.postMessage](https://slack.com/api/chat.postMessage)', {
+          await fetch('https://slack.com/api/chat.postMessage', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.slack_bot_token}` },
             body: JSON.stringify({
