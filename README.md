@@ -2,6 +2,7 @@
 
 **Supabase Tables, Buckets, and Functions**
 
+```sql
 create table public.bot_config (
   space_id text not null,
   system_prompt text not null,
@@ -14,6 +15,8 @@ create table public.bot_config (
   show_prompts boolean null default true,
   suggested_prompts jsonb null default '[]'::jsonb,
   lead_capture_enabled boolean null default false,
+  page_context_enabled boolean null default false,
+  routing_config jsonb null default '[]'::jsonb,
   agents_online boolean null default false,
   canned_responses jsonb null default '[]'::jsonb,
   language text null default 'Auto-detect'::text,
@@ -156,6 +159,22 @@ create table public.live_sessions (
   constraint live_sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
 
+-- Similarity Search Function
+create or replace function match_documents (
+  query_embedding vector(1536),
+  match_threshold float,
+  match_count int,
+  p_space_id text
+)
+returns table (
+  id bigint,
+  space_id text,
+  page_url text,
+  content text,
+  similarity float
+)
+language sql stable
+as $$
   select
     knowledge_documents.id,
     knowledge_documents.space_id,
@@ -167,8 +186,9 @@ create table public.live_sessions (
     and knowledge_documents.space_id = p_space_id
   order by knowledge_documents.embedding <=> query_embedding
   limit match_count;
+$$;
 
-  -- Create a public bucket for attachments
+-- Create a public bucket for attachments
 insert into storage.buckets (id, name, public) values ('chat_attachments', 'chat_attachments', true);
 
 -- Allow public uploads to this bucket (for widget users)
