@@ -36,6 +36,18 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   
   const [isOpen, setIsOpen] = useState(urlOverrides.preview ? true : false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Force the iframe body background to be completely transparent
+    document.body.style.backgroundColor = 'transparent';
+    
+    // Track mobile viewport size dynamically
+    const checkMobile = () => setIsMobile(window.innerWidth < 600);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const enableLeadCapture = urlOverrides.leadCapture !== null ? urlOverrides.leadCapture : (config?.lead_capture_enabled ?? false);
   const [isLeadCaptured, setIsLeadCaptured, removeLeadCaptured] = useLocalStorage(`lead_captured_${spaceId}`, !enableLeadCapture);
@@ -123,6 +135,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     return () => {
       if (triggerTimerRef.current) clearTimeout(triggerTimerRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentUrl]);
 
   useEffect(() => {
@@ -325,9 +338,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
+  const isLeft = config?.position === 'left';
 
   const Header = () => (
-    <div className="p-4 shadow-sm text-white flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor || '#ffffff' }}>
+    <div className="p-4 shadow-sm flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-2">
           {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
@@ -344,9 +358,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         </button>
       )}
 
-      {/* Hide close button on desktop so the user clicks the launcher. Fallback visible on mobile. */}
-      <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="sm:hidden absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+      {/* The visible close button for desktop users */}
+      <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
+        <ChevronDownIcon className="w-5 h-5" />
       </button>
     </div>
   );
@@ -368,7 +382,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             <div>
               <input aria-label="Your Email" type="email" required placeholder="Your Email" className="w-full p-2.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-md focus:outline-none focus:ring-2 transition-all text-sm shadow-sm" style={{ '--tw-ring-color': 'var(--primary-color)' } as any} value={leadEmail} onChange={e => setLeadEmail(e.target.value)} />
             </div>
-            <button aria-label="Start Chat" type="submit" disabled={isSubmittingLead} className="w-full text-white py-3 rounded-md hover:opacity-90 transition-all font-medium shadow-sm mt-2 disabled:opacity-50 active:scale-95" style={{ backgroundColor: 'var(--primary-color)' }}>
+            <button aria-label="Start Chat" type="submit" disabled={isSubmittingLead} className="w-full py-3 rounded-md hover:opacity-90 transition-all font-medium shadow-sm mt-2 disabled:opacity-50 active:scale-95" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
               {isSubmittingLead ? 'Starting chat...' : 'Start Chat'}
             </button>
           </form>
@@ -461,45 +475,49 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     );
   };
 
-  const position = config?.position || 'right';
-  const launcherHorizontalClasses = position === 'left' ? 'left-[22px]' : 'right-[22px]';
-
   return (
-    <div className="fixed inset-0 flex flex-col pointer-events-none" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+    <div className="fixed inset-0 bg-transparent text-[var(--text-primary)] font-sans text-sm pointer-events-none" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       
       {/* Active Floating Chat Window */}
       {isOpen && (
-        <div className="pointer-events-auto absolute top-[16px] bottom-[90px] left-[16px] right-[16px] flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans text-sm overflow-hidden rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.16)] border border-[var(--border-strong)] z-20 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300 origin-bottom">
-           <Header />
-           {renderBodyContent()}
-           {!removeBranding && (
+        <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200 origin-bottom
+          ${isMobile 
+            ? 'inset-0 rounded-none' 
+            : 'top-0 bottom-[90px] left-0 right-0 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.16)] border border-[var(--border-strong)]'
+          }
+        `}>
+          <Header />
+          {renderBodyContent()}
+          {!removeBranding && (
             <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
               Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
             </div>
-           )}
+          )}
         </div>
       )}
 
       {/* Floating Launcher Button */}
-      <div className={`pointer-events-auto absolute bottom-[22px] ${launcherHorizontalClasses} z-30 flex`}>
-        <button 
-          onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
-          className="w-14 h-14 rounded-full shadow-[0_6px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
-          style={{ backgroundColor: 'var(--primary-color)', color: userFontColor || '#ffffff' }}
-          aria-label={isOpen ? "Close Chat" : "Open Chat"}
-        >
-          {unreadCount > 0 && !isOpen && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2" style={{ borderColor: 'var(--primary-color)' }}>
-              {unreadCount}
-            </span>
-          )}
-          {isOpen ? (
-            <ChevronDownIcon className="w-6 h-6" />
-          ) : (
-            <ChatBubbleIcon className="w-7 h-7" />
-          )}
-        </button>
-      </div>
+      {(!isOpen || !isMobile) && (
+        <div className={`pointer-events-auto absolute bottom-0 ${isLeft ? 'left-0' : 'right-0'} w-[70px] h-[70px] flex items-center justify-center z-30`}>
+          <button 
+            onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
+            className={`w-14 h-14 rounded-full shadow-[0_6px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative`}
+            style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
+            aria-label={isOpen ? "Close Chat" : "Open Chat"}
+          >
+            {unreadCount > 0 && !isOpen && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2" style={{ borderColor: 'var(--primary-color)' }}>
+                {unreadCount}
+              </span>
+            )}
+            {isOpen ? (
+              <ChevronDownIcon className="w-6 h-6" />
+            ) : (
+              <ChatBubbleIcon className="w-7 h-7" />
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
