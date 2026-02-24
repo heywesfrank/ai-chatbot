@@ -26,6 +26,18 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create table public.proactive_triggers (
+  id uuid not null default gen_random_uuid (),
+  space_id text not null,
+  url_match text not null,
+  delay_seconds integer not null default 10,
+  message text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint proactive_triggers_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_triggers_space_id on public.proactive_triggers using btree (space_id) TABLESPACE pg_default;
+
 create table public.data_sources (
   id uuid not null default gen_random_uuid (),
   space_id text not null,
