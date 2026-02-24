@@ -11,7 +11,7 @@ export default function InstallPage() {
     var position = "${config.position}";
     var theme = "${config.theme}";
     var iframe = document.createElement('iframe');
-    iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme;
+    iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme + "&parentUrl=" + encodeURIComponent(window.location.pathname);
     iframe.style.position = 'fixed'; iframe.style.bottom = '20px'; iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
     iframe.style.width = '100px'; iframe.style.height = '100px'; iframe.style.border = 'none'; iframe.style.zIndex = '999999';
     iframe.style.background = 'transparent'; iframe.style.colorScheme = 'normal';
