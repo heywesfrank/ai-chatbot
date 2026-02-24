@@ -37,10 +37,10 @@ export async function POST(req: Request) {
   try {
     const { messages, spaceId } = await req.json();
 
-    // 1. Fetch Configuration
+    // 1. Fetch Core Configuration
     const { data: configData } = await supabase
       .from('bot_config')
-      .select('system_prompt, faq_overrides, language, temperature, match_threshold, reasoning_effort, verbosity, allowed_domains')
+      .select('system_prompt, language, temperature, match_threshold, reasoning_effort, verbosity, allowed_domains')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -80,11 +80,13 @@ export async function POST(req: Request) {
 
     const lastMessageContent = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
 
-    // 4. FAQ Exact Match
-    const faqs = configData?.faq_overrides || [];
-    const matchedFaq = faqs.find(
-      (f: any) => f.question.toLowerCase().trim() === lastMessageContent.toLowerCase().trim()
-    );
+    // 4. FAQ Exact Match (Queries the dedicated faqs table)
+    const { data: matchedFaq } = await supabase
+      .from('faqs')
+      .select('answer')
+      .eq('space_id', spaceId)
+      .ilike('question', lastMessageContent.trim())
+      .maybeSingle();
 
     if (matchedFaq) {
       const encoder = new TextEncoder();
