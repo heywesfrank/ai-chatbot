@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase';
 import Sentiment from 'sentiment';
 
 const sentiment = new Sentiment();
-export const runtime = 'edge';
 
 export async function OPTIONS(req: Request) {
   const origin = req.headers.get('origin') || '*';
