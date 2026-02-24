@@ -90,7 +90,6 @@ export async function POST(req: Request) {
       sentimentScore = analysis.score;
       
       // Fire-and-forget storage of message analysis for dashboard
-      // Note: Requires a table 'bot_messages' with columns: space_id, role, content, sentiment_score
       if (spaceId) {
         supabase.from('bot_messages').insert({
           space_id: spaceId,
