@@ -52,22 +52,27 @@ export async function POST(req: Request) {
       sentiment_score: sentimentScore
     });
 
-    const { data: config } = await supabase
-      .from('bot_config')
-      .select('slack_bot_token, slack_channel_id')
+    // Check if Slack is connected via Integrations table
+    const { data: slackIntegration } = await supabase
+      .from('workspace_integrations')
+      .select('config')
       .eq('space_id', spaceId)
+      .eq('provider', 'slack')
       .maybeSingle();
 
-    if (config?.slack_bot_token && config?.slack_channel_id) {
+    const slackToken = slackIntegration?.config?.slack_bot_token;
+    const channelId = slackIntegration?.config?.slack_channel_id;
+
+    if (slackToken && channelId) {
       try {
         const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.slack_bot_token}`
+            'Authorization': `Bearer ${slackToken}`
           },
           body: JSON.stringify({
-            channel: config.slack_channel_id,
+            channel: channelId,
             text: `*New Ticket from ${email}*\n\n*Message:*\n${prompt}`,
           })
         });
