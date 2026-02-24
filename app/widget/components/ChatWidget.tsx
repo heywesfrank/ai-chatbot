@@ -53,6 +53,13 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const botAvatar = config?.bot_avatar || null;
   const removeBranding = config?.remove_branding || false;
   const agentsOnline = config?.agents_online ?? false;
+  
+  // Feature flags
+  const enablePageContext = config?.page_context_enabled ?? false;
+  const routingOptions = config?.routing_config || [];
+
+  // Determine current URL for context
+  const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
   const defaultPrompts = ["How do I reset my password?", "Where can I find the documentation?", "How do I contact support?"];
   const showPrompts = urlOverrides.showPrompts !== null ? urlOverrides.showPrompts : (config?.show_prompts ?? true);
@@ -61,9 +68,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const initMsg = { id: 'init', role: 'assistant', content: welcomeMessage } as const;
   
   const [savedMessages, setSavedMessages, removeSavedMessages] = useLocalStorage<any[]>(`chat_session_${spaceId}`, [initMsg]);
+  const [routingContext, setRoutingContext, removeRoutingContext] = useLocalStorage<string | null>(`routing_context_${spaceId}`, null);
+
   const { messages, input, handleInputChange, handleSubmit, isLoading, error, setMessages, append } = useChat({
     api: '/api/chat',
-    body: { spaceId }, 
+    body: { spaceId, currentUrl, routingContext }, 
     initialMessages: savedMessages,
   });
 
@@ -186,6 +195,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     setEscalatingId(null);
     removeLiveSessionId();
     removeLiveMessages();
+    removeRoutingContext();
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -324,6 +334,13 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       });
     }
   };
+
+  const handleRoutingSelection = (option: any) => {
+    setRoutingContext(option.value);
+    append({ role: 'user', content: option.label });
+  };
+
+  const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
 
   if (!isOpen) {
     return (
@@ -466,7 +483,23 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
           )}
         </div>
 
-        {messages.length === 1 && showPrompts && suggestedPrompts.length > 0 && !liveSessionId && (
+        {/* Routing Options */}
+        {showRouting && (
+          <div className="flex flex-col gap-2 mt-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+            {routingOptions.map((option: any) => (
+              <button
+                key={option.id}
+                onClick={() => handleRoutingSelection(option)}
+                className="w-full text-left p-3 rounded-md border border-[var(--border-strong)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm group"
+              >
+                <span className="font-medium text-[var(--text-primary)] text-sm">{option.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Suggested Prompts (Only show if not routing) */}
+        {!showRouting && messages.length === 1 && showPrompts && suggestedPrompts.length > 0 && !liveSessionId && (
           <>
             <div className="flex-1" />
             <div className="w-full flex flex-wrap justify-center gap-2 mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -489,7 +522,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         input={input} 
         handleInputChange={onInputChange} 
         handleFormSubmit={handleFormSubmit} 
-        disabled={(isLoading && !liveSessionId)}
+        disabled={(isLoading && !liveSessionId) || showRouting}
         primaryColor={primaryColor} 
         isLiveChat={!!liveSessionId}
         onFileUpload={handleFileUpload}
