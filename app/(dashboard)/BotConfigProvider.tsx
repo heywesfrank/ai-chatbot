@@ -128,8 +128,33 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
         cannedResponses: spaceData.canned_responses || []
       }));
       if (spaceData.space_id) setActiveSpaceId(spaceData.space_id);
+      setIsLoading(false);
+    } else if (owner) {
+      // AUTO-INITIALIZE FOR NEW USERS
+      const newSpaceId = Math.random().toString(36).substring(2, 10);
+      
+      setConfig(prev => {
+        const newState = { ...prev, spaceId: newSpaceId };
+        
+        // Save the default config behind the scenes immediately
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            fetch('/api/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+              body: JSON.stringify({ ...newState, userId: uid }),
+            }).catch(err => console.error("Failed to auto-initialize workspace", err));
+          }
+        });
+        
+        return newState;
+      });
+      
+      setActiveSpaceId(newSpaceId);
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const saveConfig = async (): Promise<void> => {
