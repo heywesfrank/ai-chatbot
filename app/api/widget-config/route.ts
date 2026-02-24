@@ -67,35 +67,3 @@ export async function GET(req: Request) {
     );
   }
 }
-    if (data?.allowed_domains) {
-      const allowedList = data.allowed_domains.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean);
-      if (allowedList.length > 0) {
-        const originHost = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase();
-        const isAllowed = allowedList.some((d: string) => originHost.includes(d) || originHost === d);
-        if (!isAllowed && originHost && originHost !== '*') {
-          return NextResponse.json({ error: 'Unauthorized: Domain not authorized.' }, { status: 403, headers: corsHeaders });
-        }
-      }
-    }
-
-    // Fetch proactive triggers
-    const { data: triggersData } = await supabase
-      .from('proactive_triggers')
-      .select('url_match, delay_seconds, message')
-      .eq('space_id', spaceId);
-
-    if (data) {
-      delete data.allowed_domains;
-      (data as any).triggers = triggersData || [];
-    }
-
-    return NextResponse.json({ config: data || { triggers: triggersData || [] } }, { headers: corsHeaders });
-
-  } catch (error: any) {
-    console.error("Widget Config API Error:", error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch configuration' }, 
-      { status: 500, headers: corsHeaders }
-    );
-  }
-}
