@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
   const protectedRoutes = [
     '/knowledge', 
     '/behavior', 
+    '/model',
     '/appearance', 
     '/install', 
     '/faqs', 
@@ -34,6 +35,7 @@ export const config = {
   matcher: [
     '/knowledge/:path*', 
     '/behavior/:path*', 
+    '/model/:path*',
     '/appearance/:path*', 
     '/install/:path*', 
     '/faqs/:path*', 
