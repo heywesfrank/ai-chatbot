@@ -24,6 +24,7 @@
     "recharts": "^2.12.7",
     "sentiment": "^5.0.2",
     "sonner": "^1.4.41",
+    "ua-parser-js": "^1.0.38",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
@@ -35,6 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sentiment": "^5.0.0",
+    "@types/ua-parser-js": "^0.7.39",
     "@types/xml2js": "^0.4.14",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
