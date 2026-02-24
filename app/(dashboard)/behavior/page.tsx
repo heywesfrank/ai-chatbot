@@ -22,8 +22,8 @@ export default function BehaviorPage() {
   return (
     <div className="p-8 pb-20 max-w-[800px] animate-in fade-in duration-300">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900">Behavior & Model</h1>
-        <p className="text-sm text-gray-500 mt-1 leading-relaxed">Control how your bot responds and processes information. This serves as the "brain" of your agent.</p>
+        <h1 className="text-xl font-semibold tracking-tight text-gray-900">Behavior</h1>
+        <p className="text-sm text-gray-500 mt-1 leading-relaxed">Control how your bot responds and interacts with users.</p>
       </div>
 
       <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
@@ -65,7 +65,7 @@ export default function BehaviorPage() {
         </section>
 
         <section>
-          <div className="flex items-center justify-between border-t border-gray-100 pt-8">
+          <div className="flex items-center justify-between border-t border-gray-100 pt-8 mb-6">
             <div>
               <label className="block text-sm font-semibold text-gray-900">Lead Capture</label>
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Require visitors to enter their name and email before chatting.</p>
@@ -77,45 +77,17 @@ export default function BehaviorPage() {
           </div>
         </section>
 
-        <div className="border-t border-gray-100 pt-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-          <section>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Language</label>
-            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white shadow-sm transition-colors cursor-pointer" value={config.language} disabled={!isOwner} onChange={(e) => updateConfig('language', e.target.value)}>
-              <option value="Auto-detect">Auto-detect</option>
-              <option value="English">English</option>
-              <option value="Spanish">Spanish</option>
-              <option value="French">French</option>
-              <option value="German">German</option>
-            </select>
-          </section>
-
-          <section>
-            <div className="flex justify-between mb-2">
-              <label className="block text-sm font-semibold text-gray-900">Match Threshold</label>
-              <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">{config.matchThreshold}</span>
-            </div>
-            <input type="range" min="0" max="1" step="0.05" disabled={!isOwner} className="w-full accent-black h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1" value={config.matchThreshold} onChange={(e) => updateConfig('matchThreshold', parseFloat(e.target.value))} />
-            <p className="text-[10px] text-gray-400 mt-2 font-medium">Lower values pull more documents (broader), higher values pull fewer (stricter).</p>
-          </section>
-
-          <section>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Reasoning Effort (GPT-5)</label>
-            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white shadow-sm transition-colors cursor-pointer" value={config.reasoningEffort} disabled={!isOwner} onChange={(e) => updateConfig('reasoningEffort', e.target.value)}>
-              <option value="low">Low (Faster)</option>
-              <option value="medium">Medium (Balanced)</option>
-              <option value="high">High (Deep thinking)</option>
-            </select>
-          </section>
-
-          <section>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Verbosity</label>
-            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white shadow-sm transition-colors cursor-pointer" value={config.verbosity} disabled={!isOwner} onChange={(e) => updateConfig('verbosity', e.target.value)}>
-              <option value="low">Low (Concise)</option>
-              <option value="medium">Medium</option>
-              <option value="high">High (Detailed)</option>
-            </select>
-          </section>
-        </div>
+        <section className="border-t border-gray-100 pt-8">
+          <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Language</label>
+          <select className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white shadow-sm transition-colors cursor-pointer" value={config.language} disabled={!isOwner} onChange={(e) => updateConfig('language', e.target.value)}>
+            <option value="Auto-detect">Auto-detect</option>
+            <option value="English">English</option>
+            <option value="Spanish">Spanish</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+          </select>
+          <p className="text-[11px] text-gray-500 mt-1.5 font-medium">Force the bot to respond in a specific language, or auto-detect based on user input.</p>
+        </section>
       </div>
     </div>
   );
