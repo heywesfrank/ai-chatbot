@@ -6,15 +6,15 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import Sentiment from 'sentiment';
 
-interface DocumentMatch {
-  id: number;
-  content: string;
-  page_url: string;
-  similarity: number;
-}
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const sentiment = new Sentiment();
+
+// Handle browser clicks to prevent 405 errors
+export async function GET() {
+  return NextResponse.json(
+    { message: "Chat API is running successfully. Use POST to interact." },
+    { headers: { 'Access-Control-Allow-Origin': '*' } }
+  );
+}
 
 export async function OPTIONS(req: Request) {
   const origin = req.headers.get('origin') || '*';
@@ -23,7 +23,7 @@ export async function OPTIONS(req: Request) {
     {
       headers: {
         'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     }
@@ -35,12 +35,17 @@ export async function POST(req: Request) {
   const corsHeaders = { 'Access-Control-Allow-Origin': origin };
 
   try {
-    const { messages, spaceId, currentUrl, routingContext } = await req.json();
+    const body = await req.json();
+    const { messages, spaceId, currentUrl, routingContext } = body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: 'Invalid messages format' }, { status: 400, headers: corsHeaders });
+    }
 
     // 1. Fetch Core Configuration
     const { data: configData } = await supabase
       .from('bot_config')
-      .select('system_prompt, language, temperature, match_threshold, reasoning_effort, verbosity, allowed_domains, follow_up_questions_enabled')
+      .select('system_prompt, language, temperature, match_threshold, allowed_domains, follow_up_questions_enabled')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -85,10 +90,10 @@ export async function POST(req: Request) {
     let sentimentContext = '';
     try {
       if (lastMessageContent) {
+        const sentiment = new Sentiment();
         const analysis = sentiment.analyze(lastMessageContent);
         sentimentScore = analysis.score;
         
-        // Fire-and-forget storage of message analysis for dashboard
         if (spaceId) {
           supabase.from('bot_messages').insert({
             space_id: spaceId,
@@ -100,14 +105,8 @@ export async function POST(req: Request) {
           });
         }
 
-        // Frustration Detection Trigger (Threshold: -3)
         if (sentimentScore <= -3) {
-          sentimentContext = `
-IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${sentimentScore}).
-1. Be extremely empathetic and professional.
-2. Acknowledge their frustration immediately.
-3. You MUST offer to escalate this conversation to a human support agent or provide a direct contact email if you cannot resolve the issue immediately.
-`;
+          sentimentContext = `\nIMPORTANT: The user has expressed significant frustration. Be extremely empathetic, acknowledge their frustration, and offer human support if you cannot resolve it immediately.`;
         }
       }
     } catch (e) {
@@ -115,32 +114,34 @@ IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${se
     }
     // --- SENTIMENT ANALYSIS END ---
 
-    // 4. FAQ Exact Match (Queries the dedicated faqs table)
-    const { data: matchedFaq } = await supabase
-      .from('faqs')
-      .select('answer')
-      .eq('space_id', spaceId)
-      .ilike('question', lastMessageContent.trim())
-      .maybeSingle();
+    // 4. FAQ Exact Match
+    if (lastMessageContent && spaceId) {
+      const { data: matchedFaq } = await supabase
+        .from('faqs')
+        .select('answer')
+        .eq('space_id', spaceId)
+        .ilike('question', lastMessageContent.trim())
+        .maybeSingle();
 
-    if (matchedFaq) {
-      const encoder = new TextEncoder();
-      const readableStream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode(`0:${JSON.stringify(matchedFaq.answer)}\n`));
-          controller.close();
-        },
-      });
+      if (matchedFaq) {
+        const encoder = new TextEncoder();
+        const readableStream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`0:${JSON.stringify(matchedFaq.answer)}\n`));
+            controller.close();
+          },
+        });
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'X-Vercel-AI-Data-Stream': 'v1',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-          ...corsHeaders,
-        },
-      });
+        return new Response(readableStream, {
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'X-Vercel-AI-Data-Stream': 'v1',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+            ...corsHeaders,
+          },
+        });
+      }
     }
 
     // 5. RAG Retrieval
@@ -160,7 +161,7 @@ IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${se
     }
 
     let context = '';
-    if (queryEmbedding) {
+    if (queryEmbedding && spaceId) {
       const { data: documents } = await supabase.rpc('match_documents', {
         query_embedding: queryEmbedding,
         match_threshold: configData?.match_threshold ?? 0.2,
@@ -169,7 +170,7 @@ IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${se
       });
 
       context = documents && documents.length > 0
-          ? documents.map((doc: DocumentMatch) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n')
+          ? documents.map((doc: any) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n')
           : '';
     }
 
@@ -191,13 +192,9 @@ ${agentPersona}
 
 CORE DIRECTIVES:
 1. LANGUAGE: ${langInstruction}
-2. CONVERSATIONAL MODE: If the user is making casual conversation (e.g., greetings, goodbyes, expressions of gratitude, or general small talk), respond naturally and politely. Ignore the CONTEXT.
-3. SUPPORT MODE: If the user is asking a question or seeking help, you MUST answer using ONLY the CONTEXT below. When answering from CONTEXT, you MUST append the source URLs you used at the very end of your response using this exact markdown format:
-
-**Sources:** [1](URL) [2](URL)
-4. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.${followUpInstruction}
-
-${sentimentContext}
+2. CONVERSATIONAL MODE: If the user is making casual conversation, respond naturally and politely.
+3. SUPPORT MODE: If asking a question, you MUST answer using ONLY the CONTEXT below. You MUST append the source URLs at the very end in this format: **Sources:** [1](URL) [2](URL)
+4. UNKNOWN INFO: If the CONTEXT does not contain the answer, politely state you do not have that information.${followUpInstruction}${sentimentContext}
 
 SESSION METADATA:
 ${routingInstruction}
@@ -211,12 +208,10 @@ ${context || 'No context available.'}
       model: 'gpt-5-nano',
       instructions: systemInstructions,
       input: messages.map((m: any) => ({
-        role: m.role,
+        role: m.role === 'user' ? 'user' : 'assistant', // Forces safety against unknown Vercel AI SDK roles
         content: m.content,
       })),
       temperature: configData?.temperature ?? 0.5,
-      reasoning: { effort: configData?.reasoning_effort || 'medium' },
-      text: { verbosity: configData?.verbosity || 'medium' },
       stream: true,
     };
 
