@@ -77,6 +77,43 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const prevMessagesLength = useRef(messages.length);
   const prevLiveMessagesLength = useRef(liveMessages.length);
 
+  // Proactive Triggers setup
+  const triggers = config?.triggers || [];
+  const parentUrl = urlOverrides.parentUrl || '';
+  const triggerTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (hasTriggeredRef.current || !parentUrl || triggers.length === 0) return;
+    if (messages.length > 1 || liveSessionId) return; // User already interacted
+
+    const matchingTrigger = triggers.find((t: any) => parentUrl.includes(t.url_match));
+    if (!matchingTrigger) return;
+
+    triggerTimerRef.current = setTimeout(() => {
+      if (hasTriggeredRef.current || messages.length > 1 || liveSessionId) return;
+      hasTriggeredRef.current = true;
+
+      setIsOpen(prev => {
+        if (!prev) playPopSound();
+        return true;
+      });
+      
+      setMessages(prev => {
+        if (prev.length <= 1) {
+          return [...prev, { id: Date.now().toString(), role: 'assistant', content: matchingTrigger.message }];
+        }
+        return prev;
+      });
+
+    }, matchingTrigger.delay_seconds * 1000);
+
+    return () => {
+      if (triggerTimerRef.current) clearTimeout(triggerTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentUrl]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.parent.postMessage({ type: 'kb-widget-resize', isOpen }, '*');
