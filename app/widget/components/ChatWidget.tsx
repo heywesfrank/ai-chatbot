@@ -428,6 +428,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               botAvatar={botAvatar}
               primaryColor={primaryColor}
               isTyping={isLoading && index === messages.length - 1}
+              isLatest={index === messages.length - 1 && liveMessages.length === 0}
+              onFollowUpClick={(text: string) => append({ role: 'user', content: text })}
               liveSessionId={liveSessionId}
               handleCopy={handleCopy}
               copiedId={copiedId}
