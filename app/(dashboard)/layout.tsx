@@ -211,7 +211,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
           
           {isBuilderRoute && activeSpaceId && (
-            <div className="hidden lg:flex w-[380px] xl:w-[420px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col items-center justify-center relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0">
+            <div className="hidden lg:flex w-[380px] xl:w-[420px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col items-center justify-start pt-8 relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0">
               <div className="w-[360px] h-[600px] bg-white rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] overflow-hidden border border-gray-200/50 animate-in fade-in zoom-in-95 duration-500">
                 <iframe key={refreshKey} src={previewUrl} className="w-full h-full border-none bg-transparent" title="Widget Preview" />
               </div>
