@@ -99,10 +99,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Use workspaceName if available, fall back to headerText, then default
   const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
   const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context', '/routing', '/appearance', '/faqs', '/triggers', '/install'].includes(pathname);
-  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(config.primaryColor)}&header=${encodeURIComponent(config.headerText)}&showPrompts=${config.showPrompts}&prompts=${encodeURIComponent(JSON.stringify(config.suggestedPrompts))}&leadCapture=${config.leadCaptureEnabled}&theme=${config.theme}&position=${config.position}&preview=true`;
+  
+  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(config.primaryColor)}&botFontColor=${encodeURIComponent(config.botFontColor)}&userFontColor=${encodeURIComponent(config.userFontColor)}&header=${encodeURIComponent(config.headerText)}&description=${encodeURIComponent(config.descriptionText || '')}&placeholder=${encodeURIComponent(config.inputPlaceholder || '')}&removeBranding=${config.removeBranding}&showPrompts=${config.showPrompts}&prompts=${encodeURIComponent(JSON.stringify(config.suggestedPrompts))}&leadCapture=${config.leadCaptureEnabled}&theme=${config.theme}&position=${config.position}&preview=true`;
 
   return (
     <div className="flex h-screen w-full bg-white text-gray-900 font-sans overflow-hidden">
