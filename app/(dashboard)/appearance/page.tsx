@@ -13,19 +13,48 @@ export default function AppearancePage() {
       </div>
 
       <div className="space-y-6 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
-        <section>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">Primary Color</label>
-          <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shadow-sm shrink-0 cursor-pointer">
-               <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <section>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">Theme Color</label>
+            <div className="flex items-center gap-3">
+              <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shadow-sm shrink-0 cursor-pointer">
+                 <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
+              </div>
+              <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors shadow-sm font-mono" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
             </div>
-            <input type="text" className="w-32 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors shadow-sm font-mono" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
-          </div>
+          </section>
+          
+          <section>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">User Font Color</label>
+            <div className="flex items-center gap-3">
+              <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shadow-sm shrink-0 cursor-pointer">
+                 <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.userFontColor} onChange={(e) => updateConfig('userFontColor', e.target.value)} />
+              </div>
+              <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors shadow-sm font-mono" disabled={!isOwner} value={config.userFontColor} onChange={(e) => updateConfig('userFontColor', e.target.value)} />
+            </div>
+          </section>
+
+          <section>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Font Color</label>
+            <div className="flex items-center gap-3">
+              <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shadow-sm shrink-0 cursor-pointer">
+                 <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.botFontColor} onChange={(e) => updateConfig('botFontColor', e.target.value)} />
+              </div>
+              <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors shadow-sm font-mono" disabled={!isOwner} value={config.botFontColor} onChange={(e) => updateConfig('botFontColor', e.target.value)} />
+            </div>
+          </section>
+        </div>
+
+        <section className="pt-4 border-t border-gray-100">
+          <label className="block text-sm font-semibold text-gray-900 mb-2">Header Text</label>
+          <input type="text" className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.headerText} onChange={(e) => updateConfig('headerText', e.target.value)} />
         </section>
 
         <section className="pt-2 border-t border-gray-100">
-          <label className="block text-sm font-semibold text-gray-900 mb-2">Header Text</label>
-          <input type="text" className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.headerText} onChange={(e) => updateConfig('headerText', e.target.value)} />
+          <label className="block text-sm font-semibold text-gray-900 mb-2">Subheader Description</label>
+          <input type="text" placeholder="e.g. Replies typically in 5 minutes" className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.descriptionText || ''} onChange={(e) => updateConfig('descriptionText', e.target.value)} />
+          <p className="text-[11px] text-gray-500 mt-1.5 font-medium">Optional text displayed below your header name.</p>
         </section>
 
         <section className="pt-2 border-t border-gray-100">
@@ -34,10 +63,15 @@ export default function AppearancePage() {
         </section>
 
         <section className="pt-2 border-t border-gray-100">
+          <label className="block text-sm font-semibold text-gray-900 mb-2">Chat Input Placeholder</label>
+          <input type="text" placeholder="Ask a question..." className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.inputPlaceholder || ''} onChange={(e) => updateConfig('inputPlaceholder', e.target.value)} />
+        </section>
+
+        <section className="pt-2 border-t border-gray-100">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar URL</label>
           <div className="flex items-center gap-3">
              {config.botAvatar && <img src={config.botAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm shrink-0" />}
-             <input type="url" placeholder="https://example.com/avatar.png" className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
+             <input type="url" placeholder="[https://example.com/avatar.png](https://example.com/avatar.png)" className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
           </div>
         </section>
 
@@ -58,6 +92,20 @@ export default function AppearancePage() {
             </select>
           </section>
         </div>
+
+        <section className="pt-6 border-t border-gray-100 mt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-sm font-semibold text-gray-900">Remove Branding</label>
+              <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Hide the "Powered by Knowledge Bot" watermark at the bottom of the widget.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.removeBranding} onChange={(e) => updateConfig('removeBranding', e.target.checked)} />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+            </label>
+          </div>
+        </section>
+
       </div>
     </div>
   );
