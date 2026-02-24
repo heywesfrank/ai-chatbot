@@ -307,12 +307,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No readable text content found.' }, { status: 400 });
     }
 
+    // --- CHECK QUOTA / LIMITS ---
+    const { count: existingCount } = await supabase
+      .from('knowledge_documents')
+      .select('*', { count: 'exact', head: true })
+      .eq('space_id', spaceId);
+
+    if ((existingCount || 0) + extractedParagraphs.length > 1000) {
+      return NextResponse.json({ 
+        error: `Chunk limit exceeded. You have ${existingCount || 0} chunks and are trying to add ${extractedParagraphs.length} more. The limit is 1000.` 
+      }, { status: 400 });
+    }
+
     // --- 7. GENERATE EMBEDDINGS & INSERT ---
     console.log(`[INGEST] Generating OpenAI Embeddings for ${extractedParagraphs.length} chunks...`);
     const OPENAI_BATCH_SIZE = 100; 
     const allDocumentsToInsert: any[] = [];
     
-    await supabase.from('knowledge_documents').delete().eq('space_id', spaceId).eq('source_type', type);
+    // NOTE: We no longer delete the whole source_type here. 
+    // Deletions are strictly handled by the DELETE endpoint in /api/data-sources.
 
     for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
       const chunkBatch = extractedParagraphs.slice(i, i + OPENAI_BATCH_SIZE);
