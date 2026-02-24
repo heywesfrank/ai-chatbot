@@ -13,12 +13,15 @@ export default function InstallPage() {
     var iframe = document.createElement('iframe');
     iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme + "&parentUrl=" + encodeURIComponent(window.location.pathname);
     
-    // Initial "Closed" State dimensions
+    // Explicitly allow transparency to remove the grey background
+    iframe.setAttribute('allowtransparency', 'true');
+    
+    // Initial "Closed" State dimensions (increased to give drop shadow room)
     iframe.style.position = 'fixed';
-    iframe.style.bottom = '20px';
-    iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
-    iframe.style.width = '80px'; 
-    iframe.style.height = '80px';
+    iframe.style.bottom = '10px';
+    iframe.style[position === 'left' ? 'left' : 'right'] = '10px';
+    iframe.style.width = '100px'; 
+    iframe.style.height = '100px';
     iframe.style.border = 'none';
     iframe.style.zIndex = '999999';
     iframe.style.background = 'transparent';
@@ -31,18 +34,18 @@ export default function InstallPage() {
       if (e.data && e.data.type === 'kb-widget-resize') {
         var isMobile = window.innerWidth < 600;
         if (e.data.isOpen) {
-          // "Open" state bounds (Leaves room for the floating box + shadow)
-          iframe.style.width = isMobile ? '100%' : '400px';
-          iframe.style.height = isMobile ? '100%' : '720px';
-          iframe.style.bottom = isMobile ? '0' : '20px';
-          iframe.style[position === 'left' ? 'left' : 'right'] = isMobile ? '0' : '20px';
+          // "Open" state bounds (Leaves room for the floating box + extra shadow)
+          iframe.style.width = isMobile ? '100%' : '420px';
+          iframe.style.height = isMobile ? '100%' : '750px';
+          iframe.style.bottom = isMobile ? '0' : '10px';
+          iframe.style[position === 'left' ? 'left' : 'right'] = isMobile ? '0' : '10px';
         } else {
           // "Closed" state bounds (Wait 300ms for tailwind animation to finish before shrinking)
           setTimeout(function() {
-            iframe.style.width = '80px';
-            iframe.style.height = '80px';
-            iframe.style.bottom = '20px';
-            iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
+            iframe.style.width = '100px';
+            iframe.style.height = '100px';
+            iframe.style.bottom = '10px';
+            iframe.style[position === 'left' ? 'left' : 'right'] = '10px';
           }, 300);
         }
       }
