@@ -92,16 +92,6 @@ create table public.space_insights (
   constraint space_insights_pkey primary key (id)
 ) TABLESPACE pg_default;
 
-create table public.knowledge_documents (
-  id bigserial not null,
-  page_url text not null,
-  content text not null,
-  embedding public.vector null,
-  space_id text null,
-  source_type text null default 'gitbook'::text,
-  constraint knowledge_documents_pkey primary key (id)
-) TABLESPACE pg_default;
-
 create table public.chat_feedback (
   id bigserial primary key,
   space_id text not null,
@@ -147,10 +137,10 @@ create table public.live_sessions (
   email text not null,
   status text null default 'open'::text,
   history text null,
+  metadata jsonb null default '{}'::jsonb,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
   slack_thread_ts text null,
   resolution_time integer null,
-  metadata jsonb null default '{}'::jsonb,
   constraint live_sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
 
