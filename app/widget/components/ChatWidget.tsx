@@ -60,11 +60,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const botAvatar = config?.bot_avatar || null;
   const agentsOnline = config?.agents_online ?? false;
   
-  // Feature flags
   const enablePageContext = config?.page_context_enabled ?? false;
   const routingOptions = config?.routing_config || [];
 
-  // Determine current URL for context
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
   const defaultPrompts = ["How do I reset my password?", "Where can I find the documentation?", "How do I contact support?"];
@@ -92,7 +90,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const prevMessagesLength = useRef(messages.length);
   const prevLiveMessagesLength = useRef(liveMessages.length);
 
-  // Proactive Triggers setup
   const triggers = config?.triggers || [];
   const parentUrl = urlOverrides.parentUrl || '';
   const triggerTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,7 +97,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   useEffect(() => {
     if (hasTriggeredRef.current || !parentUrl || triggers.length === 0) return;
-    if (messages.length > 1 || liveSessionId) return; // User already interacted
+    if (messages.length > 1 || liveSessionId) return;
 
     const matchingTrigger = triggers.find((t: any) => parentUrl.includes(t.url_match));
     if (!matchingTrigger) return;
@@ -126,7 +123,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     return () => {
       if (triggerTimerRef.current) clearTimeout(triggerTimerRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentUrl]);
 
   useEffect(() => {
@@ -269,24 +265,15 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const handleFileUpload = async (file: File) => {
     if (!liveSessionId) return;
-
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${liveSessionId}/${Date.now()}.${fileExt}`;
-      
-      const { error } = await supabase.storage
-        .from('chat_attachments')
-        .upload(fileName, file);
-
+      const { error } = await supabase.storage.from('chat_attachments').upload(fileName, file);
       if (error) throw error;
 
-      const { data: publicUrlData } = supabase.storage
-        .from('chat_attachments')
-        .getPublicUrl(fileName);
-
+      const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName);
       const fileUrl = publicUrlData.publicUrl;
       const isImage = file.type.startsWith('image/');
-      
       const content = isImage ? `![${file.name}](${fileUrl})` : `[📎 ${file.name}](${fileUrl})`;
 
       const tempId = Date.now().toString();
@@ -298,10 +285,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: liveSessionId, role: 'user', content })
       });
-
-    } catch (e) {
-      console.error('File upload failed', e);
-    }
+    } catch (e) { console.error('File upload failed', e); }
   };
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -322,9 +306,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: liveSessionId, role: 'user', content: userMsg })
         });
-      } catch (e) {
-        console.error("Live message failed", e);
-      }
+      } catch (e) { console.error("Live message failed", e); }
     } else {
       handleSubmit(e);
     }
@@ -333,11 +315,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleInputChange(e);
     if (liveSessionId && typingChannelRef.current) {
-      typingChannelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { role: 'user' }
-      });
+      typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { role: 'user' } });
     }
   };
 
@@ -348,55 +326,35 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
 
-  if (!isOpen) {
-    return (
-      <div className="fixed bottom-0 top-0 left-0 right-0 flex items-center justify-center bg-transparent overflow-hidden" data-theme={urlOverrides.theme}>
-        <button 
-          onClick={() => { setIsOpen(true); setUnreadCount(0); }}
-          className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 relative"
-          style={{ backgroundColor: 'var(--primary-color)' }}
-          aria-label="Open Chat"
-        >
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
-              {unreadCount}
-            </span>
-          )}
-          <ChatBubbleIcon className="w-6 h-6 fill-current text-white" />
-        </button>
-      </div>
-    );
-  }
-
   const Header = () => (
-    <div className="p-4 shadow-sm text-white flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)' }}>
+    <div className="p-4 shadow-sm text-white flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor || '#ffffff' }}>
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-2">
           {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
           <span className="font-medium text-sm">{headerText}</span>
         </div>
         {descriptionText && (
-          <span className="text-[10px] font-medium text-white/80 mt-0.5">{descriptionText}</span>
+          <span className="text-[10px] font-medium opacity-90 mt-0.5">{descriptionText}</span>
         )}
       </div>
       
       {isLeadCaptured && (
-        <button aria-label="Clear Chat" onClick={handleClearChat} className="absolute left-3 p-1.5 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition-colors outline-none focus:ring-2 focus:ring-white/50" title="Clear Chat">
+        <button aria-label="Clear Chat" onClick={handleClearChat} className="absolute left-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Clear Chat">
           <ClearIcon className="w-4 h-4" />
         </button>
       )}
 
-      <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition-colors outline-none focus:ring-2 focus:ring-white/50" title="Close Chat">
-        <ChevronDownIcon className="w-5 h-5" />
+      {/* Hide close button on desktop so the user clicks the launcher. Fallback visible on mobile. */}
+      <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="sm:hidden absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     </div>
   );
 
-  if (!isLeadCaptured) {
-    return (
-      <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
-        <Header />
-        <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-300">
+  const renderBodyContent = () => {
+    if (!isLeadCaptured) {
+      return (
+        <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col items-center justify-center">
           <div className="w-12 h-12 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mb-4 border border-[var(--border-color)]">
             <LeadIcon className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -415,142 +373,133 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             </button>
           </form>
         </div>
-        {!removeBranding && (
-          <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center">
-            Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
-          </div>
-        )}
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className="flex flex-col h-screen w-full bg-[var(--bg-primary)] font-sans text-sm overflow-hidden" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
-      <Header />
-
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col bg-[var(--bg-primary)]" aria-live="polite" aria-atomic="false">
-        <div className="space-y-4">
-          
-          {messages.map((msg, index) => (
-            <MessageBubble 
-              key={msg.id}
-              msg={msg}
-              isUser={msg.role === 'user'}
-              botAvatar={botAvatar}
-              primaryColor={primaryColor}
-              botFontColor={botFontColor}
-              userFontColor={userFontColor}
-              isTyping={isLoading && index === messages.length - 1}
-              isLatest={index === messages.length - 1 && liveMessages.length === 0}
-              onFollowUpClick={(text: string) => append({ role: 'user', content: text })}
-              liveSessionId={liveSessionId}
-              handleCopy={handleCopy}
-              copiedId={copiedId}
-              submitFeedback={submitFeedback}
-              feedback={feedback}
-              userPrompt={index > 0 && messages[index - 1].role === 'user' ? messages[index - 1].content : ''}
-              submitTicket={submitTicket}
-              isSubmittingTicket={isSubmittingTicket}
-              escalatingId={escalatingId}
-              setEscalatingId={setEscalatingId}
-              agentsOnline={agentsOnline}
-            />
-          ))}
-
-          {liveMessages.length > 0 && (
-            <div className="flex justify-center my-6 relative">
-              <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-[var(--border-strong)]" /></div>
-              <div className="relative flex justify-center"><span className="bg-[var(--bg-primary)] px-3 text-[10px] uppercase font-bold tracking-widest text-[var(--text-secondary)]">Live Chat</span></div>
-            </div>
-          )}
-
-          {liveMessages.map((msg) => (
-            <MessageBubble 
-              key={msg.id}
-              msg={msg}
-              isUser={msg.role === 'user'}
-              botAvatar={botAvatar}
-              primaryColor={primaryColor}
-              botFontColor={botFontColor}
-              userFontColor={userFontColor}
-              handleCopy={handleCopy}
-              copiedId={copiedId}
-              liveSessionId={liveSessionId}
-              agentsOnline={agentsOnline}
-            />
-          ))}
-
-          {((isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user') || isAgentTyping) && (
-            <div className="flex justify-start animate-in fade-in duration-300">
-               {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)]" />}
-              <div className="px-3 py-2 border border-[var(--border-color)] bg-[var(--msg-bot-bg)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]">
-                <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
-                <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-75" />
-                <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-150" />
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex justify-center my-2">
-              <span className="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-lg text-xs shadow-sm">
-                Sorry, an error occurred.
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Routing Options */}
-        {showRouting && (
-          <div className="flex flex-col gap-2 mt-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
-            {routingOptions.map((option: any) => (
-              <button
-                key={option.id}
-                onClick={() => handleRoutingSelection(option)}
-                className="w-full text-left p-3 rounded-md border border-[var(--border-strong)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm group"
-              >
-                <span className="font-medium text-[var(--text-primary)] text-sm">{option.label}</span>
-              </button>
+    return (
+      <>
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col bg-[var(--bg-primary)]" aria-live="polite" aria-atomic="false">
+          <div className="space-y-4">
+            {messages.map((msg, index) => (
+              <MessageBubble 
+                key={msg.id} msg={msg} isUser={msg.role === 'user'} botAvatar={botAvatar}
+                primaryColor={primaryColor} botFontColor={botFontColor} userFontColor={userFontColor}
+                isTyping={isLoading && index === messages.length - 1} isLatest={index === messages.length - 1 && liveMessages.length === 0}
+                onFollowUpClick={(text: string) => append({ role: 'user', content: text })} liveSessionId={liveSessionId}
+                handleCopy={handleCopy} copiedId={copiedId} submitFeedback={submitFeedback} feedback={feedback}
+                userPrompt={index > 0 && messages[index - 1].role === 'user' ? messages[index - 1].content : ''}
+                submitTicket={submitTicket} isSubmittingTicket={isSubmittingTicket} escalatingId={escalatingId} setEscalatingId={setEscalatingId} agentsOnline={agentsOnline}
+              />
             ))}
-          </div>
-        )}
 
-        {/* Suggested Prompts (Only show if not routing) */}
-        {!showRouting && messages.length === 1 && showPrompts && suggestedPrompts.length > 0 && !liveSessionId && (
-          <>
-            <div className="flex-1" />
-            <div className="w-full flex flex-wrap justify-center gap-2 mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-              {suggestedPrompts.map((prompt: string, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => append({ role: 'user', content: prompt })}
-                  className="text-[13px] px-4 py-2.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words"
-                >
-                  {prompt}
+            {liveMessages.length > 0 && (
+              <div className="flex justify-center my-6 relative">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-[var(--border-strong)]" /></div>
+                <div className="relative flex justify-center"><span className="bg-[var(--bg-primary)] px-3 text-[10px] uppercase font-bold tracking-widest text-[var(--text-secondary)]">Live Chat</span></div>
+              </div>
+            )}
+
+            {liveMessages.map((msg) => (
+              <MessageBubble 
+                key={msg.id} msg={msg} isUser={msg.role === 'user'} botAvatar={botAvatar} primaryColor={primaryColor}
+                botFontColor={botFontColor} userFontColor={userFontColor} handleCopy={handleCopy} copiedId={copiedId}
+                liveSessionId={liveSessionId} agentsOnline={agentsOnline}
+              />
+            ))}
+
+            {((isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user') || isAgentTyping) && (
+              <div className="flex justify-start animate-in fade-in duration-300">
+                 {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)]" />}
+                <div className="px-3 py-2 border border-[var(--border-color)] bg-[var(--msg-bot-bg)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]">
+                  <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
+                  <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-75" />
+                  <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-150" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex justify-center my-2">
+                <span className="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-lg text-xs shadow-sm">
+                  Sorry, an error occurred.
+                </span>
+              </div>
+            )}
+          </div>
+
+          {showRouting && (
+            <div className="flex flex-col gap-2 mt-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+              {routingOptions.map((option: any) => (
+                <button key={option.id} onClick={() => handleRoutingSelection(option)} className="w-full text-left p-3 rounded-md border border-[var(--border-strong)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm group">
+                  <span className="font-medium text-[var(--text-primary)] text-sm">{option.label}</span>
                 </button>
               ))}
             </div>
-          </>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          )}
 
-      <ChatInput 
-        input={input} 
-        handleInputChange={onInputChange} 
-        handleFormSubmit={handleFormSubmit} 
-        disabled={(isLoading && !liveSessionId) || showRouting}
-        primaryColor={primaryColor} 
-        isLiveChat={!!liveSessionId}
-        onFileUpload={handleFileUpload}
-        inputPlaceholder={inputPlaceholder}
-      />
+          {!showRouting && messages.length === 1 && showPrompts && suggestedPrompts.length > 0 && !liveSessionId && (
+            <>
+              <div className="flex-1" />
+              <div className="w-full flex flex-wrap justify-center gap-2 mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                {suggestedPrompts.map((prompt: string, index: number) => (
+                  <button key={index} onClick={() => append({ role: 'user', content: prompt })} className="text-[13px] px-4 py-2.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words">
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {!removeBranding && (
-        <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center">
-          Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
+        <ChatInput 
+          input={input} handleInputChange={onInputChange} handleFormSubmit={handleFormSubmit} 
+          disabled={(isLoading && !liveSessionId) || showRouting} primaryColor={primaryColor} 
+          isLiveChat={!!liveSessionId} onFileUpload={handleFileUpload} inputPlaceholder={inputPlaceholder}
+        />
+      </>
+    );
+  };
+
+  const position = config?.position || 'right';
+  const launcherHorizontalClasses = position === 'left' ? 'left-[22px]' : 'right-[22px]';
+
+  return (
+    <div className="fixed inset-0 flex flex-col pointer-events-none" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+      
+      {/* Active Floating Chat Window */}
+      {isOpen && (
+        <div className="pointer-events-auto absolute top-[16px] bottom-[90px] left-[16px] right-[16px] flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans text-sm overflow-hidden rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.16)] border border-[var(--border-strong)] z-20 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300 origin-bottom">
+           <Header />
+           {renderBodyContent()}
+           {!removeBranding && (
+            <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
+              Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
+            </div>
+           )}
         </div>
       )}
+
+      {/* Floating Launcher Button */}
+      <div className={`pointer-events-auto absolute bottom-[22px] ${launcherHorizontalClasses} z-30 flex`}>
+        <button 
+          onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
+          className="w-14 h-14 rounded-full shadow-[0_6px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
+          style={{ backgroundColor: 'var(--primary-color)', color: userFontColor || '#ffffff' }}
+          aria-label={isOpen ? "Close Chat" : "Open Chat"}
+        >
+          {unreadCount > 0 && !isOpen && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2" style={{ borderColor: 'var(--primary-color)' }}>
+              {unreadCount}
+            </span>
+          )}
+          {isOpen ? (
+            <ChevronDownIcon className="w-6 h-6" />
+          ) : (
+            <ChatBubbleIcon className="w-7 h-7" />
+          )}
+        </button>
+      </div>
     </div>
   );
 }
