@@ -118,7 +118,7 @@ export default function TeamDashboard() {
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
-      <div className="max-w-[800px] mx-auto w-full p-8 pb-20 animate-in fade-in duration-300">
+      <div className="max-w-[1200px] mx-auto w-full p-8 pb-20">
         
         <div className="mb-8">
           <h1 className="text-xl font-medium mb-1 tracking-tight">Team Management</h1>
@@ -132,7 +132,7 @@ export default function TeamDashboard() {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-sm">
           <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Workspace Members</h2>
@@ -145,14 +145,14 @@ export default function TeamDashboard() {
                 required
                 placeholder="agent@example.com"
                 disabled={!isOwner}
-                className="flex-1 sm:w-64 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors disabled:bg-gray-50 disabled:text-gray-500"
+                className="flex-1 sm:w-64 p-2.5 border border-gray-200 rounded-sm text-sm outline-none focus:border-black transition-colors disabled:bg-gray-50 disabled:text-gray-500 shadow-sm"
                 value={newMemberEmail}
                 onChange={(e) => setNewMemberEmail(e.target.value)}
               />
               <button
                 type="submit"
                 disabled={!newMemberEmail || !isOwner}
-                className="px-5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm"
+                className="px-5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm"
               >
                 Invite
               </button>
