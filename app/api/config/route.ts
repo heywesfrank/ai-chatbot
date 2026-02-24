@@ -26,6 +26,8 @@ export async function POST(req: Request) {
       show_prompts: body.showPrompts,
       suggested_prompts: body.suggestedPrompts,
       lead_capture_enabled: body.leadCaptureEnabled,
+      page_context_enabled: body.pageContextEnabled,
+      routing_config: body.routingConfig,
       language: body.language || 'Auto-detect',
       allowed_domains: body.allowedDomains || null,
       temperature: body.temperature,
