@@ -36,6 +36,7 @@ const navGroups = [
     items: [
       { name: 'Integrations', path: '/integrations', icon: <LinkIcon className="w-[18px] h-[18px]" /> },
       { name: 'Team Management', path: '/team', icon: <UsersIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Settings', path: '/settings', icon: <SettingsIcon className="w-[18px] h-[18px]" /> },
     ]
   }
 ];
@@ -98,7 +99,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const workspaceName = config.headerText || 'My Workspace';
+  // Use workspaceName if available, fall back to headerText, then default
+  const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
   const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context', '/routing', '/appearance', '/faqs', '/triggers', '/install'].includes(pathname);
   const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(config.primaryColor)}&header=${encodeURIComponent(config.headerText)}&showPrompts=${config.showPrompts}&prompts=${encodeURIComponent(JSON.stringify(config.suggestedPrompts))}&leadCapture=${config.leadCaptureEnabled}&theme=${config.theme}&position=${config.position}&preview=true`;
 
@@ -119,6 +121,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between mb-8 mt-2 px-2">
             <div className="flex items-center gap-2.5">
               <img src="/apoyo.png" alt="Apoyo Logo" className="h-8 w-auto object-contain" />
+              <span className="text-xs font-semibold text-gray-900 truncate max-w-[120px]">{workspaceDisplayName}</span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-1 text-gray-500 hover:text-gray-900">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -179,6 +182,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <header className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0 shadow-sm z-30">
           <div className="flex items-center gap-2.5">
              <img src="/apoyo.png" alt="Apoyo Logo" className="h-8 w-auto object-contain" />
+             <span className="text-xs font-semibold text-gray-900 truncate max-w-[120px]">{workspaceDisplayName}</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -mr-1 text-gray-500 hover:text-gray-900 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
