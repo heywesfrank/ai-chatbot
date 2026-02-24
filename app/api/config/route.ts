@@ -17,6 +17,8 @@ export async function POST(req: Request) {
 
     const updatePayload = {
       space_id: body.spaceId,
+      workspace_name: body.workspaceName, // New field
+      timezone: body.timezone,           // New field
       system_prompt: body.systemPrompt,
       user_id: user.id,
       primary_color: body.primaryColor || '#000000',
