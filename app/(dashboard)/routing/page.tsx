@@ -28,13 +28,13 @@ export default function RoutingPage() {
   };
 
   return (
-    <div className="p-8 pb-20 max-w-[800px] animate-in fade-in duration-300">
+    <div className="p-8 pb-20 animate-in fade-in duration-300">
       <div className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Pre-Chat Routing</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Present users with options before they start chatting to guide the conversation.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
         
         <section>
           <div className="mb-4">
@@ -76,7 +76,7 @@ export default function RoutingPage() {
                 <input
                   type="text"
                   placeholder="e.g., Support"
-                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors"
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors"
                   value={newLabel}
                   onChange={(e) => setNewLabel(e.target.value)}
                 />
@@ -86,7 +86,7 @@ export default function RoutingPage() {
                 <input
                   type="text"
                   placeholder="e.g., The user is asking about Support."
-                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors"
+                  className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors"
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
                 />
@@ -94,7 +94,7 @@ export default function RoutingPage() {
               <button 
                 onClick={addRoute}
                 disabled={!newLabel.trim() || !newValue.trim()}
-                className="px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[42px]"
+                className="px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[42px]"
               >
                 Add
               </button>
