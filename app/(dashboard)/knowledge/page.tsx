@@ -60,8 +60,8 @@ export default function KnowledgeBasePage() {
       if (payload.type === 'gdrive') credentials = { api_key: payload.token };
       if (payload.type === 'zendesk') credentials = { email: payload.email, api_key: payload.token };
 
-      // 1. Insert into data_sources FIRST so it always shows up in the UI
-      await fetch('/api/data-sources', {
+      // 1. Insert into data_sources and get the ID back
+      const dsRes = await fetch('/api/data-sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({
@@ -71,15 +71,19 @@ export default function KnowledgeBasePage() {
           credentials
         })
       });
+      
+      const dsData = await dsRes.json();
+      if (dsData.error) throw new Error(dsData.error);
+      const newDataSourceId = dsData.id;
 
       // Refresh the UI list immediately
       fetchSources();
 
-      // 2. Start the heavy ingestion job
+      // 2. Start the heavy ingestion job, passing the new ID
       const syncRes = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ ...payload, spaceId: activeSpaceId }),
+        body: JSON.stringify({ ...payload, spaceId: activeSpaceId, dataSourceId: newDataSourceId }),
       });
 
       if (!syncRes.ok) {
