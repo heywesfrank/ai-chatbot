@@ -7,7 +7,7 @@ import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { BotConfigProvider, useBotConfig } from './BotConfigProvider';
 import { 
   DatabaseIcon, SettingsIcon, PaletteIcon, MessageSquareIcon, 
-  CodeIcon, InboxIcon, BarChartIcon, LinkIcon, UsersIcon 
+  CodeIcon, InboxIcon, BarChartIcon, LinkIcon, UsersIcon, CpuIcon 
 } from '@/components/icons';
 
 const navGroups = [
@@ -15,7 +15,8 @@ const navGroups = [
     title: 'Agent Builder',
     items: [
       { name: 'Knowledge Base', path: '/knowledge', icon: <DatabaseIcon className="w-[18px] h-[18px]" /> },
-      { name: 'Behavior & Model', path: '/behavior', icon: <SettingsIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Behavior', path: '/behavior', icon: <SettingsIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Model', path: '/model', icon: <CpuIcon className="w-[18px] h-[18px]" /> },
       { name: 'Appearance', path: '/appearance', icon: <PaletteIcon className="w-[18px] h-[18px]" /> },
       { name: 'Custom FAQs', path: '/faqs', icon: <MessageSquareIcon className="w-[18px] h-[18px]" /> },
       { name: 'Embed & Install', path: '/install', icon: <CodeIcon className="w-[18px] h-[18px]" /> },
@@ -96,7 +97,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   const workspaceName = config.headerText || 'My Workspace';
-  const isBuilderRoute = ['/knowledge', '/behavior', '/appearance', '/faqs', '/install'].includes(pathname);
+  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/appearance', '/faqs', '/install'].includes(pathname);
   const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(config.primaryColor)}&header=${encodeURIComponent(config.headerText)}&showPrompts=${config.showPrompts}&prompts=${encodeURIComponent(JSON.stringify(config.suggestedPrompts))}&leadCapture=${config.leadCaptureEnabled}&theme=${config.theme}&position=${config.position}&preview=true`;
 
   return (
