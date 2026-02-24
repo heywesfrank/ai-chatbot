@@ -12,6 +12,7 @@ function WidgetWrapper() {
   const showPromptsParam = searchParams.get('showPrompts');
   const leadCaptureParam = searchParams.get('leadCapture');
   const promptsParam = searchParams.get('prompts');
+  const removeBrandingParam = searchParams.get('removeBranding');
 
   const urlOverrides = useMemo(() => {
     let parsedPrompts = null;
@@ -20,7 +21,12 @@ function WidgetWrapper() {
     }
     return {
       color: searchParams.get('color') || '',
+      botFontColor: searchParams.get('botFontColor') || '',
+      userFontColor: searchParams.get('userFontColor') || '',
       header: searchParams.get('header') || '',
+      description: searchParams.get('description') || '',
+      placeholder: searchParams.get('placeholder') || '',
+      removeBranding: removeBrandingParam !== null ? removeBrandingParam === 'true' : null,
       showPrompts: showPromptsParam !== null ? showPromptsParam === 'true' : null,
       prompts: parsedPrompts,
       leadCapture: leadCaptureParam !== null ? leadCaptureParam === 'true' : null,
@@ -29,7 +35,7 @@ function WidgetWrapper() {
       preview: searchParams.get('preview') === 'true',
       parentUrl: searchParams.get('parentUrl') || ''
     };
-  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam]);
+  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam]);
 
   const [config, setConfig] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
