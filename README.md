@@ -82,7 +82,9 @@ create table public.knowledge_documents (
   embedding public.vector null,
   space_id text null,
   source_type text null default 'gitbook'::text,
-  constraint knowledge_documents_pkey primary key (id)
+  data_source_id uuid null,
+  constraint knowledge_documents_pkey primary key (id),
+  constraint knowledge_documents_data_source_id_fkey foreign KEY (data_source_id) references data_sources (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 create table public.workspace_integrations (
