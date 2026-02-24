@@ -26,7 +26,8 @@ function WidgetWrapper() {
       leadCapture: leadCaptureParam !== null ? leadCaptureParam === 'true' : null,
       theme: searchParams.get('theme') || 'auto',
       position: searchParams.get('position') || 'right',
-      preview: searchParams.get('preview') === 'true'
+      preview: searchParams.get('preview') === 'true',
+      parentUrl: searchParams.get('parentUrl') || ''
     };
   }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam]);
 
