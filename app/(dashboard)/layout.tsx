@@ -117,10 +117,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="p-4 flex-1 overflow-y-auto no-scrollbar">
           <div className="flex items-center justify-between mb-8 mt-2 px-2">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center shadow-sm shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              </div>
-              <span className="font-semibold text-sm tracking-tight text-gray-900 truncate pr-2" title={workspaceName}>{workspaceName}</span>
+              <img src="/apoyo.png" alt="Apoyo Logo" className="h-8 w-auto object-contain" />
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-1 text-gray-500 hover:text-gray-900">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -180,10 +177,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         
         <header className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0 shadow-sm z-30">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center shadow-sm">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
-            <span className="font-semibold text-sm tracking-tight text-gray-900 truncate">{workspaceName}</span>
+             <img src="/apoyo.png" alt="Apoyo Logo" className="h-8 w-auto object-contain" />
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -mr-1 text-gray-500 hover:text-gray-900 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
