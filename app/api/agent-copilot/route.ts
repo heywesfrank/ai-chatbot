@@ -7,7 +7,6 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: Request) {
   try {
-    // Authenticate Agent via Dashboard Session
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const token = authHeader.replace('Bearer ', '');
@@ -16,18 +15,16 @@ export async function POST(req: Request) {
 
     const { spaceId, messages } = await req.json();
 
-    if (!spaceId || !messages || messages.length === 0) {
+    if (!spaceId || !messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 1. Fetch Core Configuration for Match Threshold
     const { data: configData } = await supabase
       .from('bot_config')
       .select('match_threshold')
       .eq('space_id', spaceId)
       .maybeSingle();
 
-    // 2. Extract recent context to retrieve RAG documents
     const recentMessagesContext = messages
       .filter((m: any) => m.role === 'user')
       .slice(-3)
@@ -44,7 +41,7 @@ export async function POST(req: Request) {
     }
 
     let context = '';
-    if (queryEmbedding) {
+    if (queryEmbedding && spaceId) {
       const { data: documents } = await supabase.rpc('match_documents', {
         query_embedding: queryEmbedding,
         match_threshold: configData?.match_threshold ?? 0.2,
@@ -70,15 +67,14 @@ CONTEXT:
 ${context || 'No context available.'}
 `.trim();
 
-    // Using the specified gpt-5-nano integration
     const requestPayload: any = {
       model: 'gpt-5-nano',
       instructions: systemInstructions,
       input: messages.map((m: any) => ({
-        role: m.role === 'user' ? 'user' : 'assistant', // simplify all internal roles mapping
+        role: m.role === 'user' ? 'user' : 'assistant', // map internal roles safely
         content: m.content,
       })),
-      temperature: 0.3, // Lower temperature since it's an internal draft
+      temperature: 0.3,
       stream: true,
     };
 
