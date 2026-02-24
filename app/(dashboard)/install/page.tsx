@@ -32,7 +32,7 @@ export default function InstallPage() {
       if (e.data && e.data.type === 'kb-widget-resize') {
         var isMobile = window.innerWidth <= 430;
         if (e.data.isOpen) {
-          iframe.style.width = isMobile ? '100%' : '440px';
+          iframe.style.width = isMobile ? '100%' : '448px';
           iframe.style.height = isMobile ? '100%' : '800px';
         } else {
           setTimeout(function() {
