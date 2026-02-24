@@ -1,3 +1,4 @@
+// app/(dashboard)/BotConfigProvider.tsx
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -30,8 +31,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
 
   const [config, setConfig] = useState({
     spaceId: '',
-    workspaceName: 'My Workspace', // New field
-    timezone: 'UTC',              // New field
+    workspaceName: 'My Workspace',
+    timezone: 'UTC',
     systemPrompt: 'You are a helpful, minimalist support assistant.',
     primaryColor: '#000000',
     headerText: 'Documentation Bot',
@@ -39,6 +40,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     botAvatar: '',
     showPrompts: true,
     suggestedPrompts: ["How do I reset my password?", "Where can I find the documentation?", "How do I contact support?"],
+    followUpQuestionsEnabled: false, // New field
     leadCaptureEnabled: false,
     pageContextEnabled: false,
     routingConfig: [] as { id: string; label: string; value: string }[],
@@ -93,18 +95,19 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       setConfig(prev => ({
         ...prev,
         spaceId: spaceData.space_id || '',
-        workspaceName: spaceData.workspace_name || prev.workspaceName, // Map from DB
-        timezone: spaceData.timezone || prev.timezone,                 // Map from DB
+        workspaceName: spaceData.workspace_name || prev.workspaceName,
+        timezone: spaceData.timezone || prev.timezone,
         systemPrompt: spaceData.system_prompt || prev.systemPrompt,
         primaryColor: spaceData.primary_color || prev.primaryColor,
         headerText: spaceData.header_text || prev.headerText,
         welcomeMessage: spaceData.welcome_message || prev.welcomeMessage,
         botAvatar: spaceData.bot_avatar || '',
         showPrompts: spaceData.show_prompts ?? true,
+        suggestedPrompts: spaceData.suggested_prompts || prev.suggestedPrompts,
+        followUpQuestionsEnabled: spaceData.follow_up_questions_enabled ?? false, // Hydrate new field
         leadCaptureEnabled: spaceData.lead_capture_enabled ?? false,
         pageContextEnabled: spaceData.page_context_enabled ?? false,
         routingConfig: spaceData.routing_config || [],
-        suggestedPrompts: spaceData.suggested_prompts || prev.suggestedPrompts,
         language: spaceData.language || 'Auto-detect',
         temperature: spaceData.temperature ?? prev.temperature,
         matchThreshold: spaceData.match_threshold ?? prev.matchThreshold,
