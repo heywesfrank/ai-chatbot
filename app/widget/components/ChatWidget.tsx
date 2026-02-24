@@ -193,7 +193,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       const res = await fetch('/api/ticket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceId, email, prompt, history })
+        body: JSON.stringify({ spaceId, email, prompt, history, url: window.location.href })
       });
       
       const data = await res.json();
