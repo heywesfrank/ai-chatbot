@@ -7,6 +7,9 @@ import { parseStringPromise } from 'xml2js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
+// Force Vercel Hobby Plan to allow the maximum execution time
+export const maxDuration = 60; 
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_SITEMAP_PAGES = 50; 
 const MAX_CHUNK_LENGTH = 3000;
