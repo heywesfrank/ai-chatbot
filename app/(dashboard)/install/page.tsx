@@ -13,12 +13,12 @@ export default function InstallPage() {
     var iframe = document.createElement('iframe');
     iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme + "&parentUrl=" + encodeURIComponent(window.location.pathname);
     
-    // Initial "Closed" State
+    // Initial "Closed" State dimensions
     iframe.style.position = 'fixed';
     iframe.style.bottom = '20px';
     iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
-    iframe.style.width = '70px'; 
-    iframe.style.height = '70px';
+    iframe.style.width = '80px'; 
+    iframe.style.height = '80px';
     iframe.style.border = 'none';
     iframe.style.zIndex = '999999';
     iframe.style.background = 'transparent';
@@ -31,17 +31,19 @@ export default function InstallPage() {
       if (e.data && e.data.type === 'kb-widget-resize') {
         var isMobile = window.innerWidth < 600;
         if (e.data.isOpen) {
-          // "Open" state
+          // "Open" state bounds (Leaves room for the floating box + shadow)
           iframe.style.width = isMobile ? '100%' : '400px';
-          iframe.style.height = isMobile ? '100%' : '720px'; // 630px window + 90px space for launcher
+          iframe.style.height = isMobile ? '100%' : '720px';
           iframe.style.bottom = isMobile ? '0' : '20px';
           iframe.style[position === 'left' ? 'left' : 'right'] = isMobile ? '0' : '20px';
         } else {
-          // "Closed" state
-          iframe.style.width = '70px';
-          iframe.style.height = '70px';
-          iframe.style.bottom = '20px';
-          iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
+          // "Closed" state bounds (Wait 300ms for tailwind animation to finish before shrinking)
+          setTimeout(function() {
+            iframe.style.width = '80px';
+            iframe.style.height = '80px';
+            iframe.style.bottom = '20px';
+            iframe.style[position === 'left' ? 'left' : 'right'] = '20px';
+          }, 300);
         }
       }
     });
