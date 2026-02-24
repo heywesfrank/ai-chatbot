@@ -46,10 +46,18 @@ export async function GET(req: Request) {
       }
     }
 
-    // Ensure we don't expose allowed_domains back to the client unnecessarily
-    if (data) delete data.allowed_domains;
+    // Fetch proactive triggers
+    const { data: triggersData } = await supabase
+      .from('proactive_triggers')
+      .select('url_match, delay_seconds, message')
+      .eq('space_id', spaceId);
 
-    return NextResponse.json({ config: data || {} }, { headers: corsHeaders });
+    if (data) {
+      delete data.allowed_domains;
+      (data as any).triggers = triggersData || [];
+    }
+
+    return NextResponse.json({ config: data || { triggers: triggersData || [] } }, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error("Widget Config API Error:", error);
