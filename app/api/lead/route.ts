@@ -1,3 +1,4 @@
+// app/api/lead/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -31,16 +32,19 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    // Check if the user has a Lead webhook configured
-    const { data: config } = await supabase
-      .from('bot_config')
-      .select('webhook_url')
+    // Check if the user has a Lead webhook configured via Integrations table
+    const { data: webhookIntegration } = await supabase
+      .from('workspace_integrations')
+      .select('config')
       .eq('space_id', spaceId)
+      .eq('provider', 'webhook')
       .maybeSingle();
 
-    if (config?.webhook_url) {
+    const webhookUrl = webhookIntegration?.config?.webhook_url;
+
+    if (webhookUrl) {
       try {
-        await fetch(config.webhook_url, {
+        await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
