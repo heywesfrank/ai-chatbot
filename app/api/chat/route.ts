@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     // 1. Fetch Core Configuration
     const { data: configData } = await supabase
       .from('bot_config')
-      .select('system_prompt, language, temperature, match_threshold, reasoning_effort, verbosity, allowed_domains')
+      .select('system_prompt, language, temperature, match_threshold, reasoning_effort, verbosity, allowed_domains, follow_up_questions_enabled')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -178,6 +178,10 @@ IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${se
     const routingInstruction = routingContext ? `USER SELECTED CONTEXT: ${routingContext}` : '';
     const pageContextInstruction = currentUrl ? `USER IS VIEWING PAGE: ${currentUrl}` : '';
 
+    const followUpInstruction = configData?.follow_up_questions_enabled
+      ? `\n5. FOLLOW-UP QUESTIONS: At the very end of your response, always provide exactly 3 short, relevant follow-up questions the user might ask next. Format them exactly like this:\n**Follow-ups:**\n- [Question 1]\n- [Question 2]\n- [Question 3]`
+      : '';
+
     const systemInstructions = `
 ${agentPersona}
 
@@ -187,7 +191,7 @@ CORE DIRECTIVES:
 3. SUPPORT MODE: If the user is asking a question or seeking help, you MUST answer using ONLY the CONTEXT below. When answering from CONTEXT, you MUST append the source URLs you used at the very end of your response using this exact markdown format:
 
 **Sources:** [1](URL) [2](URL)
-4. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.
+4. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.${followUpInstruction}
 
 ${sentimentContext}
 
