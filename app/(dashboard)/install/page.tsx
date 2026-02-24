@@ -31,21 +31,21 @@ export default function InstallPage() {
 </script>`;
 
   return (
-    <div className="p-8 pb-20 max-w-[800px] animate-in fade-in duration-300">
+    <div className="p-8 pb-20 animate-in fade-in duration-300">
       <div className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Embed & Install</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Deploy your AI agent to your website or application.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
         <section>
           <label className="block text-sm font-semibold text-gray-900 mb-2">Workspace ID</label>
-          <input type="text" readOnly className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 outline-none font-mono" value={activeSpaceId} />
+          <input type="text" readOnly className="w-full p-2.5 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 outline-none font-mono" value={activeSpaceId} />
         </section>
 
         <section className="pt-2 border-t border-gray-100">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Allowed Domains (Security)</label>
-          <input type="text" placeholder="example.com, myapp.io" className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" disabled={!isOwner} value={config.allowedDomains || ''} onChange={(e) => updateConfig('allowedDomains', e.target.value)} />
+          <input type="text" placeholder="example.com, myapp.io" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.allowedDomains || ''} onChange={(e) => updateConfig('allowedDomains', e.target.value)} />
           <p className="text-[11px] text-gray-500 mt-1.5 font-medium">Comma-separated list of domains allowed to load the widget. Leave empty to allow any domain.</p>
         </section>
 
