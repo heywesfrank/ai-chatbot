@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
 
-export const runtime = 'edge';
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: Request) {
@@ -36,24 +34,28 @@ export async function POST(req: Request) {
       .map((m: any) => m.content)
       .join('\n');
 
-    const embeddingResponse = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: recentMessagesContext,
-    });
+    let queryEmbedding = null;
+    if (recentMessagesContext) {
+      const embeddingResponse = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: recentMessagesContext,
+      });
+      queryEmbedding = embeddingResponse.data?.[0]?.embedding;
+    }
 
-    const queryEmbedding = embeddingResponse.data?.[0]?.embedding;
-    if (!queryEmbedding) throw new Error('Failed to generate embedding.');
+    let context = '';
+    if (queryEmbedding) {
+      const { data: documents } = await supabase.rpc('match_documents', {
+        query_embedding: queryEmbedding,
+        match_threshold: configData?.match_threshold ?? 0.2,
+        match_count: 5,
+        p_space_id: spaceId,
+      });
 
-    const { data: documents } = await supabase.rpc('match_documents', {
-      query_embedding: queryEmbedding,
-      match_threshold: configData?.match_threshold ?? 0.2,
-      match_count: 5,
-      p_space_id: spaceId,
-    });
-
-    const context = documents && documents.length > 0
-        ? documents.map((doc: any) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n')
-        : '';
+      context = documents && documents.length > 0
+          ? documents.map((doc: any) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n')
+          : '';
+    }
 
     const systemInstructions = `
 You are an AI Co-Pilot helping a human customer support agent.
@@ -80,7 +82,7 @@ ${context || 'No context available.'}
       stream: true,
     };
 
-    const stream = await openai.responses.create(requestPayload as OpenAI.Responses.ResponseCreateParamsStreaming);
+    const stream = await (openai as any).responses.create(requestPayload);
 
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
