@@ -26,6 +26,51 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create table public.data_sources (
+  id uuid not null default gen_random_uuid (),
+  space_id text not null,
+  type text not null,
+  source_uri text null,
+  credentials jsonb null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint data_sources_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_data_sources_space_id on public.data_sources using btree (space_id) TABLESPACE pg_default;
+
+create table public.faqs (
+  id uuid not null default gen_random_uuid (),
+  space_id text not null,
+  question text not null,
+  answer text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint faqs_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_space_id on public.faqs using btree (space_id) TABLESPACE pg_default;
+
+create table public.knowledge_documents (
+  id bigserial not null,
+  page_url text not null,
+  content text not null,
+  embedding public.vector null,
+  space_id text null,
+  source_type text null default 'gitbook'::text,
+  constraint knowledge_documents_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create table public.workspace_integrations (
+  id uuid not null default gen_random_uuid (),
+  space_id text not null,
+  provider text not null,
+  config jsonb not null default '{}'::jsonb,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint workspace_integrations_pkey primary key (id),
+  constraint workspace_integrations_space_id_provider_key unique (space_id, provider)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_integrations_space_id on public.workspace_integrations using btree (space_id) TABLESPACE pg_default;
+
 create table public.team_members (
   id bigserial not null,
   space_id text not null,
