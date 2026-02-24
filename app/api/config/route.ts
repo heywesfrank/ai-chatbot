@@ -1,69 +1,44 @@
-// app/api/config/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
+    if (!body.spaceId || !body.systemPrompt) return NextResponse.json({ error: 'Space ID and System Prompt are required.' }, { status: 400 });
 
-    if (!body.spaceId || !body.systemPrompt || !body.userId) {
-      return NextResponse.json({ error: 'Space ID, System Prompt, and User ID are required.' }, { status: 400 });
-    }
-
-    // Role-Based Protection: Agents cannot overwrite core config
     const { data: existing } = await supabase.from('bot_config').select('user_id').eq('space_id', body.spaceId).maybeSingle();
-    if (existing && existing.user_id !== user.id) {
-       return NextResponse.json({ error: 'Forbidden. Only the workspace owner can modify core settings.' }, { status: 403 });
-    }
+    if (existing && existing.user_id !== user.id) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
-    const updatePayload: any = {
+    const updatePayload = {
       space_id: body.spaceId,
       system_prompt: body.systemPrompt,
-      user_id: user.id, // Only the true owner updates this payload
+      user_id: user.id,
+      primary_color: body.primaryColor || '#000000',
+      header_text: body.headerText || 'Documentation Bot',
+      welcome_message: body.welcomeMessage || 'How can I help you today?',
+      bot_avatar: body.botAvatar || null,
+      show_prompts: body.showPrompts,
+      suggested_prompts: body.suggestedPrompts,
+      lead_capture_enabled: body.leadCaptureEnabled,
+      language: body.language || 'Auto-detect',
+      allowed_domains: body.allowedDomains || null,
+      temperature: body.temperature,
+      match_threshold: body.matchThreshold,
+      reasoning_effort: body.reasoningEffort,
+      verbosity: body.verbosity
     };
 
-    if (body.apiKey !== undefined) updatePayload.api_key = body.apiKey || null;
-    if (body.primaryColor !== undefined) updatePayload.primary_color = body.primaryColor || '#000000';
-    if (body.headerText !== undefined) updatePayload.header_text = body.headerText || 'Documentation Bot';
-    if (body.welcomeMessage !== undefined) updatePayload.welcome_message = body.welcomeMessage || 'How can I help you today?';
-    if (body.botAvatar !== undefined) updatePayload.bot_avatar = body.botAvatar || null;
-    if (body.showPrompts !== undefined) updatePayload.show_prompts = body.showPrompts;
-    if (body.suggestedPrompts !== undefined) updatePayload.suggested_prompts = body.suggestedPrompts;
-    if (body.leadCaptureEnabled !== undefined) updatePayload.lead_capture_enabled = body.leadCaptureEnabled;
-    if (body.slackBotToken !== undefined) updatePayload.slack_bot_token = body.slackBotToken || null;
-    if (body.slackChannelId !== undefined) updatePayload.slack_channel_id = body.slackChannelId || null;
-    if (body.webhookUrl !== undefined) updatePayload.webhook_url = body.webhookUrl || null;
-    if (body.faqOverrides !== undefined) updatePayload.faq_overrides = body.faqOverrides;
-    if (body.language !== undefined) updatePayload.language = body.language || 'Auto-detect';
-    if (body.allowedDomains !== undefined) updatePayload.allowed_domains = body.allowedDomains || null;
-
-    // Model configurations
-    if (body.temperature !== undefined) updatePayload.temperature = body.temperature;
-    if (body.matchThreshold !== undefined) updatePayload.match_threshold = body.matchThreshold;
-    if (body.reasoningEffort !== undefined) updatePayload.reasoning_effort = body.reasoningEffort;
-    if (body.verbosity !== undefined) updatePayload.verbosity = body.verbosity;
-
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
-
     if (error) throw new Error(error.message);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("[CONFIG_API] Error updating persona:", error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update configuration' }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
