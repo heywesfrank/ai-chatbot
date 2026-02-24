@@ -27,6 +27,7 @@ create table public.bot_config (
   routing_config jsonb null default '[]'::jsonb,
   workspace_name text null default 'My Workspace'::text,
   timezone text null default 'UTC'::text,
+  follow_up_questions_enabled boolean null default false,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
