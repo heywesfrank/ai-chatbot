@@ -20,13 +20,13 @@ export default function BehaviorPage() {
   };
 
   return (
-    <div className="p-8 pb-20 max-w-[800px] animate-in fade-in duration-300">
+    <div className="p-8 pb-20 animate-in fade-in duration-300">
       <div className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Behavior</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Control how your bot responds and interacts with users.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
         <section>
           <label className="block text-sm font-semibold text-gray-900 mb-2">System Prompt</label>
           <textarea className="w-full p-3 border border-gray-200 rounded-md text-sm h-32 outline-none focus:border-black resize-none transition-colors bg-gray-50/50" value={config.systemPrompt} disabled={!isOwner} onChange={(e) => updateConfig('systemPrompt', e.target.value)} />
@@ -47,12 +47,12 @@ export default function BehaviorPage() {
           {config.showPrompts && (
             <div className="p-4 bg-gray-50/50 rounded-md border border-gray-200 space-y-3">
               <div className="flex gap-2">
-                <input type="text" placeholder="Add a prompt..." disabled={!isOwner} className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black shadow-sm transition-colors" value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPrompt(); } }} />
-                <button onClick={(e) => { e.preventDefault(); handleAddPrompt(); }} disabled={!newPrompt.trim() || !isOwner} className="px-5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50">Add</button>
+                <input type="text" placeholder="Add a prompt..." disabled={!isOwner} className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPrompt(); } }} />
+                <button onClick={(e) => { e.preventDefault(); handleAddPrompt(); }} disabled={!newPrompt.trim() || !isOwner} className="px-5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">Add</button>
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 {config.suggestedPrompts.map((prompt: string) => (
-                  <span key={prompt} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-medium text-gray-700 shadow-sm">
+                  <span key={prompt} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-medium text-gray-700">
                     <span className="truncate max-w-[250px]">{prompt}</span>
                     <button onClick={() => handleRemovePrompt(prompt)} disabled={!isOwner} className="text-gray-400 hover:text-red-500 transition-colors">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -68,7 +68,7 @@ export default function BehaviorPage() {
           <div className="flex items-center justify-between border-t border-gray-100 pt-8">
             <div>
               <label className="block text-sm font-semibold text-gray-900">Interactive Follow-ups</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 font-medium max-w-[400px]">Have the AI automatically suggest 3 dynamic follow-up questions at the end of its response.</p>
+              <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Have the AI automatically suggest 3 dynamic follow-up questions at the end of its response.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.followUpQuestionsEnabled} onChange={(e) => updateConfig('followUpQuestionsEnabled', e.target.checked)} />
@@ -92,7 +92,7 @@ export default function BehaviorPage() {
 
         <section className="border-t border-gray-100 pt-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Language</label>
-          <select className="w-full max-w-md p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white shadow-sm transition-colors cursor-pointer" value={config.language} disabled={!isOwner} onChange={(e) => updateConfig('language', e.target.value)}>
+          <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" value={config.language} disabled={!isOwner} onChange={(e) => updateConfig('language', e.target.value)}>
             <option value="Auto-detect">Auto-detect</option>
             <option value="English">English</option>
             <option value="Spanish">Spanish</option>
