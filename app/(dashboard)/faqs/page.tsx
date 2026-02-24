@@ -52,25 +52,25 @@ export default function FAQsPage() {
   };
 
   return (
-    <div className="p-8 pb-20 max-w-[800px] animate-in fade-in duration-300">
+    <div className="p-8 pb-20 animate-in fade-in duration-300">
       <div className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Custom FAQs</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Bypass the AI and force an exact response to specific user questions. Helpful for complex pricing or precise disclaimers.</p>
       </div>
 
-      <form onSubmit={handleAddFaq} className="bg-white border border-gray-200 rounded-md p-6 mb-8 shadow-sm flex flex-col gap-4">
+      <form onSubmit={handleAddFaq} className="bg-white border border-gray-200 rounded-md p-6 mb-8 flex flex-col gap-4">
         <div>
           <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Exact Question Match</label>
-          <input required type="text" placeholder="e.g. What is your pricing?" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors shadow-sm" value={question} onChange={e => setQuestion(e.target.value)} />
+          <input required type="text" placeholder="e.g. What is your pricing?" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={question} onChange={e => setQuestion(e.target.value)} />
         </div>
         <div>
           <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Exact Answer Reply</label>
-          <textarea required placeholder="Write the response here..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm h-24 outline-none focus:border-black resize-none transition-colors shadow-sm" value={answer} onChange={e => setAnswer(e.target.value)} />
+          <textarea required placeholder="Write the response here..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm h-24 outline-none focus:border-black resize-none transition-colors" value={answer} onChange={e => setAnswer(e.target.value)} />
         </div>
-        <button type="submit" className="self-end px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">Add Override</button>
+        <button type="submit" className="self-end px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">Add Override</button>
       </form>
 
-      <div className="bg-white border border-gray-200 rounded-md shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-md">
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-900">Active Overrides</h2>
         </div>
