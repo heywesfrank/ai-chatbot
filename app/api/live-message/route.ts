@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     // Optional sync out to Slack Thread if the agent replies from Next.js Inbox
-    if (role === 'agent') {
+    if (role === 'agent' || role === 'note') {
       const { data: session } = await supabase
         .from('live_sessions')
         .select('space_id, slack_thread_ts')
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.slack_bot_token}` },
             body: JSON.stringify({
               channel: config.slack_channel_id,
-              text: content,
+              text: role === 'note' ? `*_Internal Note:_*\n${content}` : content,
               thread_ts: session.slack_thread_ts
             })
           });
