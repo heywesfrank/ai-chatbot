@@ -60,6 +60,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const botFontColor = urlOverrides.botFontColor || config?.bot_font_color || '#1f2937';
   const userFontColor = urlOverrides.userFontColor || config?.user_font_color || '#ffffff';
   
+  const agentBubbleColor = urlOverrides.agentBubbleColor || config?.agent_bubble_color || '#f3f4f6';
+  const userBubbleColor = urlOverrides.userBubbleColor || config?.user_bubble_color || primaryColor;
+  const launcherColor = urlOverrides.launcherColor || config?.launcher_color || primaryColor;
+  const launcherIconColor = urlOverrides.launcherIconColor || config?.launcher_icon_color || userFontColor;
+  
   const headerText = urlOverrides.header || config?.header_text || 'Documentation Bot';
   const descriptionText = urlOverrides.description || config?.description_text || '';
   const welcomeMessage = config?.welcome_message || 'How can I help you today?';
@@ -340,7 +345,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
   const Header = () => (
-    <div className="p-4 flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
+    <div className="p-4 flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-2">
           {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm bg-white" />}
@@ -383,7 +388,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             <div>
               <input aria-label="Your Email" type="email" required placeholder="Your Email" className="w-full p-2.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-md focus:outline-none focus:ring-2 transition-all text-sm shadow-sm" style={{ '--tw-ring-color': 'var(--primary-color)' } as any} value={leadEmail} onChange={e => setLeadEmail(e.target.value)} />
             </div>
-            <button aria-label="Start Chat" type="submit" disabled={isSubmittingLead} className="w-full py-3 rounded-md hover:opacity-90 transition-all font-medium shadow-sm mt-2 disabled:opacity-50 active:scale-95" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
+            <button aria-label="Start Chat" type="submit" disabled={isSubmittingLead} className="w-full py-3 rounded-md hover:opacity-90 transition-all font-medium shadow-sm mt-2 disabled:opacity-50 active:scale-95" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
               {isSubmittingLead ? 'Starting chat...' : 'Start Chat'}
             </button>
           </form>
@@ -398,7 +403,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             {messages.map((msg, index) => (
               <MessageBubble 
                 key={msg.id} msg={msg} isUser={msg.role === 'user'} botAvatar={botAvatar}
-                primaryColor={primaryColor} botFontColor={botFontColor} userFontColor={userFontColor}
+                primaryColor={primaryColor} agentBubbleColor={agentBubbleColor} userBubbleColor={userBubbleColor} 
+                botFontColor={botFontColor} userFontColor={userFontColor}
                 isTyping={isLoading && index === messages.length - 1} isLatest={index === messages.length - 1 && liveMessages.length === 0}
                 onFollowUpClick={(text: string) => append({ role: 'user', content: text })} liveSessionId={liveSessionId}
                 handleCopy={handleCopy} copiedId={copiedId} submitFeedback={submitFeedback} feedback={feedback}
@@ -417,6 +423,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             {liveMessages.map((msg) => (
               <MessageBubble 
                 key={msg.id} msg={msg} isUser={msg.role === 'user'} botAvatar={botAvatar} primaryColor={primaryColor}
+                agentBubbleColor={agentBubbleColor} userBubbleColor={userBubbleColor}
                 botFontColor={botFontColor} userFontColor={userFontColor} handleCopy={handleCopy} copiedId={copiedId}
                 liveSessionId={liveSessionId} agentsOnline={agentsOnline}
               />
@@ -425,7 +432,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
             {((isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user') || isAgentTyping) && (
               <div className="flex justify-start animate-in fade-in duration-300">
                  {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)] bg-white" />}
-                <div className="px-3 py-2 border border-[var(--border-color)] bg-[var(--msg-bot-bg)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]">
+                <div 
+                  className="px-3 py-2 border border-[var(--border-color)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]"
+                  style={{ backgroundColor: agentBubbleColor || 'var(--msg-bot-bg)' }}
+                >
                   <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
                   <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-75" />
                   <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-150" />
@@ -507,11 +517,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
           <button 
             onClick={() => { if(!urlOverrides.preview) { setIsOpen(!isOpen); setUnreadCount(0); } }}
             className={`w-full h-full rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative ${urlOverrides.preview ? 'cursor-default hover:scale-100 active:scale-100' : ''}`}
-            style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
+            style={{ backgroundColor: launcherColor, color: launcherIconColor }}
             aria-label={isLauncherMorphOpen ? "Close Chat" : "Open Chat"}
           >
             {unreadCount > 0 && !showChatWindow && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2" style={{ borderColor: 'var(--primary-color)' }}>
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2" style={{ borderColor: launcherColor }}>
                 {unreadCount}
               </span>
             )}
