@@ -477,14 +477,14 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       
       {/* Force page background transparency to prevent the "gray box" in the iframe */}
       <style dangerouslySetInnerHTML={{__html: `
-        html, body, main { background: transparent !important; }
+        :root, html, body, main { background: transparent !important; }
       `}} />
 
       {/* Floating Chat Window */}
-      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_12px_40px_rgba(0,0,0,0.16)]
+      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_16px_48px_rgba(0,0,0,0.18)]
         ${isMobile
           ? 'inset-0 rounded-none' // Mobile fills iframe completely
-          : `bottom-[76px] w-[calc(100%-24px)] max-w-[376px] h-[calc(100%-88px)] max-h-[620px] rounded-2xl ${isLeft ? 'left-3 origin-bottom-left' : 'right-3 origin-bottom-right'}`
+          : `bottom-[84px] w-[calc(100%-32px)] max-w-[376px] h-[calc(100%-100px)] max-h-[620px] rounded-2xl ${isLeft ? 'left-4 origin-bottom-left' : 'right-4 origin-bottom-right'}`
         }
         ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
       `}>
@@ -499,10 +499,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
       {/* Floating Launcher Button */}
       {(!isMobile || !isOpen) && (
-        <div className={`pointer-events-auto absolute bottom-3 ${isLeft ? 'left-3' : 'right-3'} w-14 h-14 z-30`}>
+        <div className={`pointer-events-auto absolute bottom-4 ${isLeft ? 'left-4' : 'right-4'} w-14 h-14 z-30`}>
           <button 
             onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
-            className="w-full h-full rounded-full shadow-[0_6px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
+            className="w-full h-full rounded-full shadow-[0_8px_28px_rgba(0,0,0,0.28)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
             style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
             aria-label={isOpen ? "Close Chat" : "Open Chat"}
           >
