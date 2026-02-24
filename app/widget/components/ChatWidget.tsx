@@ -39,8 +39,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Detect mobile viewport to switch to full-screen mode if needed
-    const checkMobile = () => setIsMobile(window.innerWidth < 600);
+    // Detect mobile viewport (<= 430px ensures a 440px desktop iframe isn't miscategorized)
+    const checkMobile = () => setIsMobile(window.innerWidth <= 430);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -475,16 +475,16 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   return (
     <div className="fixed inset-0 pointer-events-none text-[var(--text-primary)] font-sans text-sm" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       
-      {/* Force page background transparency to prevent the "gray box" in the iframe */}
+      {/* Force page background transparency to absolutely prevent the "gray box" in the iframe */}
       <style dangerouslySetInnerHTML={{__html: `
         :root, html, body, main { background: transparent !important; }
       `}} />
 
       {/* Floating Chat Window */}
-      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_16px_48px_rgba(0,0,0,0.18)]
+      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_24px_80px_rgba(0,0,0,0.2)]
         ${isMobile
-          ? 'inset-0 rounded-none' // Mobile fills iframe completely
-          : `bottom-[84px] w-[calc(100%-32px)] max-w-[376px] h-[calc(100%-100px)] max-h-[620px] rounded-2xl ${isLeft ? 'left-4 origin-bottom-left' : 'right-4 origin-bottom-right'}`
+          ? 'inset-0 rounded-none' // Mobile fills screen
+          : `bottom-[104px] w-[calc(100%-48px)] max-w-[380px] h-[calc(100%-120px)] max-h-[650px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
         }
         ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
       `}>
@@ -499,10 +499,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
       {/* Floating Launcher Button */}
       {(!isMobile || !isOpen) && (
-        <div className={`pointer-events-auto absolute bottom-4 ${isLeft ? 'left-4' : 'right-4'} w-14 h-14 z-30`}>
+        <div className={`pointer-events-auto absolute bottom-6 ${isLeft ? 'left-6' : 'right-6'} w-16 h-16 z-30`}>
           <button 
             onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
-            className="w-full h-full rounded-full shadow-[0_8px_28px_rgba(0,0,0,0.28)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
+            className="w-full h-full rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
             style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
             aria-label={isOpen ? "Close Chat" : "Open Chat"}
           >
