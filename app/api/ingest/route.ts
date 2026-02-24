@@ -115,13 +115,13 @@ export async function POST(req: Request) {
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { spaceId, type } = body;
+    const { spaceId, type, dataSourceId } = body;
 
-    if (!spaceId || !type) {
-      return NextResponse.json({ error: 'Space ID and Type are required.' }, { status: 400 });
+    if (!spaceId || !type || !dataSourceId) {
+      return NextResponse.json({ error: 'Space ID, Type, and Data Source ID are required.' }, { status: 400 });
     }
 
-    console.log(`[INGEST] Starting ingestion for Space ID: ${spaceId} | Type: ${type}`);
+    console.log(`[INGEST] Starting ingestion for Space ID: ${spaceId} | Type: ${type} | Source ID: ${dataSourceId}`);
     let extractedParagraphs: { content: string, url: string }[] = [];
 
     // --- 1. GITBOOK INGESTION ---
@@ -325,7 +325,7 @@ export async function POST(req: Request) {
     const allDocumentsToInsert: any[] = [];
     
     // NOTE: We no longer delete the whole source_type here. 
-    // Deletions are strictly handled by the DELETE endpoint in /api/data-sources.
+    // Deletions are strictly handled by the DELETE endpoint in /api/data-sources via data_source_id.
 
     for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
       const chunkBatch = extractedParagraphs.slice(i, i + OPENAI_BATCH_SIZE);
@@ -341,7 +341,8 @@ export async function POST(req: Request) {
         page_url: chunk.url,
         content: chunk.content,
         embedding: embeddingResponse.data[index].embedding,
-        source_type: type
+        source_type: type,
+        data_source_id: dataSourceId 
       }));
 
       allDocumentsToInsert.push(...batchDocs);
