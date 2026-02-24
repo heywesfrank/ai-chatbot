@@ -1,4 +1,3 @@
-// app/(dashboard)/BotConfigProvider.tsx
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -112,12 +111,15 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
-  const saveConfig = async () => {
+  const saveConfig = async (): Promise<void> => {
     const activeId = config.spaceId || Math.random().toString(36).substring(2, 10);
     if (!config.spaceId) updateConfig('spaceId', activeId);
     
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return toast.error('Authentication required.');
+    if (!session) {
+      toast.error('Authentication required.');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -134,7 +136,11 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       } else {
         toast.error('Failed to update configuration.');
       }
-    } catch (error) { toast.error('Error saving configuration.'); } finally { setIsSaving(false); }
+    } catch (error) { 
+      toast.error('Error saving configuration.'); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   return (
