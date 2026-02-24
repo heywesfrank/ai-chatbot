@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Sentiment from 'sentiment';
+import { UAParser } from 'ua-parser-js';
 
 const sentiment = new Sentiment();
 export const runtime = 'edge';
@@ -22,11 +23,30 @@ export async function POST(req: Request) {
   const corsHeaders = { 'Access-Control-Allow-Origin': origin };
 
   try {
-    const { spaceId, email, prompt, history } = await req.json();
+    const { spaceId, email, prompt, history, url } = await req.json();
 
     if (!spaceId || !email || !prompt) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
+
+    // Capture Metadata
+    const userAgent = req.headers.get('user-agent') || '';
+    const parser = new UAParser(userAgent);
+    const browser = parser.getBrowser();
+    const os = parser.getOS();
+    
+    const city = req.headers.get('x-vercel-ip-city') || '';
+    const country = req.headers.get('x-vercel-ip-country') || '';
+    let location = 'Unknown Location';
+    if (city && country) location = `${city}, ${country}`;
+    else if (country) location = country;
+
+    const metadata = {
+      browser: browser.name ? `${browser.name} ${browser.version || ''}`.trim() : 'Unknown Browser',
+      os: os.name ? `${os.name} ${os.version || ''}`.trim() : 'Unknown OS',
+      location,
+      url: url || 'Unknown URL'
+    };
 
     await supabase.from('tickets').insert({ space_id: spaceId, email, prompt });
 
@@ -36,7 +56,8 @@ export async function POST(req: Request) {
         space_id: spaceId,
         email,
         status: 'open',
-        history: JSON.stringify(history || [])
+        history: JSON.stringify(history || []),
+        metadata
       })
       .select()
       .single();
@@ -51,6 +72,14 @@ export async function POST(req: Request) {
       content: prompt,
       sentiment_score: sentimentScore
     });
+
+    // Determine owner email
+    const { data: config } = await supabase.from('bot_config').select('user_id').eq('space_id', spaceId).maybeSingle();
+    let ownerEmail = '';
+    if (config?.user_id) {
+       const { data: userData } = await supabase.auth.admin.getUserById(config.user_id);
+       if (userData?.user?.email) ownerEmail = userData.user.email;
+    }
 
     // Check if Slack is connected via Integrations table
     const { data: slackIntegration } = await supabase
@@ -73,7 +102,7 @@ export async function POST(req: Request) {
           },
           body: JSON.stringify({
             channel: channelId,
-            text: `*New Ticket from ${email}*\n\n*Message:*\n${prompt}`,
+            text: `*New Ticket from ${email}*\n*URL:* ${metadata.url}\n*Browser:* ${metadata.browser} on ${metadata.os}\n*Location:* ${metadata.location}\n\n*Message:*\n${prompt}`,
           })
         });
 
@@ -85,6 +114,35 @@ export async function POST(req: Request) {
         }
       } catch (slackErr) {
         console.error("Failed to post to slack", slackErr);
+      }
+    } else if (ownerEmail && process.env.RESEND_API_KEY) {
+      // Send Email notification to owner if Slack is not configured
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: 'Knowledge Bot <onboarding@resend.dev>',
+            to: ownerEmail,
+            subject: `New Ticket from ${email}`,
+            html: `
+              <h2>New Ticket Submission</h2>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Page URL:</strong> ${metadata.url}</p>
+              <p><strong>Browser/OS:</strong> ${metadata.browser} on ${metadata.os}</p>
+              <p><strong>Location:</strong> ${metadata.location}</p>
+              <hr/>
+              <p><strong>Message:</strong><br/>${prompt}</p>
+              <br/>
+              <a href="${req.headers.get('origin') || 'https://yourdomain.com'}/inbox">Reply in Dashboard</a>
+            `
+          })
+        });
+      } catch (emailErr) {
+        console.error("Failed to send email", emailErr);
       }
     }
 
