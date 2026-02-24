@@ -48,10 +48,16 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   
   const primaryColor = urlOverrides.color || config?.primary_color || '#000000';
+  const botFontColor = urlOverrides.botFontColor || config?.bot_font_color || '#1f2937';
+  const userFontColor = urlOverrides.userFontColor || config?.user_font_color || '#ffffff';
+  
   const headerText = urlOverrides.header || config?.header_text || 'Documentation Bot';
+  const descriptionText = urlOverrides.description || config?.description_text || '';
   const welcomeMessage = config?.welcome_message || 'How can I help you today?';
+  const inputPlaceholder = urlOverrides.placeholder || config?.input_placeholder || 'Ask a question...';
+  const removeBranding = urlOverrides.removeBranding !== null ? urlOverrides.removeBranding : (config?.remove_branding ?? false);
+  
   const botAvatar = config?.bot_avatar || null;
-  const removeBranding = config?.remove_branding || false;
   const agentsOnline = config?.agents_online ?? false;
   
   // Feature flags
@@ -363,10 +369,15 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   }
 
   const Header = () => (
-    <div className="p-4 font-medium text-center shadow-sm text-white flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)' }}>
-      <div className="flex items-center gap-2">
-        {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
-        <span>{headerText}</span>
+    <div className="p-4 shadow-sm text-white flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)' }}>
+      <div className="flex flex-col items-center">
+        <div className="flex items-center gap-2">
+          {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
+          <span className="font-medium text-sm">{headerText}</span>
+        </div>
+        {descriptionText && (
+          <span className="text-[10px] font-medium text-white/80 mt-0.5">{descriptionText}</span>
+        )}
       </div>
       
       {isLeadCaptured && (
@@ -427,6 +438,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               isUser={msg.role === 'user'}
               botAvatar={botAvatar}
               primaryColor={primaryColor}
+              botFontColor={botFontColor}
+              userFontColor={userFontColor}
               isTyping={isLoading && index === messages.length - 1}
               isLatest={index === messages.length - 1 && liveMessages.length === 0}
               onFollowUpClick={(text: string) => append({ role: 'user', content: text })}
@@ -458,6 +471,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               isUser={msg.role === 'user'}
               botAvatar={botAvatar}
               primaryColor={primaryColor}
+              botFontColor={botFontColor}
+              userFontColor={userFontColor}
               handleCopy={handleCopy}
               copiedId={copiedId}
               liveSessionId={liveSessionId}
@@ -528,6 +543,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         primaryColor={primaryColor} 
         isLiveChat={!!liveSessionId}
         onFileUpload={handleFileUpload}
+        inputPlaceholder={inputPlaceholder}
       />
 
       {!removeBranding && (
