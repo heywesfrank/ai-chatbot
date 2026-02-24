@@ -74,7 +74,6 @@ ${context || 'No context available.'}
         role: m.role === 'user' ? 'user' : 'assistant', // map internal roles safely
         content: m.content,
       })),
-      temperature: 0.3,
       stream: true,
     };
 
