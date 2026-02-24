@@ -1,3 +1,4 @@
+// app/api/config/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -17,8 +18,8 @@ export async function POST(req: Request) {
 
     const updatePayload = {
       space_id: body.spaceId,
-      workspace_name: body.workspaceName, // New field
-      timezone: body.timezone,           // New field
+      workspace_name: body.workspaceName,
+      timezone: body.timezone,           
       system_prompt: body.systemPrompt,
       user_id: user.id,
       primary_color: body.primaryColor || '#000000',
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
       bot_avatar: body.botAvatar || null,
       show_prompts: body.showPrompts,
       suggested_prompts: body.suggestedPrompts,
+      follow_up_questions_enabled: body.followUpQuestionsEnabled, // New field mapped
       lead_capture_enabled: body.leadCaptureEnabled,
       page_context_enabled: body.pageContextEnabled,
       routing_config: body.routingConfig,
