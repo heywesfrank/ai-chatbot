@@ -2,6 +2,20 @@
 'use client';
 import { useBotConfig } from '../BotConfigProvider';
 
+function ColorPicker({ label, value, onChange, disabled }: { label: string, value: string, onChange: (v: string) => void, disabled: boolean }) {
+  return (
+    <section>
+      <label className="block text-sm font-semibold text-gray-900 mb-2">{label}</label>
+      <div className="flex items-center gap-3">
+        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
+          <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
+        </div>
+        <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
+      </div>
+    </section>
+  );
+}
+
 export default function AppearancePage() {
   const { config, updateConfig, isOwner } = useBotConfig();
 
@@ -12,38 +26,27 @@ export default function AppearancePage() {
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Customize the look and feel of your chatbot widget to match your brand.</p>
       </div>
 
-      <div className="space-y-6 bg-white border border-gray-200 p-6 rounded-md">
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <section>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Theme Color</label>
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
-                 <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
-              </div>
-              <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={!isOwner} value={config.primaryColor} onChange={(e) => updateConfig('primaryColor', e.target.value)} />
-            </div>
-          </section>
-          
-          <section>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">User Font Color</label>
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
-                 <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.userFontColor} onChange={(e) => updateConfig('userFontColor', e.target.value)} />
-              </div>
-              <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={!isOwner} value={config.userFontColor} onChange={(e) => updateConfig('userFontColor', e.target.value)} />
-            </div>
-          </section>
+      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
 
-          <section>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Font Color</label>
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
-                 <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.botFontColor} onChange={(e) => updateConfig('botFontColor', e.target.value)} />
-              </div>
-              <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={!isOwner} value={config.botFontColor} onChange={(e) => updateConfig('botFontColor', e.target.value)} />
-            </div>
-          </section>
+        {/* Brand & Widget Colors */}
+        <div>
+          <h2 className="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Global & Launcher</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ColorPicker label="Theme (Header & Buttons)" value={config.primaryColor} onChange={(v) => updateConfig('primaryColor', v)} disabled={!isOwner} />
+            <ColorPicker label="Chat Bubble (Launcher BG)" value={config.launcherColor} onChange={(v) => updateConfig('launcherColor', v)} disabled={!isOwner} />
+            <ColorPicker label="Chat Icon (Launcher Icon)" value={config.launcherIconColor} onChange={(v) => updateConfig('launcherIconColor', v)} disabled={!isOwner} />
+          </div>
+        </div>
+
+        {/* Message Bubble Colors */}
+        <div>
+          <h2 className="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Message Bubbles</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <ColorPicker label="User Bubble" value={config.userBubbleColor} onChange={(v) => updateConfig('userBubbleColor', v)} disabled={!isOwner} />
+            <ColorPicker label="User Text" value={config.userFontColor} onChange={(v) => updateConfig('userFontColor', v)} disabled={!isOwner} />
+            <ColorPicker label="Agent Bubble" value={config.agentBubbleColor} onChange={(v) => updateConfig('agentBubbleColor', v)} disabled={!isOwner} />
+            <ColorPicker label="Agent Text" value={config.botFontColor} onChange={(v) => updateConfig('botFontColor', v)} disabled={!isOwner} />
+          </div>
         </div>
 
         <section className="pt-4 border-t border-gray-100">
@@ -71,7 +74,7 @@ export default function AppearancePage() {
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar URL</label>
           <div className="flex items-center gap-3">
              {config.botAvatar && <img src={config.botAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0" />}
-             <input type="url" placeholder="https://example.com/avatar.png" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
+             <input type="url" placeholder="[https://example.com/avatar.png](https://example.com/avatar.png)" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
           </div>
         </section>
 
