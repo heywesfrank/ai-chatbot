@@ -6,7 +6,7 @@ import * as cheerio from 'cheerio';
 import { parseStringPromise } from 'xml2js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MAX_SITEMAP_PAGES = 50; // Strict limit to save costs
+const MAX_SITEMAP_PAGES = 50; 
 const MAX_CHUNK_LENGTH = 3000;
 
 // Helper to chunk text
@@ -41,12 +41,8 @@ async function scrapePage(url: string): Promise<string> {
     if (!res.ok) return '';
     const html = await res.text();
     const $ = cheerio.load(html);
-    
-    // Remove unwanted elements
     $('script, style, nav, footer, header, aside, .sidebar, iframe').remove();
-    
-    const text = $('body').text().replace(/\s+/g, ' ').trim();
-    return text;
+    return $('body').text().replace(/\s+/g, ' ').trim();
   } catch (error) {
     console.error(`Failed to scrape ${url}:`, error);
     return '';
@@ -62,15 +58,11 @@ function extractTextSafe(obj: any): string {
       current.forEach(traverse);
       return;
     }
-    if (typeof current.text === 'string') {
-      result += current.text;
-    }
+    if (typeof current.text === 'string') result += current.text;
     for (const key of Object.keys(current)) {
       if (key !== 'text') traverse(current[key]);
     }
-    if (current.object === 'block' || current.type === 'paragraph' || current.type === 'heading-1') {
-      result += '\n\n';
-    }
+    if (current.object === 'block' || current.type === 'paragraph' || current.type === 'heading-1') result += '\n\n';
   }
   traverse(obj);
   return result;
@@ -80,9 +72,7 @@ function extractPageIds(pages: any[]): string[] {
   let ids: string[] = [];
   for (const page of pages) {
     if (page.id) ids.push(page.id);
-    if (page.pages && page.pages.length > 0) {
-      ids = ids.concat(extractPageIds(page.pages));
-    }
+    if (page.pages && page.pages.length > 0) ids = ids.concat(extractPageIds(page.pages));
   }
   return ids;
 }
@@ -108,10 +98,10 @@ export async function POST(req: Request) {
 
     // --- 1. GITBOOK INGESTION ---
     if (type === 'gitbook') {
-      const { apiKey } = body;
-      if (!apiKey) return NextResponse.json({ error: 'GitBook API Key required.' }, { status: 400 });
+      const { apiKey, gitbookSpaceId } = body;
+      if (!apiKey || !gitbookSpaceId) return NextResponse.json({ error: 'GitBook API Key and Space ID required.' }, { status: 400 });
 
-      const gitbookResponse = await fetch(`https://api.gitbook.com/v1/spaces/${spaceId}/content`, {
+      const gitbookResponse = await fetch(`https://api.gitbook.com/v1/spaces/${gitbookSpaceId}/content`, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
 
@@ -124,25 +114,137 @@ export async function POST(req: Request) {
       for (let i = 0; i < pageIds.length; i += GITBOOK_BATCH_SIZE) {
         const batch = pageIds.slice(i, i + GITBOOK_BATCH_SIZE);
         await Promise.all(batch.map(async (pageId) => {
-          const pageRes = await fetch(`https://api.gitbook.com/v1/spaces/${spaceId}/content/page/${pageId}`, {
+          const pageRes = await fetch(`https://api.gitbook.com/v1/spaces/${gitbookSpaceId}/content/page/${pageId}`, {
              headers: { 'Authorization': `Bearer ${apiKey}` }
           });
           if (!pageRes.ok) return;
           const pageData = await pageRes.json();
           const rawText = extractTextSafe(pageData.document || pageData);
-          const chunks = chunkText(rawText, `https://app.gitbook.com/s/${spaceId}`); // Ideally actual page URL
-          chunks.forEach(c => extractedParagraphs.push({ content: c, url: `https://app.gitbook.com/s/${spaceId}` }));
+          const chunks = chunkText(rawText, `https://app.gitbook.com/s/${gitbookSpaceId}`); 
+          chunks.forEach(c => extractedParagraphs.push({ content: c, url: `https://app.gitbook.com/s/${gitbookSpaceId}` }));
         }));
       }
     }
 
-    // --- 2. WEBSITE / SITEMAP INGESTION ---
+    // --- 2. NOTION INGESTION ---
+    else if (type === 'notion') {
+      const { pageId, token: notionToken } = body;
+      if (!pageId || !notionToken) return NextResponse.json({ error: 'Notion Page ID and Integration Token required.' }, { status: 400 });
+
+      async function fetchNotionBlocks(blockId: string, depth = 0): Promise<string> {
+        if (depth > 5) return ''; // Prevent deep recursion
+        let text = '';
+        let cursor = undefined;
+        let hasMore = true;
+
+        while (hasMore) {
+          const url = new URL(`https://api.notion.com/v1/blocks/${blockId}/children`);
+          url.searchParams.append('page_size', '100');
+          if (cursor) url.searchParams.append('start_cursor', cursor);
+
+          const res = await fetch(url.toString(), {
+            headers: {
+              'Authorization': `Bearer ${notionToken}`,
+              'Notion-Version': '2022-06-28'
+            }
+          });
+
+          if (!res.ok) {
+            console.error('Notion API Error:', await res.text());
+            break;
+          }
+
+          const data = await res.json();
+          for (const block of data.results) {
+            const blockType = block.type;
+            const richText = block[blockType]?.rich_text;
+            if (richText) {
+              text += richText.map((t: any) => t.plain_text).join('') + '\n\n';
+            }
+            if (block.has_children) {
+              text += await fetchNotionBlocks(block.id, depth + 1);
+            }
+          }
+          hasMore = data.has_more;
+          cursor = data.next_cursor;
+        }
+        return text;
+      }
+
+      const rawText = await fetchNotionBlocks(pageId);
+      if (!rawText) throw new Error('Could not fetch Notion content. Check integration token and page sharing permissions.');
+      
+      const chunks = chunkText(rawText, `notion://${pageId}`);
+      chunks.forEach(c => extractedParagraphs.push({ content: c, url: `notion://${pageId}` }));
+    }
+
+    // --- 3. GOOGLE DRIVE INGESTION ---
+    else if (type === 'gdrive') {
+      const { folderId, token: driveToken } = body;
+      if (!folderId || !driveToken) return NextResponse.json({ error: 'GDrive Folder ID and Access Token required.' }, { status: 400 });
+
+      // Fetch files in the folder
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType)`, {
+        headers: { 'Authorization': `Bearer ${driveToken}` }
+      });
+      if (!res.ok) throw new Error('Google Drive API Error. Check token or permissions.');
+      const data = await res.json();
+
+      for (const file of data.files || []) {
+         let fileRes;
+         // Support native Google Docs (export to text) or plain text documents
+         if (file.mimeType === 'application/vnd.google-apps.document') {
+           fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text/plain`, {
+             headers: { 'Authorization': `Bearer ${driveToken}` }
+           });
+         } else if (file.mimeType === 'text/plain') {
+           fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+             headers: { 'Authorization': `Bearer ${driveToken}` }
+           });
+         } else {
+           continue; 
+         }
+
+         if (fileRes && fileRes.ok) {
+            const text = await fileRes.text();
+            const url = `https://docs.google.com/document/d/${file.id}`;
+            const chunks = chunkText(text, url);
+            chunks.forEach(c => extractedParagraphs.push({ content: c, url }));
+         }
+      }
+    }
+
+    // --- 4. ZENDESK INGESTION ---
+    else if (type === 'zendesk') {
+      const { subdomain, email, token: zendeskToken } = body;
+      if (!subdomain || !email || !zendeskToken) return NextResponse.json({ error: 'Zendesk credentials required.' }, { status: 400 });
+
+      // Create base64 basic auth string natively
+      const auth = Buffer.from(`${email}/token:${zendeskToken}`).toString('base64');
+      const res = await fetch(`https://${subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100`, {
+        headers: { 'Authorization': `Basic ${auth}` }
+      });
+      
+      if (!res.ok) throw new Error('Zendesk API Error. Check Subdomain and Token.');
+      const data = await res.json();
+
+      for (const article of data.articles || []) {
+         if (!article.body) continue;
+         const $ = cheerio.load(article.body);
+         const text = $('body').text().replace(/\s+/g, ' ').trim();
+         if (text) {
+           const chunks = chunkText(text, article.html_url);
+           chunks.forEach(c => extractedParagraphs.push({ content: c, url: article.html_url }));
+         }
+      }
+    }
+
+    // --- 5. WEBSITE / SITEMAP INGESTION ---
     else if (type === 'website') {
       const { url } = body;
       if (!url) return NextResponse.json({ error: 'URL required.' }, { status: 400 });
 
       if (url.endsWith('.xml')) {
-        // Sitemap Processing
         const res = await fetch(url);
         const xml = await res.text();
         const parsed = await parseStringPromise(xml);
@@ -158,14 +260,13 @@ export async function POST(req: Request) {
            chunks.forEach(c => extractedParagraphs.push({ content: c, url: pageUrl }));
         }
       } else {
-        // Single Page Processing
         const text = await scrapePage(url);
         const chunks = chunkText(text, url);
         chunks.forEach(c => extractedParagraphs.push({ content: c, url }));
       }
     }
 
-    // --- 3. RAW TEXT / FILE INGESTION ---
+    // --- 6. RAW TEXT / FILE INGESTION ---
     else if (type === 'file') {
        const { text, filename } = body;
        if (!text) return NextResponse.json({ error: 'Text content required.' }, { status: 400 });
@@ -178,14 +279,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No readable text content found.' }, { status: 400 });
     }
 
-    // --- 4. GENERATE EMBEDDINGS & INSERT ---
+    // --- 7. GENERATE EMBEDDINGS & INSERT ---
     console.log(`[INGEST] Generating OpenAI Embeddings for ${extractedParagraphs.length} chunks...`);
     const OPENAI_BATCH_SIZE = 100; 
     const allDocumentsToInsert: any[] = [];
     
-    // We append rather than wipe the DB immediately, to allow multiple sources.
-    // However, if the user explicitly syncs 'gitbook' we might want to wipe old 'gitbook' sources.
-    // For simplicity and safety, we'll delete only matching source types for this space.
     await supabase.from('knowledge_documents').delete().eq('space_id', spaceId).eq('source_type', type);
 
     for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
