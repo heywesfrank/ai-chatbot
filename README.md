@@ -15,8 +15,6 @@ create table public.bot_config (
   show_prompts boolean null default true,
   suggested_prompts jsonb null default '[]'::jsonb,
   lead_capture_enabled boolean null default false,
-  page_context_enabled boolean null default false,
-  routing_config jsonb null default '[]'::jsonb,
   agents_online boolean null default false,
   canned_responses jsonb null default '[]'::jsonb,
   language text null default 'Auto-detect'::text,
@@ -25,6 +23,10 @@ create table public.bot_config (
   reasoning_effort text null default 'medium'::text,
   verbosity text null default 'medium'::text,
   allowed_domains text null,
+  page_context_enabled boolean null default false,
+  routing_config jsonb null default '[]'::jsonb,
+  workspace_name text null default 'My Workspace'::text,
+  timezone text null default 'UTC'::text,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
