@@ -21,6 +21,11 @@ export default function InboxDashboard() {
   const [newCannedInput, setNewCannedInput] = useState('');
   const [spaceId, setSpaceId] = useState<string | null>(null);
 
+  // Agent Co-Pilot States
+  const [suggestedReply, setSuggestedReply] = useState('');
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const lastDraftedMessageId = useRef<string | null>(null);
+
   useEffect(() => {
     let channel: any;
 
@@ -84,6 +89,10 @@ export default function InboxDashboard() {
 
   const loadSession = async (session: any) => {
     setActiveSession(session);
+    setSuggestedReply('');
+    setIsGeneratingDraft(false);
+    lastDraftedMessageId.current = null;
+
     const { data } = await supabase
       .from('live_messages')
       .select('*')
@@ -133,7 +142,63 @@ export default function InboxDashboard() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages, isUserTyping]);
+  }, [messages, isUserTyping, suggestedReply]);
+
+  // Handle Agent Co-Pilot Generating
+  const handleGenerateDraft = async (currentMessages: any[]) => {
+    setIsGeneratingDraft(true);
+    setSuggestedReply('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/agent-copilot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ spaceId, messages: currentMessages })
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate draft');
+      
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete lines in buffer
+          for (const line of lines) {
+            if (line.startsWith('0:')) {
+              try {
+                const text = JSON.parse(line.slice(2));
+                setSuggestedReply(prev => prev + text);
+              } catch (e) {}
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsGeneratingDraft(false);
+    }
+  };
+
+  // Auto-trigger Agent Co-Pilot if the last message is from the user
+  useEffect(() => {
+    if (!activeSession || activeSession.status !== 'open' || messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === 'user' && lastDraftedMessageId.current !== lastMsg.id) {
+      lastDraftedMessageId.current = lastMsg.id;
+      handleGenerateDraft(messages);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, activeSession]);
 
   const toggleAgentStatus = async () => {
     const newVal = !agentsOnline;
@@ -176,6 +241,7 @@ export default function InboxDashboard() {
     
     const msg = input.trim();
     setInput('');
+    setSuggestedReply(''); // Clear any lingering drafts after sending
     const tempId = Date.now().toString();
     const timestamp = new Date().toISOString();
     const sendRole = isNote ? 'note' : 'agent';
@@ -388,9 +454,49 @@ export default function InboxDashboard() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA]">
+            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col gap-2">
+              
+              {/* Agent Co-Pilot Draft UI Box */}
+              {(suggestedReply || isGeneratingDraft) && activeSession.status === 'open' && (
+                <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-sm text-xs text-indigo-900 relative shadow-sm animate-in fade-in zoom-in-95 duration-200 mb-1">
+                  <div className="flex justify-between items-center mb-1.5 border-b border-indigo-100 pb-1.5">
+                     <span className="font-semibold flex items-center gap-1.5">
+                       <svg className="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                       AI Co-Pilot Suggestion
+                     </span>
+                     <div className="flex items-center gap-3">
+                       {suggestedReply && !isGeneratingDraft && (
+                         <button onClick={() => { setInput(suggestedReply); setSuggestedReply(''); }} className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 bg-white px-2 py-1 rounded border border-indigo-200 shadow-sm transition-colors focus:outline-none">
+                           Use Draft
+                         </button>
+                       )}
+                       <button onClick={() => setSuggestedReply('')} className="text-indigo-400 hover:text-indigo-600 transition-colors outline-none" title="Dismiss Draft">
+                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                       </button>
+                     </div>
+                  </div>
+                  <div className="leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto pr-2 no-scrollbar">
+                    {suggestedReply || (
+                      <span className="flex items-center gap-1.5 text-indigo-500 italic">
+                         Drafting <span className="flex space-x-0.5 mt-0.5"><span className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse" /><span className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse delay-75" /><span className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse delay-150" /></span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleSend} className="flex flex-col gap-2">
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); handleGenerateDraft(messages); }}
+                    disabled={isGeneratingDraft || messages.length === 0 || activeSession.status === 'closed'}
+                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 flex items-center justify-center shrink-0"
+                    title="Generate AI Draft"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  </button>
+
                   <input 
                     type="text" 
                     placeholder={activeSession.status === 'open' ? (isNote ? "Type an internal note..." : "Type a message...") : "Ticket is resolved."}
