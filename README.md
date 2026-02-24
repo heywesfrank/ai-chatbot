@@ -150,6 +150,7 @@ create table public.live_sessions (
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
   slack_thread_ts text null,
   resolution_time integer null,
+  metadata jsonb null default '{}'::jsonb,
   constraint live_sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
 
