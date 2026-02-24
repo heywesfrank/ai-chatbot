@@ -360,7 +360,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       {/* Visible close button inside the header for convenience - hidden in preview */}
       {!urlOverrides.preview && (
         <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
-          <ChevronDownIcon className="w-5 h-5" />
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       )}
     </div>
@@ -485,7 +485,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       `}} />
 
       {/* Floating Chat Window */}
-      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_8px_24px_rgba(0,0,0,0.12)]
+      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_4px_14px_rgba(0,0,0,0.1)]
         ${isMobile
           ? 'inset-0 rounded-none' // Mobile fills screen
           : `bottom-[104px] w-[calc(100%-48px)] max-w-[380px] h-[calc(100%-120px)] max-h-[650px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
@@ -506,7 +506,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         <div className={`pointer-events-auto absolute bottom-6 ${isLeft ? 'left-6' : 'right-6'} w-16 h-16 z-30`}>
           <button 
             onClick={() => { if(!urlOverrides.preview) { setIsOpen(!isOpen); setUnreadCount(0); } }}
-            className={`w-full h-full rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.15)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative ${urlOverrides.preview ? 'cursor-default hover:scale-100 active:scale-100' : ''}`}
+            className={`w-full h-full rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative ${urlOverrides.preview ? 'cursor-default hover:scale-100 active:scale-100' : ''}`}
             style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
             aria-label={isLauncherMorphOpen ? "Close Chat" : "Open Chat"}
           >
