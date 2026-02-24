@@ -25,6 +25,8 @@ export default function MessageBubble({
   isUser,
   botAvatar,
   primaryColor,
+  botFontColor,
+  userFontColor,
   isTyping,
   isLatest,
   onFollowUpClick,
@@ -100,8 +102,8 @@ export default function MessageBubble({
       
       <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div 
-          className={`px-3.5 py-2.5 rounded-2xl leading-relaxed break-words shadow-sm w-full ${isUser ? 'text-[var(--msg-user-text)] rounded-tr-sm' : 'bg-[var(--msg-bot-bg)] text-[var(--msg-bot-text)] border border-[var(--border-color)] rounded-tl-sm'}`}
-          style={isUser ? { backgroundColor: 'var(--primary-color)' } : {}}
+          className={`px-3.5 py-2.5 rounded-2xl leading-relaxed break-words shadow-sm w-full ${isUser ? 'rounded-tr-sm' : 'bg-[var(--msg-bot-bg)] border border-[var(--border-color)] rounded-tl-sm'}`}
+          style={isUser ? { backgroundColor: 'var(--primary-color)', color: userFontColor || 'var(--msg-user-text)' } : { color: botFontColor || 'var(--msg-bot-text)' }}
         >
           {isUser ? (
             <ReactMarkdown 
