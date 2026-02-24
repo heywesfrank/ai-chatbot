@@ -30,6 +30,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
 
   const [config, setConfig] = useState({
     spaceId: '',
+    workspaceName: 'My Workspace', // New field
+    timezone: 'UTC',              // New field
     systemPrompt: 'You are a helpful, minimalist support assistant.',
     primaryColor: '#000000',
     headerText: 'Documentation Bot',
@@ -91,6 +93,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       setConfig(prev => ({
         ...prev,
         spaceId: spaceData.space_id || '',
+        workspaceName: spaceData.workspace_name || prev.workspaceName, // Map from DB
+        timezone: spaceData.timezone || prev.timezone,                 // Map from DB
         systemPrompt: spaceData.system_prompt || prev.systemPrompt,
         primaryColor: spaceData.primary_color || prev.primaryColor,
         headerText: spaceData.header_text || prev.headerText,
