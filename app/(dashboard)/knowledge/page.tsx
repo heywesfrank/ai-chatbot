@@ -52,14 +52,6 @@ export default function KnowledgeBasePage() {
 
     setIsSyncing(true);
     try {
-      const syncRes = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ ...payload, spaceId: activeSpaceId }),
-      });
-
-      if (!syncRes.ok) throw new Error((await syncRes.json()).error);
-
       let sourceUri = payload.url || payload.gitbookSpaceId || payload.pageId || payload.folderId || payload.subdomain || payload.filename;
       let credentials = null;
 
@@ -68,6 +60,7 @@ export default function KnowledgeBasePage() {
       if (payload.type === 'gdrive') credentials = { api_key: payload.token };
       if (payload.type === 'zendesk') credentials = { email: payload.email, api_key: payload.token };
 
+      // 1. Insert into data_sources FIRST so it always shows up in the UI
       await fetch('/api/data-sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
@@ -79,14 +72,34 @@ export default function KnowledgeBasePage() {
         })
       });
 
-      toast.success('Source synced and added successfully.');
+      // Refresh the UI list immediately
+      fetchSources();
+
+      // 2. Start the heavy ingestion job
+      const syncRes = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ ...payload, spaceId: activeSpaceId }),
+      });
+
+      if (!syncRes.ok) {
+        // If Vercel times out, it throws a 504, but the background task is usually still finishing
+        if (syncRes.status === 504) {
+          toast.success('Syncing running in background (this may take a minute).');
+        } else {
+          const errData = await syncRes.json();
+          throw new Error(errData.error || 'Failed to sync source');
+        }
+      } else {
+        toast.success('Source synced and added successfully.');
+      }
+
       setInputValue('');
       setGitbookToken('');
       setNotionToken('');
       setGdriveToken('');
       setZendeskEmail('');
       setZendeskToken('');
-      fetchSources();
     } catch (e: any) {
       toast.error(e.message || 'Failed to add source');
     } finally {
@@ -130,7 +143,7 @@ export default function KnowledgeBasePage() {
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Add data sources for your bot to learn from. Upload text docs, crawl websites, or connect your tools directly.</p>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-8 overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg mb-8 overflow-hidden">
         <div className="flex border-b border-gray-100 overflow-x-auto no-scrollbar">
           {tabs.map(tab => (
             <button 
@@ -149,8 +162,8 @@ export default function KnowledgeBasePage() {
               <div>
                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Website URL</label>
                 <div className="flex gap-3">
-                  <input type="url" placeholder="https://example.com/sitemap.xml" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
-                  <button onClick={() => handleAddSource({ type: 'website', url: inputValue })} disabled={isSyncing || !inputValue} className="px-6 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm">
+                  <input type="url" placeholder="https://example.com/sitemap.xml" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                  <button onClick={() => handleAddSource({ type: 'website', url: inputValue })} disabled={isSyncing || !inputValue} className="px-6 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                     {isSyncing ? 'Crawling...' : 'Sync URL'}
                   </button>
                 </div>
@@ -165,7 +178,7 @@ export default function KnowledgeBasePage() {
                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Upload Document</label>
                 <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.json" />
-                  <div className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                  <div className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
                     <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
                   <p className="text-sm font-medium text-gray-900 mb-1">{isSyncing ? 'Uploading...' : 'Click to upload or drag and drop'}</p>
@@ -180,14 +193,14 @@ export default function KnowledgeBasePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Space ID</label>
-                  <input type="text" placeholder="e.g. -Mxx_xxxxxxxxx" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                  <input type="text" placeholder="e.g. -Mxx_xxxxxxxxx" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">API Token</label>
-                  <input type="password" placeholder="gb_api_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={gitbookToken} onChange={(e) => setGitbookToken(e.target.value)} />
+                  <input type="password" placeholder="gb_api_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={gitbookToken} onChange={(e) => setGitbookToken(e.target.value)} />
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'gitbook', gitbookSpaceId: inputValue, apiKey: gitbookToken })} disabled={isSyncing || !inputValue || !gitbookToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm">
+              <button onClick={() => handleAddSource({ type: 'gitbook', gitbookSpaceId: inputValue, apiKey: gitbookToken })} disabled={isSyncing || !inputValue || !gitbookToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect GitBook'}
               </button>
             </div>
@@ -198,14 +211,14 @@ export default function KnowledgeBasePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Root Page ID</label>
-                  <input type="text" placeholder="32-character ID" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                  <input type="text" placeholder="32-character ID" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Integration Token</label>
-                  <input type="password" placeholder="secret_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={notionToken} onChange={(e) => setNotionToken(e.target.value)} />
+                  <input type="password" placeholder="secret_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={notionToken} onChange={(e) => setNotionToken(e.target.value)} />
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'notion', pageId: inputValue, token: notionToken })} disabled={isSyncing || !inputValue || !notionToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm">
+              <button onClick={() => handleAddSource({ type: 'notion', pageId: inputValue, token: notionToken })} disabled={isSyncing || !inputValue || !notionToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Notion'}
               </button>
             </div>
@@ -216,14 +229,14 @@ export default function KnowledgeBasePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Folder ID</label>
-                  <input type="text" placeholder="Folder ID from URL" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                  <input type="text" placeholder="Folder ID from URL" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Access Token</label>
-                  <input type="password" placeholder="ya29..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={gdriveToken} onChange={(e) => setGdriveToken(e.target.value)} />
+                  <input type="password" placeholder="ya29..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={gdriveToken} onChange={(e) => setGdriveToken(e.target.value)} />
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'gdrive', folderId: inputValue, token: gdriveToken })} disabled={isSyncing || !inputValue || !gdriveToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm">
+              <button onClick={() => handleAddSource({ type: 'gdrive', folderId: inputValue, token: gdriveToken })} disabled={isSyncing || !inputValue || !gdriveToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Google Drive'}
               </button>
             </div>
@@ -234,18 +247,18 @@ export default function KnowledgeBasePage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Subdomain</label>
-                  <input type="text" placeholder="e.g. mycompany" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                  <input type="text" placeholder="e.g. mycompany" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Agent Email</label>
-                  <input type="email" placeholder="agent@example.com" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={zendeskEmail} onChange={(e) => setZendeskEmail(e.target.value)} />
+                  <input type="email" placeholder="agent@example.com" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskEmail} onChange={(e) => setZendeskEmail(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">API Token</label>
-                  <input type="password" placeholder="Token..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white shadow-sm" value={zendeskToken} onChange={(e) => setZendeskToken(e.target.value)} />
+                  <input type="password" placeholder="Token..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskToken} onChange={(e) => setZendeskToken(e.target.value)} />
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue || !zendeskEmail || !zendeskToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm">
+              <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue || !zendeskEmail || !zendeskToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Zendesk'}
               </button>
             </div>
@@ -253,7 +266,7 @@ export default function KnowledgeBasePage() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
           <h2 className="text-sm font-semibold text-gray-900">Active Sources</h2>
           {isFetchingSources && <div className="w-4 h-4 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>}
