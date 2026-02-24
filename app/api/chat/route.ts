@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     // 1. Fetch Core Configuration
     const { data: configData } = await supabase
       .from('bot_config')
-      .select('system_prompt, language, temperature, match_threshold, allowed_domains, follow_up_questions_enabled')
+      .select('system_prompt, language, match_threshold, allowed_domains, follow_up_questions_enabled')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -211,7 +211,6 @@ ${context || 'No context available.'}
         role: m.role === 'user' ? 'user' : 'assistant', // Forces safety against unknown Vercel AI SDK roles
         content: m.content,
       })),
-      temperature: configData?.temperature ?? 0.5,
       stream: true,
     };
 
