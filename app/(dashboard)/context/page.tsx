@@ -6,18 +6,18 @@ export default function ContextPage() {
   const { config, updateConfig, isOwner } = useBotConfig();
 
   return (
-    <div className="p-8 pb-20 max-w-[800px] animate-in fade-in duration-300">
+    <div className="p-8 pb-20 animate-in fade-in duration-300">
       <div className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Page Context</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Enable the AI to see which page your user is currently viewing.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
         <section>
           <div className="flex items-center justify-between">
             <div>
               <label className="block text-sm font-semibold text-gray-900">Share Current URL</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 font-medium max-w-md">
+              <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
                 When enabled, the chatbot will receive the URL of the page the user is on.
                 This allows it to provide specific answers based on the page (e.g., "Pricing" vs "Home").
               </p>
