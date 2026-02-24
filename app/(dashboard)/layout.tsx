@@ -16,11 +16,10 @@ const navGroups = [
       { name: 'Knowledge Base', path: '/knowledge', icon: <DatabaseIcon className="w-[18px] h-[18px]" /> },
       { name: 'Behavior', path: '/behavior', icon: <SettingsIcon className="w-[18px] h-[18px]" /> },
       { name: 'Model', path: '/model', icon: <CpuIcon className="w-[18px] h-[18px]" /> },
-      { name: 'Context', path: '/context', icon: <LinkIcon className="w-[18px] h-[18px]" /> },
-      { name: 'Routing', path: '/routing', icon: <UsersIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Context & Routing', path: '/context-routing', icon: <LinkIcon className="w-[18px] h-[18px]" /> },
       { name: 'Appearance', path: '/appearance', icon: <PaletteIcon className="w-[18px] h-[18px]" /> },
       { name: 'Custom FAQs', path: '/faqs', icon: <MessageSquareIcon className="w-[18px] h-[18px]" /> },
-      { name: 'Proactive Triggers', path: '/triggers', icon: <ZapIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Triggers', path: '/triggers', icon: <ZapIcon className="w-[18px] h-[18px]" /> },
       { name: 'Embed & Install', path: '/install', icon: <CodeIcon className="w-[18px] h-[18px]" /> },
     ]
   },
@@ -100,7 +99,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
-  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context', '/routing', '/appearance', '/faqs', '/triggers', '/install'].includes(pathname);
+  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/faqs', '/triggers', '/install'].includes(pathname);
   
   const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(config.primaryColor)}&botFontColor=${encodeURIComponent(config.botFontColor)}&userFontColor=${encodeURIComponent(config.userFontColor)}&header=${encodeURIComponent(config.headerText)}&description=${encodeURIComponent(config.descriptionText || '')}&placeholder=${encodeURIComponent(config.inputPlaceholder || '')}&removeBranding=${config.removeBranding}&showPrompts=${config.showPrompts}&prompts=${encodeURIComponent(JSON.stringify(config.suggestedPrompts))}&leadCapture=${config.leadCaptureEnabled}&theme=${config.theme}&position=${config.position}&preview=true`;
 
