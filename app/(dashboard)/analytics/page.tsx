@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import ReactMarkdown from 'react-markdown';
 
 interface FeedbackData {
@@ -19,6 +19,11 @@ interface VolumeData {
   interactions: number;
 }
 
+interface SatisfactionData {
+  date: string;
+  score: number;
+}
+
 interface FrustratedConversation {
   id: string;
   email: string;
@@ -30,6 +35,7 @@ export default function AnalyticsDashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [feedbacks, setFeedbacks] = useState<FeedbackData[]>([]);
   const [volumeData, setVolumeData] = useState<VolumeData[]>([]);
+  const [satisfactionData, setSatisfactionData] = useState<SatisfactionData[]>([]);
   const [aiInsights, setAiInsights] = useState<string | null>(null);
   
   const [avgResolutionTime, setAvgResolutionTime] = useState(0);
@@ -53,6 +59,7 @@ export default function AnalyticsDashboard() {
           const data = await res.json();
           setFeedbacks(data.feedbacks);
           setVolumeData(data.volumeData);
+          setSatisfactionData(data.satisfactionData || []);
           setAiInsights(data.aiInsights);
           setAvgResolutionTime(data.avgResolutionTime || 0);
           setFrustrationScore(data.frustrationScore || 0);
@@ -166,11 +173,12 @@ export default function AnalyticsDashboard() {
           <StatCard title="Frustration" value={`${frustrationScore}%`} subtitle="Negative messages" />
         </div>
 
-        {/* Charts and AI Insights Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm p-5 flex flex-col">
+        {/* Charts Row 1 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Volume Chart */}
+          <div className="bg-white border border-gray-200 rounded-sm p-5 flex flex-col">
              <h2 className="text-sm font-semibold text-gray-900 mb-6">Conversation Volume (30 Days)</h2>
-             <div className="flex-1 w-full min-h-[220px]">
+             <div className="flex-1 w-full min-h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={volumeData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -186,14 +194,45 @@ export default function AnalyticsDashboard() {
              </div>
           </div>
 
+          {/* User Satisfaction (Sentiment) Chart */}
           <div className="bg-white border border-gray-200 rounded-sm p-5 flex flex-col">
+             <h2 className="text-sm font-semibold text-gray-900 mb-6">User Satisfaction (Sentiment)</h2>
+             <div className="flex-1 w-full min-h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={satisfactionData}>
+                    <defs>
+                      <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                    <XAxis dataKey="date" tick={{fontSize: 11, fill: '#9ca3af'}} axisLine={false} tickLine={false} dy={10} minTickGap={30} />
+                    <YAxis tick={{fontSize: 11, fill: '#9ca3af'}} axisLine={false} tickLine={false} allowDecimals={true} dx={-10} domain={[-5, 5]} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '6px', fontSize: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }} 
+                      itemStyle={{ color: '#059669', fontWeight: 500 }}
+                      formatter={(value: number) => [value, 'Sentiment Score']}
+                    />
+                    <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorScore)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+             </div>
+          </div>
+        </div>
+
+        {/* AI Insights and Feedbacks */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+           
+           {/* Insights */}
+           <div className="bg-white border border-gray-200 rounded-sm p-5 flex flex-col h-fit">
              <div className="flex items-center gap-2 mb-1.5">
                 <svg className="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
                 <h2 className="text-sm font-semibold text-gray-900">AI Knowledge Gaps</h2>
              </div>
              <p className="text-xs text-gray-500 mb-5 leading-relaxed">Nightly automated summary of what users searched for but couldn't find.</p>
              
-             <div className="flex-1 bg-gray-50/50 border border-gray-100 rounded p-4 overflow-y-auto">
+             <div className="bg-gray-50/50 border border-gray-100 rounded p-4 max-h-[300px] overflow-y-auto">
                 {aiInsights ? (
                    <ReactMarkdown className="prose prose-sm prose-p:mb-2 prose-p:leading-relaxed prose-ul:pl-4 prose-li:mb-1.5 prose-li:text-gray-700 text-gray-800 text-[13px]">
                      {aiInsights}
@@ -205,10 +244,8 @@ export default function AnalyticsDashboard() {
                 )}
              </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm overflow-hidden flex flex-col">
+          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm overflow-hidden flex flex-col h-fit">
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-sm font-semibold text-gray-900">Recent Customer Feedback</h2>
             </div>
@@ -260,8 +297,10 @@ export default function AnalyticsDashboard() {
               </div>
             )}
           </div>
+        </div>
 
-          <div className="flex flex-col gap-8">
+        {/* Needs Attention & Frustrated Customers */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
             <div className="bg-white border border-gray-200 rounded-sm p-5 h-fit">
               <h2 className="text-sm font-semibold text-gray-900 mb-1">Needs Attention</h2>
               <p className="text-xs text-gray-500 mb-5">Identify knowledge gaps by reviewing responses that were downvoted by users.</p>
@@ -341,7 +380,6 @@ export default function AnalyticsDashboard() {
             </div>
 
           </div>
-        </div>
       </div>
     </div>
   );
