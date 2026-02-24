@@ -436,9 +436,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
                   className="px-3 py-2 border border-[var(--border-color)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]"
                   style={{ backgroundColor: agentBubbleColor || 'var(--msg-bot-bg)' }}
                 >
-                  <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
-                  <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-75" />
-                  <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-150" />
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse opacity-60" style={{ backgroundColor: botFontColor || 'var(--text-secondary)' }} />
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse delay-75 opacity-60" style={{ backgroundColor: botFontColor || 'var(--text-secondary)' }} />
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse delay-150 opacity-60" style={{ backgroundColor: botFontColor || 'var(--text-secondary)' }} />
                 </div>
               </div>
             )}
