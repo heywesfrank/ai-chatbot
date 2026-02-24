@@ -1,3 +1,4 @@
+// app/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,7 +18,7 @@ export default function AuthPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         router.refresh();
-        router.push('/home');
+        router.push('/knowledge');
       }
     });
   }, [router]);
@@ -32,9 +33,8 @@ export default function AuthPage() {
         toast.error(error.message);
         setIsLoading(false);
       } else {
-        // Force Next.js to refresh server components and recognize the new cookie
         router.refresh();
-        router.push('/home');
+        router.push('/knowledge');
       }
     } else {
       const { error } = await supabase.auth.signUp({ email, password });
@@ -53,28 +53,20 @@ export default function AuthPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'signup',
-    });
-
+    const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' });
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
     } else {
       toast.success('Email confirmed successfully!');
       router.refresh();
-      router.push('/home');
+      router.push('/knowledge');
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#FAFAFA] font-sans px-4">
-      
       <div className="w-full max-w-[360px] p-8 bg-white border border-gray-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300">
-        
-        {/* Header */}
         <div className="mb-8 text-center">
           <div className="mx-auto w-10 h-10 bg-black rounded-lg mb-4 flex items-center justify-center shadow-sm">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,50 +83,21 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Forms */}
         {step === 'form' ? (
           <form onSubmit={handleAuth} className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="space-y-3">
               <div>
-                <label className="sr-only" htmlFor="email">Email</label>
-                <input 
-                  id="email"
-                  type="email" 
-                  placeholder="name@example.com"
-                  required
-                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm placeholder:text-gray-400"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <input id="email" type="email" placeholder="name@example.com" required className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm placeholder:text-gray-400" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
-                <label className="sr-only" htmlFor="password">Password</label>
-                <input 
-                  id="password"
-                  type="password" 
-                  placeholder="Password"
-                  required
-                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm placeholder:text-gray-400"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <input id="password" type="password" placeholder="Password" required className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm placeholder:text-gray-400" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
             </div>
-
-            <button 
-              type="submit"
-              disabled={isLoading || !email || !password}
-              className="w-full bg-black text-white py-2.5 rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm active:scale-[0.98]"
-            >
+            <button type="submit" disabled={isLoading || !email || !password} className="w-full bg-black text-white py-2.5 rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm active:scale-[0.98]">
               {isLoading ? 'Please wait...' : (mode === 'login' ? 'Sign In' : 'Sign Up')}
             </button>
-
             <div className="text-center pt-2">
-              <button 
-                type="button"
-                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-sm text-gray-500 hover:text-black transition-colors"
-              >
+              <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="text-sm text-gray-500 hover:text-black transition-colors">
                 {mode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
             </div>
@@ -142,36 +105,13 @@ export default function AuthPage() {
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
-              <label className="sr-only" htmlFor="otp">Verification Code</label>
-              <input 
-                id="otp"
-                type="text" 
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="000000"
-                required
-                className="w-full px-3 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-300"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} 
-              />
+              <input id="otp" type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" maxLength={6} placeholder="000000" required className="w-full px-3 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-300" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} />
             </div>
-
-            <button 
-              type="submit"
-              disabled={isLoading || otp.length !== 6}
-              className="w-full bg-black text-white py-2.5 rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm active:scale-[0.98]"
-            >
+            <button type="submit" disabled={isLoading || otp.length !== 6} className="w-full bg-black text-white py-2.5 rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm active:scale-[0.98]">
               {isLoading ? 'Verifying...' : 'Verify Email'}
             </button>
-
             <div className="text-center pt-2">
-              <button 
-                type="button"
-                onClick={() => setStep('form')}
-                className="text-sm text-gray-500 hover:text-black transition-colors"
-              >
+              <button type="button" onClick={() => setStep('form')} className="text-sm text-gray-500 hover:text-black transition-colors">
                 Back to sign in
               </button>
             </div>
