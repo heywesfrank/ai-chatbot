@@ -137,9 +137,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.parent.postMessage({ type: 'kb-widget-resize', isOpen }, '*');
+      window.parent.postMessage({ type: 'kb-widget-resize', isOpen: isOpen || urlOverrides.preview }, '*');
     }
-  }, [isOpen]);
+  }, [isOpen, urlOverrides.preview]);
 
   useEffect(() => {
     setSavedMessages(messages);
@@ -152,13 +152,13 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     if (isNewMessage || isNewLiveMessage) {
       const lastMsg = isNewLiveMessage ? liveMessages[liveMessages.length - 1] : messages[messages.length - 1];
       if (lastMsg && lastMsg.role !== 'user' && (!isOpen || document.hidden)) {
-        if (!isOpen) setUnreadCount(c => c + 1);
+        if (!isOpen && !urlOverrides.preview) setUnreadCount(c => c + 1);
         playPopSound();
       }
     }
     prevMessagesLength.current = messages.length;
     prevLiveMessagesLength.current = liveMessages.length;
-  }, [messages, liveMessages, isOpen]);
+  }, [messages, liveMessages, isOpen, urlOverrides.preview]);
 
   useEffect(() => {
     if (!liveSessionId) return;
@@ -197,7 +197,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages, liveMessages, isOpen]);
+  }, [messages, liveMessages, isOpen, urlOverrides.preview]);
 
   const handleClearChat = () => {
     setMessages([initMsg]);
@@ -336,6 +336,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
   const isLeft = config?.position === 'left';
+  const showChatWindow = isOpen || urlOverrides.preview;
+  const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
   const Header = () => (
     <div className="p-4 flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
@@ -355,10 +357,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         </button>
       )}
 
-      {/* Visible close button inside the header for convenience */}
-      <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
-        <ChevronDownIcon className="w-5 h-5" />
-      </button>
+      {/* Visible close button inside the header for convenience - hidden in preview */}
+      {!urlOverrides.preview && (
+        <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
+          <ChevronDownIcon className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 
@@ -481,12 +485,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       `}} />
 
       {/* Floating Chat Window */}
-      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_24px_80px_rgba(0,0,0,0.2)]
+      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_8px_24px_rgba(0,0,0,0.12)]
         ${isMobile
           ? 'inset-0 rounded-none' // Mobile fills screen
           : `bottom-[104px] w-[calc(100%-48px)] max-w-[380px] h-[calc(100%-120px)] max-h-[650px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
         }
-        ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
+        ${showChatWindow ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
       `}>
         <Header />
         {renderBodyContent()}
@@ -498,25 +502,25 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       </div>
 
       {/* Floating Launcher Button */}
-      {(!isMobile || !isOpen) && (
+      {(!isMobile || !showChatWindow) && (
         <div className={`pointer-events-auto absolute bottom-6 ${isLeft ? 'left-6' : 'right-6'} w-16 h-16 z-30`}>
           <button 
-            onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
-            className="w-full h-full rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
+            onClick={() => { if(!urlOverrides.preview) { setIsOpen(!isOpen); setUnreadCount(0); } }}
+            className={`w-full h-full rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.15)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative ${urlOverrides.preview ? 'cursor-default hover:scale-100 active:scale-100' : ''}`}
             style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
-            aria-label={isOpen ? "Close Chat" : "Open Chat"}
+            aria-label={isLauncherMorphOpen ? "Close Chat" : "Open Chat"}
           >
-            {unreadCount > 0 && !isOpen && (
+            {unreadCount > 0 && !showChatWindow && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2" style={{ borderColor: 'var(--primary-color)' }}>
                 {unreadCount}
               </span>
             )}
             
             {/* Animated Icons for morphing between Chat and Arrow */}
-            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-0 opacity-100 scale-100' : '-rotate-90 opacity-0 scale-50'}`}>
+            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isLauncherMorphOpen ? 'rotate-0 opacity-100 scale-100' : '-rotate-90 opacity-0 scale-50'}`}>
               <ChevronDownIcon className="w-6 h-6" />
             </div>
-            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-90 opacity-0 scale-50' : 'rotate-0 opacity-100 scale-100'}`}>
+            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isLauncherMorphOpen ? 'rotate-90 opacity-0 scale-50' : 'rotate-0 opacity-100 scale-100'}`}>
               <ChatBubbleIcon className="w-7 h-7" />
             </div>
           </button>
