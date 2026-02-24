@@ -24,7 +24,11 @@ export default function KnowledgeBasePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (activeSpaceId) fetchSources();
+    if (activeSpaceId) {
+      fetchSources();
+    } else {
+      setIsLoading(false);
+    }
   }, [activeSpaceId]);
 
   const fetchSources = async () => {
