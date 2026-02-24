@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase';
 import OpenAI from 'openai';
 import * as cheerio from 'cheerio';
 import { parseStringPromise } from 'xml2js';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_SITEMAP_PAGES = 50; 
@@ -79,6 +81,29 @@ function extractPageIds(pages: any[]): string[] {
 
 export async function POST(req: Request) {
   try {
+    // 1. IP Rate Limiting (Protects against spam/abuse)
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      try {
+        const redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        // Limit to 5 requests per minute per IP for ingestions
+        const ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(5, '1 m'),
+        });
+        const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous';
+        const { success } = await ratelimit.limit(`rl_ingest_${ip}`);
+        
+        if (!success) {
+          return NextResponse.json({ error: 'Too many sync requests. Please try again in a minute.' }, { status: 429 });
+        }
+      } catch (err) {
+        console.error("Rate limiting failure:", err);
+      }
+    }
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
