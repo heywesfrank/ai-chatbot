@@ -39,10 +39,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Force the iframe body background to be completely transparent
-    document.body.style.backgroundColor = 'transparent';
-    
-    // Track mobile viewport size dynamically
+    // Detect mobile viewport to switch to full-screen mode if needed
     const checkMobile = () => setIsMobile(window.innerWidth < 600);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -341,14 +338,14 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const isLeft = config?.position === 'left';
 
   const Header = () => (
-    <div className="p-4 shadow-sm flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
+    <div className="p-4 flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}>
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-2">
-          {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-white/20 shadow-sm" />}
-          <span className="font-medium text-sm">{headerText}</span>
+          {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm bg-white" />}
+          <span className="font-semibold text-sm">{headerText}</span>
         </div>
         {descriptionText && (
-          <span className="text-[10px] font-medium opacity-90 mt-0.5">{descriptionText}</span>
+          <span className="text-[11px] font-medium opacity-90 mt-0.5">{descriptionText}</span>
         )}
       </div>
       
@@ -358,7 +355,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         </button>
       )}
 
-      {/* The visible close button for desktop users */}
+      {/* Visible close button inside the header for convenience */}
       <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
         <ChevronDownIcon className="w-5 h-5" />
       </button>
@@ -423,7 +420,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
             {((isLoading && !liveSessionId && messages[messages.length - 1]?.role === 'user') || isAgentTyping) && (
               <div className="flex justify-start animate-in fade-in duration-300">
-                 {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)]" />}
+                 {botAvatar && <img src={botAvatar} alt="Bot Loading" className="w-7 h-7 rounded-full mr-2.5 object-cover flex-shrink-0 mt-0.5 border border-[var(--border-color)] bg-white" />}
                 <div className="px-3 py-2 border border-[var(--border-color)] bg-[var(--msg-bot-bg)] shadow-sm rounded-2xl rounded-tl-sm flex items-center space-x-1 min-h-[36px]">
                   <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse" />
                   <div className="w-1.5 h-1.5 bg-[var(--text-secondary)] rounded-full animate-pulse delay-75" />
@@ -476,32 +473,36 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent text-[var(--text-primary)] font-sans text-sm pointer-events-none" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+    <div className="fixed inset-0 pointer-events-none text-[var(--text-primary)] font-sans text-sm" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       
-      {/* Active Floating Chat Window */}
-      {isOpen && (
-        <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200 origin-bottom
-          ${isMobile 
-            ? 'inset-0 rounded-none' 
-            : 'top-0 bottom-[90px] left-0 right-0 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.16)] border border-[var(--border-strong)]'
-          }
-        `}>
-          <Header />
-          {renderBodyContent()}
-          {!removeBranding && (
-            <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
-              Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Force page background transparency to prevent the "gray box" in the iframe */}
+      <style dangerouslySetInnerHTML={{__html: `
+        html, body, main { background: transparent !important; }
+      `}} />
+
+      {/* Floating Chat Window */}
+      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_12px_40px_rgba(0,0,0,0.16)]
+        ${isMobile
+          ? 'inset-0 rounded-none' // Mobile fills iframe completely
+          : `bottom-[76px] w-[calc(100%-24px)] max-w-[376px] h-[calc(100%-88px)] max-h-[620px] rounded-2xl ${isLeft ? 'left-3 origin-bottom-left' : 'right-3 origin-bottom-right'}`
+        }
+        ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
+      `}>
+        <Header />
+        {renderBodyContent()}
+        {!removeBranding && (
+          <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
+            Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
+          </div>
+        )}
+      </div>
 
       {/* Floating Launcher Button */}
-      {(!isOpen || !isMobile) && (
-        <div className={`pointer-events-auto absolute bottom-0 ${isLeft ? 'left-0' : 'right-0'} w-[70px] h-[70px] flex items-center justify-center z-30`}>
+      {(!isMobile || !isOpen) && (
+        <div className={`pointer-events-auto absolute bottom-3 ${isLeft ? 'left-3' : 'right-3'} w-14 h-14 z-30`}>
           <button 
             onClick={() => { setIsOpen(!isOpen); setUnreadCount(0); }}
-            className={`w-14 h-14 rounded-full shadow-[0_6px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative`}
+            className="w-full h-full rounded-full shadow-[0_6px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative"
             style={{ backgroundColor: 'var(--primary-color)', color: userFontColor }}
             aria-label={isOpen ? "Close Chat" : "Open Chat"}
           >
@@ -510,11 +511,14 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
                 {unreadCount}
               </span>
             )}
-            {isOpen ? (
+            
+            {/* Animated Icons for morphing between Chat and Arrow */}
+            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-0 opacity-100 scale-100' : '-rotate-90 opacity-0 scale-50'}`}>
               <ChevronDownIcon className="w-6 h-6" />
-            ) : (
+            </div>
+            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-90 opacity-0 scale-50' : 'rotate-0 opacity-100 scale-100'}`}>
               <ChatBubbleIcon className="w-7 h-7" />
-            )}
+            </div>
           </button>
         </div>
       )}
