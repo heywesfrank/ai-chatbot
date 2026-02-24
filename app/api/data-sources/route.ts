@@ -43,18 +43,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'This data source has already been added.' }, { status: 400 });
   }
 
-  const { error } = await supabase.from('data_sources').insert({
+  const { data, error } = await supabase.from('data_sources').insert({
     space_id: body.spaceId,
     type: body.type,
     source_uri: body.sourceUri,
     credentials: body.credentials
-  });
+  }).select('id').single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, id: data.id });
 }
 
 export async function DELETE(req: Request) {
@@ -67,23 +67,14 @@ export async function DELETE(req: Request) {
   const id = url.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  // Get the source details before deleting
-  const { data: source } = await supabase.from('data_sources').select('*').eq('id', id).single();
-  
-  if (source) {
-    // 1. Delete the data source entry
-    await supabase.from('data_sources').delete().eq('id', id);
+  // 1. Manually delete chunks to be safe (if ON DELETE CASCADE isn't supported/enabled)
+  await supabase.from('knowledge_documents').delete().eq('data_source_id', id);
 
-    // 2. Best-effort cleanup of associated chunks from the DB
-    let urlPattern = `${source.source_uri}%`;
-    if (source.type === 'gitbook') urlPattern = `https://app.gitbook.com/s/${source.source_uri}%`;
-    else if (source.type === 'notion') urlPattern = `notion://${source.source_uri}%`;
-    
-    await supabase
-      .from('knowledge_documents')
-      .delete()
-      .eq('space_id', source.space_id)
-      .ilike('page_url', urlPattern);
+  // 2. Delete the actual source
+  const { error } = await supabase.from('data_sources').delete().eq('id', id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
