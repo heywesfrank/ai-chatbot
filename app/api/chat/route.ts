@@ -6,8 +6,6 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import Sentiment from 'sentiment';
 
-export const runtime = 'edge';
-
 interface DocumentMatch {
   id: number;
   content: string;
@@ -86,29 +84,31 @@ export async function POST(req: Request) {
     let sentimentScore = 0;
     let sentimentContext = '';
     try {
-      const analysis = sentiment.analyze(lastMessageContent);
-      sentimentScore = analysis.score;
-      
-      // Fire-and-forget storage of message analysis for dashboard
-      if (spaceId) {
-        supabase.from('bot_messages').insert({
-          space_id: spaceId,
-          role: 'user',
-          content: lastMessageContent,
-          sentiment_score: sentimentScore,
-        }).then(({ error }) => {
-          if (error) console.error('Failed to log message sentiment:', error);
-        });
-      }
+      if (lastMessageContent) {
+        const analysis = sentiment.analyze(lastMessageContent);
+        sentimentScore = analysis.score;
+        
+        // Fire-and-forget storage of message analysis for dashboard
+        if (spaceId) {
+          supabase.from('bot_messages').insert({
+            space_id: spaceId,
+            role: 'user',
+            content: lastMessageContent,
+            sentiment_score: sentimentScore,
+          }).then(({ error }) => {
+            if (error) console.error('Failed to log message sentiment:', error);
+          });
+        }
 
-      // Frustration Detection Trigger (Threshold: -3)
-      if (sentimentScore <= -3) {
-        sentimentContext = `
+        // Frustration Detection Trigger (Threshold: -3)
+        if (sentimentScore <= -3) {
+          sentimentContext = `
 IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${sentimentScore}).
 1. Be extremely empathetic and professional.
 2. Acknowledge their frustration immediately.
 3. You MUST offer to escalate this conversation to a human support agent or provide a direct contact email if you cannot resolve the issue immediately.
 `;
+        }
       }
     } catch (e) {
       console.error('Sentiment analysis failed:', e);
@@ -150,24 +150,28 @@ IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${se
       .map((m: any) => m.content)
       .join('\n');
 
-    const embeddingResponse = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: recentMessagesContext,
-    });
+    let queryEmbedding = null;
+    if (recentMessagesContext) {
+      const embeddingResponse = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: recentMessagesContext,
+      });
+      queryEmbedding = embeddingResponse.data?.[0]?.embedding;
+    }
 
-    const queryEmbedding = embeddingResponse.data?.[0]?.embedding;
-    if (!queryEmbedding) throw new Error('Failed to generate embedding.');
+    let context = '';
+    if (queryEmbedding) {
+      const { data: documents } = await supabase.rpc('match_documents', {
+        query_embedding: queryEmbedding,
+        match_threshold: configData?.match_threshold ?? 0.2,
+        match_count: 5,
+        p_space_id: spaceId,
+      });
 
-    const { data: documents } = await supabase.rpc('match_documents', {
-      query_embedding: queryEmbedding,
-      match_threshold: configData?.match_threshold ?? 0.2,
-      match_count: 5,
-      p_space_id: spaceId,
-    });
-
-    const context = documents && documents.length > 0
-        ? documents.map((doc: DocumentMatch) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n')
-        : '';
+      context = documents && documents.length > 0
+          ? documents.map((doc: DocumentMatch) => `[Source: ${doc.page_url}]\n${doc.content}`).join('\n\n')
+          : '';
+    }
 
     const agentPersona = configData?.system_prompt || 'You are a helpful, minimalist support assistant.';
     const language = configData?.language || 'Auto-detect';
@@ -216,7 +220,7 @@ ${context || 'No context available.'}
       stream: true,
     };
 
-    const stream = await openai.responses.create(requestPayload as OpenAI.Responses.ResponseCreateParamsStreaming);
+    const stream = await (openai as any).responses.create(requestPayload);
 
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
@@ -244,6 +248,7 @@ ${context || 'No context available.'}
       },
     });
   } catch (error: any) {
+    console.error("Chat API Error:", error);
     return NextResponse.json({ error: error.message || 'Chat failed' }, { status: 500, headers: corsHeaders });
   }
 }
