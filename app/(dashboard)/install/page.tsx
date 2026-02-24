@@ -21,7 +21,7 @@ export default function InstallPage() {
       if (e.data && e.data.type === 'kb-widget-resize') {
         var isMobile = window.innerWidth < 600;
         iframe.style.width = e.data.isOpen ? (isMobile ? '100%' : '400px') : '100px';
-        iframe.style.height = e.data.isOpen ? (isMobile ? '100%' : '600px') : '100px';
+        iframe.style.height = e.data.isOpen ? (isMobile ? '100%' : '720px') : '100px';
         iframe.style.bottom = e.data.isOpen && isMobile ? '0' : '20px';
         iframe.style.right = e.data.isOpen && isMobile ? '0' : (position === 'right' ? '20px' : 'auto');
         iframe.style.left = e.data.isOpen && isMobile ? '0' : (position === 'left' ? '20px' : 'auto');
