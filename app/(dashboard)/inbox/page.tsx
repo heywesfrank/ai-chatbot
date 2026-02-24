@@ -8,6 +8,7 @@ export default function InboxDashboard() {
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
+  const [isNote, setIsNote] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -104,9 +105,13 @@ export default function InboxDashboard() {
         filter: `session_id=eq.${activeSession.id}` 
       }, payload => {
         const newMsg = payload.new;
-        if (newMsg.role === 'user') {
-          setMessages(prev => [...prev, newMsg]);
-          setIsUserTyping(false); 
+        // Include 'user' naturally, and capture other 'agent' or 'note' broadcasts across devices
+        if (newMsg.role === 'user' || newMsg.role === 'agent' || newMsg.role === 'note') {
+          setMessages(prev => {
+            if (prev.find(p => p.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          if (newMsg.role === 'user') setIsUserTyping(false); 
         }
       })
       .on('broadcast', { event: 'typing' }, payload => {
@@ -173,14 +178,17 @@ export default function InboxDashboard() {
     setInput('');
     const tempId = Date.now().toString();
     const timestamp = new Date().toISOString();
+    const sendRole = isNote ? 'note' : 'agent';
     
-    setMessages(prev => [...prev, { id: tempId, role: 'agent', content: msg, created_at: timestamp }]);
+    setMessages(prev => [...prev, { id: tempId, role: sendRole, content: msg, created_at: timestamp }]);
 
     await fetch('/api/live-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: activeSession.id, role: 'agent', content: msg })
+      body: JSON.stringify({ sessionId: activeSession.id, role: sendRole, content: msg })
     });
+    
+    setIsNote(false); // Reset toggle to reply publicly after sending note
   };
 
   const handleResolve = async () => {
@@ -304,18 +312,34 @@ export default function InboxDashboard() {
           </div>
         ) : (
           <>
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-[#FAFAFA]/50">
+            <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-[#FAFAFA]/50">
               <div>
                 <h2 className="text-sm font-semibold">{activeSession.email}</h2>
-                <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5 mb-2">
                   <span className={`w-1.5 h-1.5 rounded-full ${activeSession.status === 'open' ? 'bg-green-500' : 'bg-gray-400'}`} />
                   {activeSession.status === 'open' ? 'Requires Attention' : 'Resolved'}
                 </p>
+                {activeSession.metadata && Object.keys(activeSession.metadata).length > 0 && (
+                  <div className="flex flex-wrap gap-4 text-[11px] text-gray-500 bg-white p-2.5 rounded-sm border border-gray-200 shadow-sm mt-1">
+                    <span className="flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      {activeSession.metadata.browser} / {activeSession.metadata.os}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      {activeSession.metadata.location}
+                    </span>
+                    <span className="flex items-center gap-1 max-w-[200px] truncate" title={activeSession.metadata.url}>
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                      <a href={activeSession.metadata.url} target="_blank" rel="noreferrer" className="hover:underline truncate">{activeSession.metadata.url}</a>
+                    </span>
+                  </div>
+                )}
               </div>
               {activeSession.status === 'open' && (
                 <button 
                   onClick={handleResolve}
-                  className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition-colors shadow-sm"
+                  className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition-colors shadow-sm shrink-0"
                 >
                   Mark as Resolved
                 </button>
@@ -338,12 +362,13 @@ export default function InboxDashboard() {
 
               <div className="space-y-4">
                 {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex flex-col max-w-[80%] ${msg.role === 'agent' ? 'self-end items-end' : 'self-start items-start'}`}>
-                    <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                  <div key={idx} className={`flex flex-col max-w-[80%] ${msg.role === 'agent' || msg.role === 'note' ? 'self-end items-end' : 'self-start items-start'}`}>
+                    <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : msg.role === 'note' ? 'bg-yellow-100 text-yellow-900 border border-yellow-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                      {msg.role === 'note' && <span className="block text-[10px] font-bold uppercase tracking-wider text-yellow-700 mb-1">Internal Note</span>}
                       {msg.content}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 mx-1 text-[10px] text-gray-400">
-                       <span className="capitalize font-medium">{msg.role}</span>
+                       <span className="capitalize font-medium">{msg.role === 'note' ? 'Agent (Note)' : msg.role}</span>
                        {msg.created_at && (
                          <>
                            <span className="w-px h-2 bg-gray-300 mx-0.5"></span>
@@ -364,22 +389,36 @@ export default function InboxDashboard() {
             </div>
 
             <div className="p-4 border-t border-gray-200 bg-[#FAFAFA]">
-              <form onSubmit={handleSend} className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder={activeSession.status === 'open' ? "Type a message..." : "Ticket is resolved."}
-                  className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
-                  value={input}
-                  onChange={handleInputChange}
-                  disabled={activeSession.status === 'closed'}
-                />
-                <button 
-                  type="submit"
-                  disabled={!input.trim() || activeSession.status === 'closed'}
-                  className="bg-black text-white px-5 py-2.5 text-sm font-medium rounded-sm disabled:opacity-50 hover:bg-gray-800 transition-colors shadow-sm"
-                >
-                  Send
-                </button>
+              <form onSubmit={handleSend} className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder={activeSession.status === 'open' ? (isNote ? "Type an internal note..." : "Type a message...") : "Ticket is resolved."}
+                    className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
+                    value={input}
+                    onChange={handleInputChange}
+                    disabled={activeSession.status === 'closed'}
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!input.trim() || activeSession.status === 'closed'}
+                    className={`px-5 py-2.5 text-sm font-medium rounded-sm disabled:opacity-50 transition-colors shadow-sm ${isNote ? 'bg-yellow-500 text-yellow-950 hover:bg-yellow-400' : 'bg-black text-white hover:bg-gray-800'}`}
+                  >
+                    {isNote ? 'Add Note' : 'Send'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 px-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="accent-black w-3.5 h-3.5"
+                      checked={isNote}
+                      onChange={(e) => setIsNote(e.target.checked)}
+                      disabled={activeSession.status === 'closed'}
+                    />
+                    <span className="text-[11px] text-gray-600 font-medium">Internal Note (Hidden from user)</span>
+                  </label>
+                </div>
               </form>
             </div>
           </>
