@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const corsHeaders = { 'Access-Control-Allow-Origin': origin };
 
   try {
-    const { messages, spaceId } = await req.json();
+    const { messages, spaceId, currentUrl, routingContext } = await req.json();
 
     // 1. Fetch Core Configuration
     const { data: configData } = await supabase
@@ -140,6 +140,9 @@ export async function POST(req: Request) {
         ? 'Automatically detect the language of the user and reply in that same language.'
         : `You MUST always reply in ${language}, regardless of the language the user speaks.`;
 
+    const routingInstruction = routingContext ? `USER SELECTED CONTEXT: ${routingContext}` : '';
+    const pageContextInstruction = currentUrl ? `USER IS VIEWING PAGE: ${currentUrl}` : '';
+
     const systemInstructions = `
 ${agentPersona}
 
@@ -150,6 +153,10 @@ CORE DIRECTIVES:
 
 **Sources:** [1](URL) [2](URL)
 4. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.
+
+SESSION METADATA:
+${routingInstruction}
+${pageContextInstruction}
 
 CONTEXT:
 ${context || 'No context available.'}
