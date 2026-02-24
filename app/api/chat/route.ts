@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import Sentiment from 'sentiment';
 
 export const runtime = 'edge';
 
@@ -15,6 +16,7 @@ interface DocumentMatch {
 }
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const sentiment = new Sentiment();
 
 export async function OPTIONS(req: Request) {
   const origin = req.headers.get('origin') || '*';
@@ -79,6 +81,40 @@ export async function POST(req: Request) {
     }
 
     const lastMessageContent = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
+
+    // --- SENTIMENT ANALYSIS START ---
+    let sentimentScore = 0;
+    let sentimentContext = '';
+    try {
+      const analysis = sentiment.analyze(lastMessageContent);
+      sentimentScore = analysis.score;
+      
+      // Fire-and-forget storage of message analysis for dashboard
+      // Note: Requires a table 'bot_messages' with columns: space_id, role, content, sentiment_score
+      if (spaceId) {
+        supabase.from('bot_messages').insert({
+          space_id: spaceId,
+          role: 'user',
+          content: lastMessageContent,
+          sentiment_score: sentimentScore,
+        }).then(({ error }) => {
+          if (error) console.error('Failed to log message sentiment:', error);
+        });
+      }
+
+      // Frustration Detection Trigger (Threshold: -3)
+      if (sentimentScore <= -3) {
+        sentimentContext = `
+IMPORTANT: The user has expressed significant frustration (Sentiment Score: ${sentimentScore}).
+1. Be extremely empathetic and professional.
+2. Acknowledge their frustration immediately.
+3. You MUST offer to escalate this conversation to a human support agent or provide a direct contact email if you cannot resolve the issue immediately.
+`;
+      }
+    } catch (e) {
+      console.error('Sentiment analysis failed:', e);
+    }
+    // --- SENTIMENT ANALYSIS END ---
 
     // 4. FAQ Exact Match (Queries the dedicated faqs table)
     const { data: matchedFaq } = await supabase
@@ -153,6 +189,8 @@ CORE DIRECTIVES:
 
 **Sources:** [1](URL) [2](URL)
 4. UNKNOWN INFO: If in Support Mode and the CONTEXT does not contain the answer, politely state that you do not have that information in your documentation. Do not guess or hallucinate.
+
+${sentimentContext}
 
 SESSION METADATA:
 ${routingInstruction}
