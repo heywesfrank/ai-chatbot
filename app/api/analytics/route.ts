@@ -27,12 +27,14 @@ export async function GET(req: Request) {
     }
 
     if (!spaceId) {
-      return NextResponse.json({ feedbacks: [], volumeData: [], aiInsights: null, avgResolutionTime: 0, frustrationScore: 0, frustratedConversations: [] });
+      return NextResponse.json({ feedbacks: [], volumeData: [], satisfactionData: [], aiInsights: null, avgResolutionTime: 0, frustrationScore: 0, frustratedConversations: [] });
     }
 
+    // --- FETCH FEEDBACK ---
     const { data: feedbacks, error } = await supabase.from('chat_feedback').select('*').eq('space_id', spaceId).order('created_at', { ascending: false });
     if (error) throw error;
 
+    // --- VOLUME DATA ---
     const volumeMap: Record<string, number> = {};
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
@@ -54,8 +56,45 @@ export async function GET(req: Request) {
       return { date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), interactions: volumeMap[date] };
     });
 
+    // --- SATISFACTION DATA (SENTIMENT OVER TIME) ---
+    // Queries bot_messages to track sentiment trends
+    const { data: botMessages } = await supabase
+      .from('bot_messages')
+      .select('created_at, sentiment_score')
+      .eq('space_id', spaceId)
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+      .order('created_at', { ascending: true });
+
+    const sentimentMap: Record<string, { total: number, count: number }> = {};
+    Object.keys(volumeMap).forEach(key => {
+      sentimentMap[key] = { total: 0, count: 0 };
+    });
+
+    if (botMessages) {
+      botMessages.forEach(msg => {
+        const dateStr = new Date(msg.created_at).toISOString().split('T')[0];
+        if (sentimentMap[dateStr]) {
+          sentimentMap[dateStr].total += (msg.sentiment_score || 0);
+          sentimentMap[dateStr].count += 1;
+        }
+      });
+    }
+
+    const satisfactionData = Object.keys(sentimentMap).map(date => {
+      const d = new Date(date);
+      const data = sentimentMap[date];
+      const avg = data.count > 0 ? Number((data.total / data.count).toFixed(2)) : 0;
+      return { 
+        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
+        score: avg 
+      };
+    });
+
+
+    // --- INSIGHTS ---
     const { data: latestInsight } = await supabase.from('space_insights').select('insights').eq('space_id', spaceId).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
+    // --- LIVE SESSIONS STATS ---
     const { data: sessions } = await supabase.from('live_sessions').select('id, created_at, status, email, resolution_time').eq('space_id', spaceId);
     const sessionIds = sessions ? sessions.map(s => s.id) : [];
 
@@ -110,6 +149,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ 
       feedbacks: feedbacks || [], 
       volumeData, 
+      satisfactionData,
       aiInsights: latestInsight?.insights || null,
       avgResolutionTime,
       frustrationScore,
