@@ -13,15 +13,13 @@ export default function InstallPage() {
     var iframe = document.createElement('iframe');
     iframe.src = "https://ai-chatbot-alpha-orpin.vercel.app/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme + "&parentUrl=" + encodeURIComponent(window.location.pathname);
     
-    // Explicitly allow transparency to remove the grey background
     iframe.setAttribute('allowtransparency', 'true');
     
-    // Initial "Closed" State dimensions (increased to give drop shadow room)
     iframe.style.position = 'fixed';
-    iframe.style.bottom = '10px';
-    iframe.style[position === 'left' ? 'left' : 'right'] = '10px';
-    iframe.style.width = '100px'; 
-    iframe.style.height = '100px';
+    iframe.style.bottom = '0px';
+    iframe.style[position === 'left' ? 'left' : 'right'] = '0px';
+    iframe.style.width = '120px'; 
+    iframe.style.height = '120px';
     iframe.style.border = 'none';
     iframe.style.zIndex = '999999';
     iframe.style.background = 'transparent';
@@ -32,20 +30,14 @@ export default function InstallPage() {
 
     window.addEventListener('message', function(e) {
       if (e.data && e.data.type === 'kb-widget-resize') {
-        var isMobile = window.innerWidth < 600;
+        var isMobile = window.innerWidth <= 430;
         if (e.data.isOpen) {
-          // "Open" state bounds (Leaves room for the floating box + extra shadow)
-          iframe.style.width = isMobile ? '100%' : '420px';
-          iframe.style.height = isMobile ? '100%' : '750px';
-          iframe.style.bottom = isMobile ? '0' : '10px';
-          iframe.style[position === 'left' ? 'left' : 'right'] = isMobile ? '0' : '10px';
+          iframe.style.width = isMobile ? '100%' : '440px';
+          iframe.style.height = isMobile ? '100%' : '800px';
         } else {
-          // "Closed" state bounds (Wait 300ms for tailwind animation to finish before shrinking)
           setTimeout(function() {
-            iframe.style.width = '100px';
-            iframe.style.height = '100px';
-            iframe.style.bottom = '10px';
-            iframe.style[position === 'left' ? 'left' : 'right'] = '10px';
+            iframe.style.width = '120px';
+            iframe.style.height = '120px';
           }, 300);
         }
       }
