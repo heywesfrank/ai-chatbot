@@ -19,20 +19,27 @@ function chunkText(text: string, sourceUrl: string): string[] {
   const cleanText = text.replace(/\n{3,}/g, '\n\n').trim();
   const chunks: string[] = [];
   
-  if (cleanText.length > 10) {
+  // Only proceed if there is meaningful text (more than just whitespace)
+  if (cleanText.length > 0) {
     let currentChunk = '';
     const rawChunks = cleanText.split('\n\n');
     
     for (const chunk of rawChunks) {
       if (!chunk.trim()) continue;
+      
+      // If adding the next paragraph exceeds limit, push current chunk
       if (currentChunk.length + chunk.length > MAX_CHUNK_LENGTH) {
-        chunks.push(`Source: ${sourceUrl}\n\n${currentChunk.trim()}`);
+        // Ensure we don't push empty chunks
+        if (currentChunk.trim().length > 0) {
+            chunks.push(`Source: ${sourceUrl}\n\n${currentChunk.trim()}`);
+        }
         currentChunk = chunk + '\n\n';
       } else {
         currentChunk += chunk + '\n\n';
       }
     }
-    if (currentChunk.trim().length > 10) {
+    // Push remaining text
+    if (currentChunk.trim().length > 0) {
       chunks.push(`Source: ${sourceUrl}\n\n${currentChunk.trim()}`);
     }
   }
@@ -122,6 +129,12 @@ export async function POST(req: Request) {
     }
 
     console.log(`[INGEST] Starting ingestion for Space ID: ${spaceId} | Type: ${type} | Source ID: ${dataSourceId}`);
+    
+    // --- 0. CLEANUP EXISTING DATA ---
+    // Ensure idempotency: Remove any existing documents for this specific data source before adding new ones.
+    // This fixes the "duplicates" issue if the user syncs multiple times or if ingestion retries.
+    await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceId);
+
     let extractedParagraphs: { content: string, url: string }[] = [];
 
     // --- 1. GITBOOK INGESTION ---
@@ -282,7 +295,10 @@ export async function POST(req: Request) {
           urls = parsed.urlset.url.map((u: any) => u.loc[0]).slice(0, MAX_SITEMAP_PAGES);
         }
         
-        for (const pageUrl of urls) {
+        // Deduplicate URLs to prevent duplicate chunks from sitemap issues
+        const uniqueUrls = [...new Set(urls)];
+
+        for (const pageUrl of uniqueUrls) {
            const text = await scrapePage(pageUrl);
            const chunks = chunkText(text, pageUrl);
            chunks.forEach(c => extractedParagraphs.push({ content: c, url: pageUrl }));
@@ -324,9 +340,6 @@ export async function POST(req: Request) {
     const OPENAI_BATCH_SIZE = 100; 
     const allDocumentsToInsert: any[] = [];
     
-    // NOTE: We no longer delete the whole source_type here. 
-    // Deletions are strictly handled by the DELETE endpoint in /api/data-sources via data_source_id.
-
     for (let i = 0; i < extractedParagraphs.length; i += OPENAI_BATCH_SIZE) {
       const chunkBatch = extractedParagraphs.slice(i, i + OPENAI_BATCH_SIZE);
       const textChunk = chunkBatch.map(c => c.content);
