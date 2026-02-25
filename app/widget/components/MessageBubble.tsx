@@ -104,7 +104,7 @@ export default function MessageBubble({
       
       <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div 
-          className={`px-3.5 py-2.5 rounded-2xl leading-relaxed break-words shadow-sm w-full border ${isUser ? 'rounded-tr-sm border-transparent' : 'border-[var(--border-color)] rounded-tl-sm'}`}
+          className={`px-3.5 py-2.5 rounded-2xl leading-relaxed break-words whitespace-pre-wrap shadow-sm w-fit border ${isUser ? 'rounded-tr-sm border-transparent' : 'border-[var(--border-color)] rounded-tl-sm'}`}
           style={{
             backgroundColor: isUser ? (userBubbleColor || 'var(--primary-color)') : (agentBubbleColor || 'var(--msg-bot-bg)'),
             color: isUser ? (userFontColor || 'var(--msg-user-text)') : (botFontColor || 'var(--msg-bot-text)'),
