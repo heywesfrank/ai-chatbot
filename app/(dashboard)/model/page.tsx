@@ -24,15 +24,6 @@ export default function ModelPage() {
         </section>
 
         <section className="border-t border-gray-100 pt-8">
-          <div className="flex justify-between mb-2">
-            <label className="block text-sm font-semibold text-gray-900">Temperature</label>
-            <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded border border-gray-200">{config.temperature}</span>
-          </div>
-          <input type="range" min="0" max="2" step="0.1" disabled={!isOwner} className="w-full accent-black h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1" value={config.temperature} onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))} />
-          <p className="text-[11px] text-gray-500 mt-2 font-medium">Controls the creativity of the AI. Lower values produce more focused, deterministic responses. Higher values produce more creative output.</p>
-        </section>
-
-        <section className="border-t border-gray-100 pt-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Reasoning Effort (GPT-5)</label>
           <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" value={config.reasoningEffort} disabled={!isOwner} onChange={(e) => updateConfig('reasoningEffort', e.target.value)}>
             <option value="low">Low (Faster)</option>
