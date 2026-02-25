@@ -1,3 +1,4 @@
+// app/widget/page.tsx
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
@@ -12,6 +13,7 @@ function WidgetWrapper() {
   const leadCaptureParam = searchParams.get('leadCapture');
   const promptsParam = searchParams.get('prompts');
   const removeBrandingParam = searchParams.get('removeBranding');
+  const followUpQuestionsEnabledParam = searchParams.get('followUpQuestionsEnabled');
 
   const urlOverrides = useMemo(() => {
     let parsedPrompts = null;
@@ -36,9 +38,12 @@ function WidgetWrapper() {
       theme: searchParams.get('theme') || 'auto',
       position: searchParams.get('position') || 'right',
       preview: searchParams.get('preview') === 'true',
-      parentUrl: searchParams.get('parentUrl') || ''
+      parentUrl: searchParams.get('parentUrl') || '',
+      systemPrompt: searchParams.get('systemPrompt') || null,
+      language: searchParams.get('language') || null,
+      followUpQuestionsEnabled: followUpQuestionsEnabledParam !== null ? followUpQuestionsEnabledParam === 'true' : null,
     };
-  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam]);
+  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam]);
 
   const [liveOverrides, setLiveOverrides] = useState<any>({});
   const [config, setConfig] = useState<any>(null);
@@ -68,6 +73,9 @@ function WidgetWrapper() {
           leadCapture: newConfig.leadCaptureEnabled,
           theme: newConfig.theme,
           position: newConfig.position,
+          systemPrompt: newConfig.systemPrompt,
+          language: newConfig.language,
+          followUpQuestionsEnabled: newConfig.followUpQuestionsEnabled,
         });
       }
     };
