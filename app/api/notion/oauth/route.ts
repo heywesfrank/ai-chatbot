@@ -7,8 +7,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
-  const spaceId = searchParams.get('state'); // We pass spaceId as state
+  const state = searchParams.get('state');
   const error = searchParams.get('error');
+
+  // Remove the 'kb_' prefix we added on the frontend to bypass Notion validation
+  const spaceId = state ? state.replace(/^kb_/, '') : null;
 
   if (error) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/knowledge?error=${error}`);
