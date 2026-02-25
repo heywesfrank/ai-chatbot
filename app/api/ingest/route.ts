@@ -257,14 +257,30 @@ export async function POST(req: Request) {
     // --- 3. ZENDESK INGESTION ---
     else if (type === 'zendesk') {
       const { subdomain, email, token: zendeskToken } = body;
-      if (!subdomain || !email || !zendeskToken) throw new Error('Zendesk credentials required.');
+      
+      // Only Subdomain is strictly required now
+      if (!subdomain) throw new Error('Zendesk subdomain required.');
 
-      const auth = Buffer.from(`${email}/token:${zendeskToken}`).toString('base64');
+      const headers: HeadersInit = {};
+
+      // Only add Auth header if BOTH email and token are present
+      if (email && zendeskToken) {
+         const auth = Buffer.from(`${email}/token:${zendeskToken}`).toString('base64');
+         headers['Authorization'] = `Basic ${auth}`;
+      }
+
+      // Fetch (Public endpoints usually work without Auth)
       const res = await fetch(`https://${subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100`, {
-        headers: { 'Authorization': `Basic ${auth}` }
+        headers
       });
       
-      if (!res.ok) throw new Error('Zendesk API Error. Check Subdomain and Token.');
+      if (!res.ok) {
+         if (res.status === 401 || res.status === 403) {
+            throw new Error('Access denied. If this Help Center is private, please provide the Agent Email and API Token.');
+         }
+         throw new Error(`Zendesk API Error (${res.status}). Please check the subdomain.`);
+      }
+
       const data = await res.json();
 
       for (const article of data.articles || []) {
