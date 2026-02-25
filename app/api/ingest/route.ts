@@ -254,41 +254,7 @@ export async function POST(req: Request) {
       }));
     }
 
-    // --- 3. GOOGLE DRIVE INGESTION ---
-    else if (type === 'gdrive') {
-      const { folderId, token: driveToken } = body;
-      if (!folderId || !driveToken) throw new Error('GDrive Folder ID and Access Token required.');
-
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType)`, {
-        headers: { 'Authorization': `Bearer ${driveToken}` }
-      });
-      if (!res.ok) throw new Error('Google Drive API Error. Check token or permissions.');
-      const data = await res.json();
-
-      for (const file of data.files || []) {
-         let fileRes;
-         if (file.mimeType === 'application/vnd.google-apps.document') {
-           fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text/plain`, {
-             headers: { 'Authorization': `Bearer ${driveToken}` }
-           });
-         } else if (file.mimeType === 'text/plain') {
-           fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-             headers: { 'Authorization': `Bearer ${driveToken}` }
-           });
-         } else {
-           continue; 
-         }
-
-         if (fileRes && fileRes.ok) {
-            const text = await fileRes.text();
-            const url = `https://docs.google.com/document/d/${file.id}`;
-            const chunks = chunkText(text, url);
-            chunks.forEach(c => extractedParagraphs.push({ content: c, url }));
-         }
-      }
-    }
-
-    // --- 4. ZENDESK INGESTION ---
+    // --- 3. ZENDESK INGESTION ---
     else if (type === 'zendesk') {
       const { subdomain, email, token: zendeskToken } = body;
       if (!subdomain || !email || !zendeskToken) throw new Error('Zendesk credentials required.');
@@ -312,7 +278,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- 5. WEBSITE / SITEMAP INGESTION ---
+    // --- 4. WEBSITE / SITEMAP INGESTION ---
     else if (type === 'website') {
       const { url } = body;
       if (!url) throw new Error('URL required.');
@@ -341,7 +307,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- 6. RAW TEXT / FILE INGESTION ---
+    // --- 5. RAW TEXT / FILE INGESTION ---
     else if (type === 'file') {
        const { text, filename } = body;
        if (!text) throw new Error('Text content required.');
@@ -364,7 +330,7 @@ export async function POST(req: Request) {
       throw new Error(`Chunk limit exceeded. You have ${existingCount || 0} chunks and are trying to add ${extractedParagraphs.length} more. The limit is 1000.`);
     }
 
-    // --- 7. GENERATE EMBEDDINGS & INSERT ---
+    // --- 6. GENERATE EMBEDDINGS & INSERT ---
     console.log(`[INGEST] Generating OpenAI Embeddings for ${extractedParagraphs.length} chunks...`);
     const OPENAI_BATCH_SIZE = 100; 
     const allDocumentsToInsert: any[] = [];
@@ -397,7 +363,7 @@ export async function POST(req: Request) {
       if (error) throw new Error(`Supabase Database error: ${error.message}`);
     }
 
-    // --- 8. SUCCESS: UPDATE STATUS TO 'active' ---
+    // --- 7. SUCCESS: UPDATE STATUS TO 'active' ---
     await supabase.from('data_sources').update({ status: 'active' }).eq('id', dataSourceId);
 
     console.log(`[INGEST] Ingestion fully completed successfully.`);
