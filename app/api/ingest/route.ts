@@ -260,18 +260,27 @@ export async function POST(req: Request) {
       
       if (!subdomain) throw new Error('Zendesk subdomain required.');
 
-      const headers: HeadersInit = {};
+      // Server-side strict sanitization to prevent "company.zendesk.com.zendesk.com"
+      const cleanSubdomain = subdomain
+        .replace(/^https?:\/\//, '')
+        .replace(/\.zendesk\.com.*$/, '')
+        .replace(/\/$/, '');
 
+      const headers: HeadersInit = {};
       if (email && zendeskToken) {
          const auth = Buffer.from(`${email}/token:${zendeskToken}`).toString('base64');
          headers['Authorization'] = `Basic ${auth}`;
       }
 
-      const res = await fetch(`https://${subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100`, {
+      // Fetch
+      const res = await fetch(`https://${cleanSubdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100`, {
         headers
       });
       
-      if (!res.ok) throw new Error('Zendesk API Error. Check Subdomain.');
+      if (!res.ok) {
+        throw new Error(`Zendesk API Error (${res.status}): ${res.statusText}. Check Subdomain or Permissions.`);
+      }
+      
       const data = await res.json();
 
       for (const article of data.articles || []) {
