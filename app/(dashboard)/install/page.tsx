@@ -11,7 +11,7 @@ export default function InstallPage() {
     var position = "${config.position}";
     var theme = "${config.theme}";
     var iframe = document.createElement('iframe');
-    iframe.src = "https://heyapoyo.com/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme + "&parentUrl=" + encodeURIComponent(window.location.pathname);
+    iframe.src = "https://heyapoyo.com/widget?spaceId=${activeSpaceId}&position=" + position + "&theme=" + theme + "&parentUrl=" + encodeURIComponent(window.location.href);
     
     iframe.setAttribute('allowtransparency', 'true');
     
