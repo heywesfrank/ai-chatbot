@@ -104,7 +104,7 @@ export default function MessageBubble({
       
       <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div 
-          className={`px-3.5 py-2 rounded-2xl leading-relaxed break-words whitespace-pre-wrap shadow-sm w-fit border ${isUser ? 'rounded-tr-sm border-transparent' : 'border-[var(--border-color)] rounded-tl-sm'}`}
+          className={`px-3.5 py-2.5 rounded-2xl leading-snug break-words shadow-sm w-fit border ${isUser ? 'rounded-tr-sm border-transparent' : 'border-[var(--border-color)] rounded-tl-sm'}`}
           style={{
             backgroundColor: isUser ? (userBubbleColor || 'var(--primary-color)') : (agentBubbleColor || 'var(--msg-bot-bg)'),
             color: isUser ? (userFontColor || 'var(--msg-user-text)') : (botFontColor || 'var(--msg-bot-text)'),
@@ -119,13 +119,13 @@ export default function MessageBubble({
         >
           {isUser ? (
             <ReactMarkdown 
-              className="prose prose-sm max-w-none text-current prose-p:text-current prose-headings:text-current prose-strong:text-current prose-li:text-current prose-code:text-current prose-em:text-current prose-p:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-current prose-a:underline prose-img:rounded-xl prose-img:shadow-sm prose-img:max-w-full prose-img:my-1"
+              className="prose prose-sm max-w-none text-current prose-p:text-current prose-headings:text-current prose-strong:text-current prose-li:text-current prose-code:text-current prose-em:text-current prose-p:whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-current prose-a:underline prose-img:rounded-xl prose-img:shadow-sm prose-img:max-w-full prose-img:my-1"
             >
               {msg.content}
             </ReactMarkdown>
           ) : (
             <ReactMarkdown 
-              className="prose prose-sm max-w-none text-current prose-p:text-current prose-headings:text-current prose-strong:text-current prose-li:text-current prose-code:text-current prose-em:text-current prose-p:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)] prose-img:rounded-xl prose-img:max-w-full"
+              className="prose prose-sm max-w-none text-current prose-p:text-current prose-headings:text-current prose-strong:text-current prose-li:text-current prose-code:text-current prose-em:text-current prose-p:whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)] prose-img:rounded-xl prose-img:max-w-full"
               components={{
                 pre: ({ children, ...props }) => {
                   const codeText = flattenText(children);
