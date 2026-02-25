@@ -1,4 +1,3 @@
-// app/widget/page.tsx
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
@@ -15,11 +14,17 @@ function WidgetWrapper() {
   const removeBrandingParam = searchParams.get('removeBranding');
   const followUpQuestionsEnabledParam = searchParams.get('followUpQuestionsEnabled');
   const matchThresholdParam = searchParams.get('matchThreshold');
+  const pageContextEnabledParam = searchParams.get('pageContextEnabled');
+  const routingConfigParam = searchParams.get('routingConfig');
 
   const urlOverrides = useMemo(() => {
     let parsedPrompts = null;
     if (promptsParam) {
       try { parsedPrompts = JSON.parse(promptsParam); } catch (e) { console.error(e); }
+    }
+    let parsedRouting = null;
+    if (routingConfigParam) {
+      try { parsedRouting = JSON.parse(routingConfigParam); } catch (e) { console.error(e); }
     }
     return {
       color: searchParams.get('color') || '',
@@ -46,8 +51,10 @@ function WidgetWrapper() {
       matchThreshold: matchThresholdParam !== null ? parseFloat(matchThresholdParam) : null,
       reasoningEffort: searchParams.get('reasoningEffort') || null,
       verbosity: searchParams.get('verbosity') || null,
+      pageContextEnabled: pageContextEnabledParam !== null ? pageContextEnabledParam === 'true' : null,
+      routingConfig: parsedRouting,
     };
-  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam]);
+  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam, pageContextEnabledParam, routingConfigParam]);
 
   const [liveOverrides, setLiveOverrides] = useState<any>({});
   const [config, setConfig] = useState<any>(null);
@@ -82,6 +89,8 @@ function WidgetWrapper() {
           matchThreshold: newConfig.matchThreshold,
           reasoningEffort: newConfig.reasoningEffort,
           verbosity: newConfig.verbosity,
+          pageContextEnabled: newConfig.pageContextEnabled,
+          routingConfig: newConfig.routingConfig,
         });
       }
     };
