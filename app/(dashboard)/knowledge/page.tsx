@@ -275,8 +275,9 @@ export default function KnowledgeBasePage() {
                   <div className="p-4 bg-gray-50 rounded-md border border-gray-200">
                     <p className="text-sm text-gray-600 mb-4">Grant access to specific Notion pages. We will automatically import all sub-pages you share.</p>
                     <a 
-                      href={`https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_APP_URL + '/api/notion/oauth')}&state=${activeSpaceId}`}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors"
+                      /* We force the state to be a string with a 'kb_' prefix to avoid Notion validation errors if the ID looks like a number */
+                      href={`https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_APP_URL + '/api/notion/oauth')}&state=kb_${activeSpaceId}`}
+                      className={`inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors ${!activeSpaceId ? 'opacity-50 pointer-events-none' : ''}`}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28.047-.326 0-.14-.234-.327-.374-.467-1.772-1.82-3.87-2.752-3.87-2.752a.39.39 0 00-.327-.047l-10.77 1.819c-.186.047-.396.164-.442.234-.233.28-.466 1.4-.047 1.82.046.046.093.046.14.046zM6.136 7.61c-.512-.14-.839.233-.839.513v12.219c0 .187.14.374.326.467.234.14 2.89 1.585 2.89 1.585.14.093.28.093.42 0 .606-.327 11.563-6.108 11.563-6.108.233-.14.326-.373.326-.56V6.164c0-.327-.42-.56-.606-.513-.7.186-2.517.653-2.517.653-.186.047-.373.187-.373.373v9.231c0 .094-.047.14-.14.14a.155.155 0 01-.14-.093V6.21c0-.186-.14-.373-.326-.42-1.773-.42-9.7-2.33-9.7-2.33-.233-.047-.466.047-.653.28l-1.072 3.87z"/></svg>
                       Connect Notion Workspace
