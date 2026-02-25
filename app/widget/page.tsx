@@ -14,6 +14,7 @@ function WidgetWrapper() {
   const promptsParam = searchParams.get('prompts');
   const removeBrandingParam = searchParams.get('removeBranding');
   const followUpQuestionsEnabledParam = searchParams.get('followUpQuestionsEnabled');
+  const matchThresholdParam = searchParams.get('matchThreshold');
 
   const urlOverrides = useMemo(() => {
     let parsedPrompts = null;
@@ -42,15 +43,17 @@ function WidgetWrapper() {
       systemPrompt: searchParams.get('systemPrompt') || null,
       language: searchParams.get('language') || null,
       followUpQuestionsEnabled: followUpQuestionsEnabledParam !== null ? followUpQuestionsEnabledParam === 'true' : null,
+      matchThreshold: matchThresholdParam !== null ? parseFloat(matchThresholdParam) : null,
+      reasoningEffort: searchParams.get('reasoningEffort') || null,
+      verbosity: searchParams.get('verbosity') || null,
     };
-  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam]);
+  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam]);
 
   const [liveOverrides, setLiveOverrides] = useState<any>({});
   const [config, setConfig] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  // Listen for real-time config updates from the dashboard layout via postMessage
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'kb-config-update') {
@@ -76,6 +79,9 @@ function WidgetWrapper() {
           systemPrompt: newConfig.systemPrompt,
           language: newConfig.language,
           followUpQuestionsEnabled: newConfig.followUpQuestionsEnabled,
+          matchThreshold: newConfig.matchThreshold,
+          reasoningEffort: newConfig.reasoningEffort,
+          verbosity: newConfig.verbosity,
         });
       }
     };
@@ -84,7 +90,6 @@ function WidgetWrapper() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Merge url parameters with real-time updates
   const finalOverrides = { ...urlOverrides, ...liveOverrides };
 
   useEffect(() => {
