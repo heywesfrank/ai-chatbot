@@ -9,6 +9,7 @@ interface BotConfigContextType {
   saveConfig: () => Promise<void>;
   isOwner: boolean;
   isSaving: boolean;
+  hasUnsavedChanges: boolean;
   activeSpaceId: string;
   refreshKey: number;
   triggerRefresh: () => void;
@@ -28,7 +29,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [config, setConfig] = useState({
+  const defaultConfig = {
     spaceId: '',
     workspaceName: 'My Workspace',
     timezone: 'UTC',
@@ -62,8 +63,17 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     allowedDomains: '',
     agentsOnline: false,
     cannedResponses: [],
-    triggers: [] // Added default state for triggers
-  });
+    triggers: [] 
+  };
+
+  const [config, setConfig] = useState(defaultConfig);
+  const [savedConfig, setSavedConfig] = useState(defaultConfig);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Deep compare the current config vs what is actually saved on the backend
+  useEffect(() => {
+    setHasUnsavedChanges(JSON.stringify(config) !== JSON.stringify(savedConfig));
+  }, [config, savedConfig]);
 
   const updateConfig = (key: string, value: any) => {
     if (isOwner) setConfig(prev => ({ ...prev, [key]: value }));
@@ -101,41 +111,47 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     setIsOwner(owner);
 
     if (spaceData) {
-      setConfig(prev => ({
-        ...prev,
-        spaceId: spaceData.space_id || '',
-        workspaceName: spaceData.workspace_name || prev.workspaceName,
-        timezone: spaceData.timezone || prev.timezone,
-        systemPrompt: spaceData.system_prompt || prev.systemPrompt,
-        primaryColor: spaceData.primary_color || prev.primaryColor,
-        botFontColor: spaceData.bot_font_color || prev.botFontColor,
-        userFontColor: spaceData.user_font_color || prev.userFontColor,
-        agentBubbleColor: spaceData.agent_bubble_color || prev.agentBubbleColor,
-        userBubbleColor: spaceData.user_bubble_color || prev.userBubbleColor,
-        launcherColor: spaceData.launcher_color || prev.launcherColor,
-        launcherIconColor: spaceData.launcher_icon_color || prev.launcherIconColor,
-        headerText: spaceData.header_text || prev.headerText,
-        descriptionText: spaceData.description_text || '',
-        welcomeMessage: spaceData.welcome_message || prev.welcomeMessage,
-        inputPlaceholder: spaceData.input_placeholder || prev.inputPlaceholder,
-        botAvatar: spaceData.bot_avatar || '',
-        removeBranding: spaceData.remove_branding ?? false,
-        showPrompts: spaceData.show_prompts ?? true,
-        suggestedPrompts: spaceData.suggested_prompts || prev.suggestedPrompts,
-        followUpQuestionsEnabled: spaceData.follow_up_questions_enabled ?? false,
-        leadCaptureEnabled: spaceData.lead_capture_enabled ?? false,
-        pageContextEnabled: spaceData.page_context_enabled ?? false,
-        routingConfig: spaceData.routing_config || [],
-        language: spaceData.language || 'Auto-detect',
-        temperature: spaceData.temperature ?? prev.temperature,
-        matchThreshold: spaceData.match_threshold ?? prev.matchThreshold,
-        reasoningEffort: spaceData.reasoning_effort || prev.reasoningEffort,
-        verbosity: spaceData.verbosity || prev.verbosity,
-        allowedDomains: spaceData.allowed_domains || '',
-        agentsOnline: spaceData.agents_online ?? false,
-        cannedResponses: spaceData.canned_responses || [],
-        triggers: spaceData.triggers || [] // Added mapping for triggers
-      }));
+      setConfig(prev => {
+        const newConfig = {
+          ...prev,
+          spaceId: spaceData.space_id || '',
+          workspaceName: spaceData.workspace_name || prev.workspaceName,
+          timezone: spaceData.timezone || prev.timezone,
+          systemPrompt: spaceData.system_prompt || prev.systemPrompt,
+          primaryColor: spaceData.primary_color || prev.primaryColor,
+          botFontColor: spaceData.bot_font_color || prev.botFontColor,
+          userFontColor: spaceData.user_font_color || prev.userFontColor,
+          agentBubbleColor: spaceData.agent_bubble_color || prev.agentBubbleColor,
+          userBubbleColor: spaceData.user_bubble_color || prev.userBubbleColor,
+          launcherColor: spaceData.launcher_color || prev.launcherColor,
+          launcherIconColor: spaceData.launcher_icon_color || prev.launcherIconColor,
+          headerText: spaceData.header_text || prev.headerText,
+          descriptionText: spaceData.description_text || '',
+          welcomeMessage: spaceData.welcome_message || prev.welcomeMessage,
+          inputPlaceholder: spaceData.input_placeholder || prev.inputPlaceholder,
+          botAvatar: spaceData.bot_avatar || '',
+          removeBranding: spaceData.remove_branding ?? false,
+          showPrompts: spaceData.show_prompts ?? true,
+          suggestedPrompts: spaceData.suggested_prompts || prev.suggestedPrompts,
+          followUpQuestionsEnabled: spaceData.follow_up_questions_enabled ?? false,
+          leadCaptureEnabled: spaceData.lead_capture_enabled ?? false,
+          pageContextEnabled: spaceData.page_context_enabled ?? false,
+          routingConfig: spaceData.routing_config || [],
+          language: spaceData.language || 'Auto-detect',
+          temperature: spaceData.temperature ?? prev.temperature,
+          matchThreshold: spaceData.match_threshold ?? prev.matchThreshold,
+          reasoningEffort: spaceData.reasoning_effort || prev.reasoningEffort,
+          verbosity: spaceData.verbosity || prev.verbosity,
+          allowedDomains: spaceData.allowed_domains || '',
+          agentsOnline: spaceData.agents_online ?? false,
+          cannedResponses: spaceData.canned_responses || [],
+          triggers: spaceData.triggers || [] 
+        };
+        
+        // Hydrate both config and savedConfig directly so they match fully on load
+        setSavedConfig(newConfig);
+        return newConfig;
+      });
       if (spaceData.space_id) setActiveSpaceId(spaceData.space_id);
     }
     
@@ -143,8 +159,9 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
   };
 
   const saveConfig = async (): Promise<void> => {
-    // With the SQL trigger, spaceId will already exist, but this acts as a safe fallback
     const activeId = config.spaceId || Math.random().toString(36).substring(2, 10);
+    const configToSave = { ...config, spaceId: activeId };
+
     if (!config.spaceId) updateConfig('spaceId', activeId);
     
     const { data: { session } } = await supabase.auth.getSession();
@@ -158,12 +175,13 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       const response = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ ...config, spaceId: activeId, userId }),
+        body: JSON.stringify({ ...configToSave, userId }),
       });
 
       if (response.ok) {
         toast.success('Configuration updated!');
         setActiveSpaceId(activeId);
+        setSavedConfig(configToSave); // Locks the changes in so the button grays out
         triggerRefresh();
       } else {
         toast.error('Failed to update configuration.');
@@ -177,7 +195,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
 
   return (
     <BotConfigContext.Provider value={{
-      config, updateConfig, saveConfig, isOwner, isSaving, activeSpaceId, refreshKey, triggerRefresh, userId, userEmail, isLoading
+      config, updateConfig, saveConfig, isOwner, isSaving, hasUnsavedChanges, activeSpaceId, refreshKey, triggerRefresh, userId, userEmail, isLoading
     }}>
       {children}
     </BotConfigContext.Provider>
