@@ -1,3 +1,4 @@
+// app/widget/components/ChatWidget.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -149,7 +150,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       
       setMessages(prev => {
         if (prev.length <= 1) {
-          return [...prev, { id: Date.now().toString(), role: 'assistant', content: matchingTrigger.message }];
+          // FIX: Return a new array with ONLY the trigger message, 
+          // keeping the 'init' ID so it doesn't show the thumbs up/down UI
+          return [{ id: 'init', role: 'assistant', content: matchingTrigger.message }];
         }
         return prev;
       });
