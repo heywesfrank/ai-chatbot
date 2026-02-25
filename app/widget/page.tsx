@@ -1,4 +1,3 @@
-// app/widget/page.tsx
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
@@ -41,9 +40,44 @@ function WidgetWrapper() {
     };
   }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam]);
 
+  const [liveOverrides, setLiveOverrides] = useState<any>({});
   const [config, setConfig] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+
+  // Listen for real-time config updates from the dashboard layout via postMessage
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'kb-config-update') {
+        const newConfig = event.data.config;
+        
+        setLiveOverrides({
+          color: newConfig.primaryColor,
+          botFontColor: newConfig.botFontColor,
+          userFontColor: newConfig.userFontColor,
+          agentBubbleColor: newConfig.agentBubbleColor,
+          userBubbleColor: newConfig.userBubbleColor,
+          launcherColor: newConfig.launcherColor,
+          launcherIconColor: newConfig.launcherIconColor,
+          header: newConfig.headerText,
+          description: newConfig.descriptionText,
+          placeholder: newConfig.inputPlaceholder,
+          removeBranding: newConfig.removeBranding,
+          showPrompts: newConfig.showPrompts,
+          prompts: newConfig.suggestedPrompts,
+          leadCapture: newConfig.leadCaptureEnabled,
+          theme: newConfig.theme,
+          position: newConfig.position,
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Merge url parameters with real-time updates
+  const finalOverrides = { ...urlOverrides, ...liveOverrides };
 
   useEffect(() => {
     if (spaceId) {
@@ -83,7 +117,7 @@ function WidgetWrapper() {
     return null;
   }
 
-  return <ChatWidget spaceId={spaceId} config={config} urlOverrides={urlOverrides} />;
+  return <ChatWidget spaceId={spaceId} config={config} urlOverrides={finalOverrides} />;
 }
 
 export default function WidgetPage() {
