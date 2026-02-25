@@ -44,7 +44,7 @@ const navGroups = [
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoading, activeSpaceId, config, isOwner, saveConfig, isSaving, userEmail } = useBotConfig();
+  const { isLoading, activeSpaceId, config, isOwner, saveConfig, isSaving, hasUnsavedChanges, userEmail } = useBotConfig();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState<number>(0);
@@ -207,12 +207,28 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               <h1 className="text-sm font-semibold text-gray-900 hidden sm:block">Agent Builder</h1>
               {!isOwner && <span className="text-[11px] text-blue-600 bg-blue-50 px-2 py-1 rounded-sm border border-blue-100 mt-1 inline-block">Read-only view</span>}
             </div>
+            
             <button 
               onClick={saveConfig} 
-              disabled={isSaving || !isOwner} 
-              className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-500 transition-colors text-xs font-medium shadow-sm active:scale-[0.98]"
+              disabled={isSaving || !isOwner || !hasUnsavedChanges} 
+              className={`
+                relative flex items-center justify-center min-w-[144px] h-[36px] px-4 rounded-md text-xs font-medium transition-all duration-200
+                ${(hasUnsavedChanges || isSaving) && isOwner
+                  ? 'bg-black text-white shadow-sm disabled:opacity-80' + (!isSaving ? ' hover:bg-gray-800 active:scale-[0.98]' : '')
+                  : 'bg-gray-100 text-gray-400 cursor-default'
+                }
+              `}
             >
-              {isSaving ? 'Saving...' : 'Save Configuration'}
+              {isSaving ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </span>
+              ) : hasUnsavedChanges ? (
+                'Save Configuration'
+              ) : (
+                'Saved'
+              )}
             </button>
           </div>
         )}
