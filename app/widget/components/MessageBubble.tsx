@@ -235,7 +235,7 @@ export default function MessageBubble({
                 onClick={() => onFollowUpClick(q)}
                 className="text-left text-[12px] bg-[var(--bg-primary)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] hover:border-[var(--primary-color)] px-3.5 py-2 rounded-xl transition-all shadow-sm group/followup flex items-center justify-between"
               >
-                <span className="truncate pr-2 font-medium">{q}</span>
+                <span className="pr-2 font-medium whitespace-normal break-words">{q}</span>
                 <svg className="w-3.5 h-3.5 opacity-40 group-hover/followup:opacity-100 group-hover/followup:text-[var(--primary-color)] transition-all shrink-0 -translate-x-1 group-hover/followup:translate-x-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
               </button>
             ))}
