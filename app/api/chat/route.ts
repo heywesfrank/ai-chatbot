@@ -174,7 +174,7 @@ export async function POST(req: Request) {
           : '';
     }
 
-    const agentPersona = configData?.system_prompt || 'You are a helpful, minimalist support assistant.';
+    const agentPersona = configData?.system_prompt || 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times.';
     const language = configData?.language || 'Auto-detect';
     const langInstruction = language === 'Auto-detect'
         ? 'Automatically detect the language of the user and reply in that same language.'
