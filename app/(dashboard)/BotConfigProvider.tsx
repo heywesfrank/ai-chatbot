@@ -32,7 +32,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     spaceId: '',
     workspaceName: 'My Workspace',
     timezone: 'UTC',
-    systemPrompt: 'You are a helpful, minimalist support assistant.',
+    systemPrompt: 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times.',
     primaryColor: '#000000',
     botFontColor: '#1f2937',
     userFontColor: '#ffffff',
