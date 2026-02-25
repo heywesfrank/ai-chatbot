@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useBotConfig } from '../BotConfigProvider';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // Define a type for our source items to handle the UI state
 type DataSource = {
@@ -27,12 +28,14 @@ export default function KnowledgeBasePage() {
   
   const [inputValue, setInputValue] = useState('');
   const [gitbookToken, setGitbookToken] = useState('');
-  const [notionToken, setNotionToken] = useState('');
   const [gdriveToken, setGdriveToken] = useState('');
   const [zendeskEmail, setZendeskEmail] = useState('');
   const [zendeskToken, setZendeskToken] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     if (activeSpaceId) {
@@ -41,6 +44,50 @@ export default function KnowledgeBasePage() {
       setIsFetchingSources(false);
     }
   }, [activeSpaceId]);
+
+  // Handle OAuth Redirect Auto-Sync
+  useEffect(() => {
+    const newSourceId = searchParams.get('new_source_id');
+    const error = searchParams.get('error');
+
+    if (error) {
+      toast.error(`Integration failed: ${error}`);
+      router.replace('/knowledge');
+    }
+
+    if (newSourceId && activeSpaceId && sources.length > 0) {
+      // Find the source (it should be in the list after fetchSources called by activeSpaceId change or we force fetch)
+      // We assume fetchSources runs on mount/activeSpaceId change. 
+      // We might need to wait for it, but for simplicity we'll just trigger the sync API.
+      
+      const triggerAutoSync = async () => {
+        toast.success('Notion connected! Starting initial sync...');
+        try {
+          // Determine type based on source or just generic trigger. 
+          // For Notion OAuth, we just pass the ID and let the backend handle the rest.
+          const res = await fetch('/api/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+            body: JSON.stringify({ spaceId: activeSpaceId, dataSourceId: newSourceId, type: 'notion' }),
+          });
+          
+          if (res.ok) {
+            toast.success('Sync started in background.');
+            // Update local state to show syncing
+            setSources(prev => prev.map(s => s.id === newSourceId ? { ...s, status: 'syncing' } : s));
+          } else {
+             toast.error('Failed to start sync.');
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        // Clean URL
+        router.replace('/knowledge');
+      };
+
+      triggerAutoSync();
+    }
+  }, [searchParams, activeSpaceId, sources.length]); // sources.length dependency ensures we have the list loaded before we try to UI update, though strictly not required for the API call
 
   const fetchSources = async () => {
     setIsFetchingSources(true);
@@ -63,14 +110,12 @@ export default function KnowledgeBasePage() {
     if (!session) return;
 
     setIsSyncing(true);
-    let tempId: string | null = null;
-
+    
     try {
-      let sourceUri = payload.url || payload.gitbookSpaceId || payload.pageId || payload.folderId || payload.subdomain || payload.filename;
+      let sourceUri = payload.url || payload.gitbookSpaceId || payload.folderId || payload.subdomain || payload.filename;
       let credentials = null;
 
       if (payload.type === 'gitbook') credentials = { api_key: payload.apiKey };
-      if (payload.type === 'notion') credentials = { api_key: payload.token };
       if (payload.type === 'gdrive') credentials = { api_key: payload.token };
       if (payload.type === 'zendesk') credentials = { email: payload.email, api_key: payload.token };
 
@@ -89,10 +134,8 @@ export default function KnowledgeBasePage() {
       const dsData = await dsRes.json();
       if (dsData.error) throw new Error(dsData.error);
       const newDataSourceId = dsData.id;
-      tempId = newDataSourceId;
 
       // Optimistically update UI to show "Syncing..."
-      // We manually add the new source to the list with a 'syncing' status
       const newSource: DataSource = {
         id: newDataSourceId,
         type: payload.type,
@@ -103,10 +146,9 @@ export default function KnowledgeBasePage() {
       
       setSources(prev => [newSource, ...prev]);
 
-      // Reset form inputs immediately for better UX
+      // Reset form inputs
       setInputValue('');
       setGitbookToken('');
-      setNotionToken('');
       setGdriveToken('');
       setZendeskEmail('');
       setZendeskToken('');
@@ -131,10 +173,7 @@ export default function KnowledgeBasePage() {
 
     } catch (e: any) {
       toast.error(e.message || 'Failed to add source');
-      // If ingestion failed, we might want to remove it from the list or mark as error
-      // For now, refreshing the list will show the true state (which might be the source exists but has no docs, or was deleted if logic dictates)
     } finally {
-      // 3. Always refresh the full list from DB to get the final canonical state
       await fetchSources();
       setIsSyncing(false);
     }
@@ -153,7 +192,6 @@ export default function KnowledgeBasePage() {
   };
 
   const removeSource = async (id: string) => {
-    // Optimistic remove
     setSources(prev => prev.filter(s => s.id !== id));
     
     const { data: { session } } = await supabase.auth.getSession();
@@ -165,15 +203,15 @@ export default function KnowledgeBasePage() {
       fetchSources();
     } catch (e) {
       toast.error('Failed to remove source.');
-      fetchSources(); // Revert on error
+      fetchSources();
     }
   };
 
   const tabs = [
     { id: 'website', label: 'Website' },
     { id: 'file', label: 'File Upload' },
-    { id: 'gitbook', label: 'GitBook' },
     { id: 'notion', label: 'Notion' },
+    { id: 'gitbook', label: 'GitBook' },
     { id: 'gdrive', label: 'Google Drive' },
     { id: 'zendesk', label: 'Zendesk' }
   ] as const;
@@ -230,6 +268,24 @@ export default function KnowledgeBasePage() {
             </div>
           )}
 
+          {sourceType === 'notion' && (
+            <div className="flex flex-col gap-4 max-w-2xl">
+               <div>
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Connect Notion</label>
+                  <div className="p-4 bg-gray-50 rounded-md border border-gray-200">
+                    <p className="text-sm text-gray-600 mb-4">Grant access to specific Notion pages. We will automatically import all sub-pages you share.</p>
+                    <a 
+                      href={`https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_APP_URL + '/api/notion/oauth')}&state=${activeSpaceId}`}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28.047-.326 0-.14-.234-.327-.374-.467-1.772-1.82-3.87-2.752-3.87-2.752a.39.39 0 00-.327-.047l-10.77 1.819c-.186.047-.396.164-.442.234-.233.28-.466 1.4-.047 1.82.046.046.093.046.14.046zM6.136 7.61c-.512-.14-.839.233-.839.513v12.219c0 .187.14.374.326.467.234.14 2.89 1.585 2.89 1.585.14.093.28.093.42 0 .606-.327 11.563-6.108 11.563-6.108.233-.14.326-.373.326-.56V6.164c0-.327-.42-.56-.606-.513-.7.186-2.517.653-2.517.653-.186.047-.373.187-.373.373v9.231c0 .094-.047.14-.14.14a.155.155 0 01-.14-.093V6.21c0-.186-.14-.373-.326-.42-1.773-.42-9.7-2.33-9.7-2.33-.233-.047-.466.047-.653.28l-1.072 3.87z"/></svg>
+                      Connect Notion Workspace
+                    </a>
+                  </div>
+               </div>
+            </div>
+          )}
+
           {sourceType === 'gitbook' && (
             <div className="flex flex-col gap-4 max-w-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -244,24 +300,6 @@ export default function KnowledgeBasePage() {
               </div>
               <button onClick={() => handleAddSource({ type: 'gitbook', gitbookSpaceId: inputValue, apiKey: gitbookToken })} disabled={isSyncing || !inputValue || !gitbookToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect GitBook'}
-              </button>
-            </div>
-          )}
-
-          {sourceType === 'notion' && (
-            <div className="flex flex-col gap-4 max-w-2xl">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Root Page ID</label>
-                  <input type="text" placeholder="32-character ID" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Integration Token</label>
-                  <input type="password" placeholder="secret_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={notionToken} onChange={(e) => setNotionToken(e.target.value)} />
-                </div>
-              </div>
-              <button onClick={() => handleAddSource({ type: 'notion', pageId: inputValue, token: notionToken })} disabled={isSyncing || !inputValue || !notionToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
-                {isSyncing ? 'Syncing...' : 'Connect Notion'}
               </button>
             </div>
           )}
