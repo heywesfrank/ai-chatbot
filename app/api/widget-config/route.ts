@@ -35,10 +35,15 @@ export async function GET(req: Request) {
 
     if (error) console.error("Supabase Config Fetch Error:", error.message);
 
-    if (data?.allowed_domains) {
+    const originHost = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase();
+    
+    // Define internal dashboard domains that should ALWAYS bypass security checks to ensure the preview works
+    const dashboardDomains = ['heyapoyo.com', 'app.heyapoyo.com', 'ai-chatbot-alpha-orpin.vercel.app', 'localhost'];
+    const isDashboard = dashboardDomains.includes(originHost) || originHost.endsWith('.vercel.app');
+
+    if (data?.allowed_domains && !isDashboard) {
       const allowedList = data.allowed_domains.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean);
       if (allowedList.length > 0) {
-        const originHost = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase();
         const isAllowed = allowedList.some((d: string) => originHost.includes(d) || originHost === d);
         if (!isAllowed && originHost && originHost !== '*') {
           return NextResponse.json({ error: 'Unauthorized: Domain not authorized.' }, { status: 403, headers: corsHeaders });
