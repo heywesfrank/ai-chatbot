@@ -27,7 +27,7 @@ create table public.bot_config (
   canned_responses jsonb null default '[]'::jsonb,
   language text null default 'Auto-detect'::text,
   temperature numeric null default 0.5,
-  match_threshold numeric null default 0.2,
+  match_threshold numeric null default 0.5,
   reasoning_effort text null default 'medium'::text,
   verbosity text null default 'medium'::text,
   allowed_domains text null,
