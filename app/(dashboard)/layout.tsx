@@ -140,10 +140,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             {navGroups.map((group, idx) => (
               <div key={idx}>
-                <h3 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</h3>
+                <h3 className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</h3>
                 <nav className="space-y-0.5">
                   {group.items.map((item) => {
                     const isActive = pathname === item.path;
@@ -152,7 +152,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         key={item.name} 
                         href={item.path} 
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-all duration-200 outline-none ${isActive ? 'bg-white text-gray-900 shadow-sm border border-gray-200/60 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent'}`}
+                        className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all duration-200 outline-none ${isActive ? 'bg-gray-200/70 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/40'}`}
                       >
                         {item.icon}
                         {item.name}
