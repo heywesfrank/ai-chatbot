@@ -388,9 +388,10 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("[INGEST] Fatal Route Error:", error);
     
-    // --- ERROR: UPDATE STATUS TO 'error' ---
+    // --- ERROR: ROLLBACK DATA SOURCE ---
     if (dataSourceIdRef) {
-      await supabase.from('data_sources').update({ status: 'error' }).eq('id', dataSourceIdRef);
+      await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceIdRef);
+      await supabase.from('data_sources').delete().eq('id', dataSourceIdRef);
     }
 
     return NextResponse.json({ error: error.message || 'Unknown internal server error' }, { status: 500 });
