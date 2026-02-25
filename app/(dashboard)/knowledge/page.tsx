@@ -57,14 +57,14 @@ export default function KnowledgeBasePage() {
 
     if (newSourceId && activeSpaceId && sources.length > 0) {
       // Find the source (it should be in the list after fetchSources called by activeSpaceId change or we force fetch)
-      // We assume fetchSources runs on mount/activeSpaceId change. 
-      // We might need to wait for it, but for simplicity we'll just trigger the sync API.
       
       const triggerAutoSync = async () => {
         toast.success('Notion connected! Starting initial sync...');
+        
+        // 1. UPDATE UI STATE IMMEDIATELY to show syncing spinner
+        setSources(prev => prev.map(s => s.id === newSourceId ? { ...s, status: 'syncing' } : s));
+
         try {
-          // Determine type based on source or just generic trigger. 
-          // For Notion OAuth, we just pass the ID and let the backend handle the rest.
           const res = await fetch('/api/ingest', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
@@ -72,14 +72,18 @@ export default function KnowledgeBasePage() {
           });
           
           if (res.ok) {
-            toast.success('Sync started in background.');
-            // Update local state to show syncing
-            setSources(prev => prev.map(s => s.id === newSourceId ? { ...s, status: 'syncing' } : s));
+            toast.success('Sync completed successfully.');
+            // 2. REFRESH SOURCES to get the final "active" status from DB
+            await fetchSources();
           } else {
-             toast.error('Failed to start sync.');
+             toast.error('Failed to sync.');
+             // Optional: Refresh to show error state if DB was updated
+             fetchSources();
           }
         } catch (e) {
           console.error(e);
+          toast.error('An error occurred during sync.');
+          fetchSources();
         }
         // Clean URL
         router.replace('/knowledge');
@@ -87,7 +91,7 @@ export default function KnowledgeBasePage() {
 
       triggerAutoSync();
     }
-  }, [searchParams, activeSpaceId, sources.length]); // sources.length dependency ensures we have the list loaded before we try to UI update, though strictly not required for the API call
+  }, [searchParams, activeSpaceId, sources.length]);
 
   const fetchSources = async () => {
     setIsFetchingSources(true);
