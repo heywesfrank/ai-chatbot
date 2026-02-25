@@ -40,6 +40,18 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create table public.help_center_articles (
+  id uuid not null default gen_random_uuid (),
+  space_id text not null,
+  title text not null,
+  content text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  updated_at timestamp with time zone null default timezone ('utc'::text, now()),
+  constraint help_center_articles_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
+
 create table public.proactive_triggers (
   id uuid not null default gen_random_uuid (),
   space_id text not null,
