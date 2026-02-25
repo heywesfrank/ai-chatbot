@@ -507,7 +507,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         {renderBodyContent()}
         {!removeBranding && (
           <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
-            Powered by <a href="#" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[var(--text-primary)] ml-1 transition-colors">Knowledge Bot</a>
+            Powered by <img src="/apoyo.png" alt="Apoyo" className="h-4 ml-1.5 opacity-80 hover:opacity-100 transition-opacity" />
           </div>
         )}
       </div>
