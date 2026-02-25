@@ -1,4 +1,3 @@
-// app/api/chat/route.ts
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
@@ -224,7 +223,7 @@ ${context || 'No context available.'}
         content: m.content,
       })),
       stream: true,
-      ...(reasoningEffort && reasoningEffort !== 'medium' ? { reasoning_effort: reasoningEffort } : {})
+      ...(reasoningEffort && reasoningEffort !== 'medium' ? { reasoning: { effort: reasoningEffort } } : {})
     };
 
     const stream = await (openai as any).responses.create(requestPayload);
