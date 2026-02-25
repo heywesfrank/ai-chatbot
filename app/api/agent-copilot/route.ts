@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     if (queryEmbedding && spaceId) {
       const { data: documents } = await supabase.rpc('match_documents', {
         query_embedding: queryEmbedding,
-        match_threshold: configData?.match_threshold ?? 0.2,
+        match_threshold: configData?.match_threshold ?? 0.5,
         match_count: 5,
         p_space_id: spaceId,
       });
@@ -62,6 +62,7 @@ Your task is to draft a helpful, accurate, and concise response to the user's la
 - Do NOT include greetings (like "Hi") or sign-offs (like "Best, Support"), as the human agent will add those if needed.
 - Focus directly on the core answer.
 - If the CONTEXT does not contain the answer, politely write "I couldn't find a specific answer in the documentation."
+- Never attempt to use HTML, inline CSS, or custom markdown to color text. Output plain text and standard markdown links only.
 
 CONTEXT:
 ${context || 'No context available.'}
