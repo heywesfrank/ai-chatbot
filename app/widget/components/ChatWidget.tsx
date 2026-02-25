@@ -507,7 +507,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         {renderBodyContent()}
         {!removeBranding && (
           <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
-            Powered by <img src="/apoyo.png" alt="Apoyo" className="h-4 ml-1.5 opacity-80 hover:opacity-100 transition-opacity" />
+            Powered by 
+            <a href="https://heyapoyo.com" target="_blank" rel="noopener noreferrer" className="flex items-center hover:opacity-100 transition-opacity opacity-80">
+              <img src="/apoyo.png" alt="Apoyo" className="h-4 ml-1.5" />
+            </a>
           </div>
         )}
       </div>
