@@ -1,13 +1,16 @@
 // app/(dashboard)/appearance/page.tsx
 'use client';
 import { useBotConfig } from '../BotConfigProvider';
+import { supabaseClient as supabase } from '@/lib/supabase-client';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 function ColorPicker({ label, value, onChange, disabled }: { label: string, value: string, onChange: (v: string) => void, disabled: boolean }) {
   return (
     <section>
       <label className="block text-sm font-semibold text-gray-900 mb-2">{label}</label>
       <div className="flex items-center gap-3">
-        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
+        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer shadow-sm">
           <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
         </div>
         <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
@@ -18,6 +21,38 @@ function ColorPicker({ label, value, onChange, disabled }: { label: string, valu
 
 export default function AppearancePage() {
   const { config, updateConfig, isOwner } = useBotConfig();
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${config.spaceId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('bot_avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('bot_avatars').getPublicUrl(fileName);
+      updateConfig('botAvatar', data.publicUrl);
+      toast.success('Avatar updated');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast.error('Failed to upload avatar');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="p-8 pb-20 animate-in fade-in duration-300">
@@ -26,7 +61,7 @@ export default function AppearancePage() {
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Customize the look and feel of your chatbot widget to match your brand.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
+      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
 
         {/* Brand & Widget Colors */}
         <div>
@@ -71,10 +106,34 @@ export default function AppearancePage() {
         </section>
 
         <section className="pt-2 border-t border-gray-100">
-          <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar URL</label>
-          <div className="flex items-center gap-3">
-             {config.botAvatar && <img src={config.botAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0" />}
-             <input type="url" placeholder="https://example.com/avatar.png" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
+          <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar</label>
+          <div className="flex items-center gap-4">
+             <div className="relative shrink-0 w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+               {config.botAvatar ? (
+                 <img src={config.botAvatar} alt="Avatar" className="w-full h-full object-cover" />
+               ) : (
+                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+               )}
+               {isUploading && (
+                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                 </div>
+               )}
+             </div>
+             
+             <div className="flex-1">
+               <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors shadow-sm">
+                 <span>Upload Image</span>
+                 <input 
+                   type="file" 
+                   accept="image/*" 
+                   className="hidden" 
+                   disabled={!isOwner || isUploading} 
+                   onChange={handleAvatarUpload}
+                 />
+               </label>
+               <p className="text-[11px] text-gray-500 mt-1.5">Recommended size: 64x64px (PNG, JPG, GIF)</p>
+             </div>
           </div>
         </section>
 
@@ -96,14 +155,17 @@ export default function AppearancePage() {
           </section>
         </div>
 
-        <section className="pt-6 border-t border-gray-100 mt-6">
-          <div className="flex items-center justify-between">
+        <section className="pt-6 border-t border-gray-100 mt-6 relative">
+          <div className="flex items-center justify-between opacity-50 grayscale select-none cursor-not-allowed">
             <div>
-              <label className="block text-sm font-semibold text-gray-900">Remove Branding</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Hide the "Powered by Knowledge Bot" watermark at the bottom of the widget.</p>
+              <div className="flex items-center gap-2">
+                <label className="block text-sm font-semibold text-gray-900">Remove Branding</label>
+                <span className="bg-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide">Pro</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Hide the "Powered by Apoyo" watermark at the bottom of the widget.</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.removeBranding} onChange={(e) => updateConfig('removeBranding', e.target.checked)} />
+            <label className="relative inline-flex items-center cursor-not-allowed">
+              <input type="checkbox" className="sr-only peer" disabled={true} checked={false} />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
             </label>
           </div>
