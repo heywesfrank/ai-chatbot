@@ -119,7 +119,12 @@ export default function KnowledgeBasePage() {
       let credentials = null;
 
       if (payload.type === 'gitbook') credentials = { api_key: payload.apiKey };
-      if (payload.type === 'zendesk') credentials = { email: payload.email, api_key: payload.token };
+      if (payload.type === 'zendesk') {
+        // Only save credentials if they were actually provided
+        if (payload.email && payload.token) {
+           credentials = { email: payload.email, api_key: payload.token };
+        }
+      }
 
       // 1. Insert into data_sources and get the ID back
       const dsRes = await fetch('/api/data-sources', {
@@ -307,21 +312,35 @@ export default function KnowledgeBasePage() {
 
           {sourceType === 'zendesk' && (
             <div className="flex flex-col gap-4 max-w-2xl">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Subdomain</label>
-                  <input type="text" placeholder="e.g. mycompany" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Help Center Subdomain</label>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-sm text-gray-400 font-medium select-none">https://</span>
+                    <input 
+                      type="text" 
+                      placeholder="mycompany" 
+                      className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" 
+                      value={inputValue} 
+                      onChange={(e) => setInputValue(e.target.value)} 
+                    />
+                    <span className="text-sm text-gray-400 font-medium select-none">.zendesk.com</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Leave the fields below empty to fetch only public articles.</p>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Agent Email</label>
-                  <input type="email" placeholder="agent@example.com" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskEmail} onChange={(e) => setZendeskEmail(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">API Token</label>
-                  <input type="password" placeholder="Token..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskToken} onChange={(e) => setZendeskToken(e.target.value)} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Agent Email <span className="text-[10px] font-normal lowercase">(optional)</span></label>
+                    <input type="email" placeholder="agent@example.com" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskEmail} onChange={(e) => setZendeskEmail(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">API Token <span className="text-[10px] font-normal lowercase">(optional)</span></label>
+                    <input type="password" placeholder="Token..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskToken} onChange={(e) => setZendeskToken(e.target.value)} />
+                  </div>
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue || !zendeskEmail || !zendeskToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
+              <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Zendesk'}
               </button>
             </div>
