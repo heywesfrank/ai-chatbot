@@ -46,7 +46,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const enableLeadCapture = urlOverrides.leadCapture !== null ? urlOverrides.leadCapture : (config?.lead_capture_enabled ?? false);
+  const enableLeadCapture = urlOverrides.leadCapture !== null ? urlOverrides.leadCapture : (config?.leadCaptureEnabled ?? config?.lead_capture_enabled ?? false);
   const [isLeadCaptured, setIsLeadCaptured, removeLeadCaptured] = useLocalStorage(`lead_captured_${spaceId}`, !enableLeadCapture);
   
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
@@ -54,32 +54,33 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   
-  const primaryColor = urlOverrides.color || config?.primary_color || '#000000';
-  const botFontColor = urlOverrides.botFontColor || config?.bot_font_color || '#1f2937';
-  const userFontColor = urlOverrides.userFontColor || config?.user_font_color || '#ffffff';
+  // Color Fallbacks (Check camelCase from context first, then snake_case from DB)
+  const primaryColor = urlOverrides.color || config?.primaryColor || config?.primary_color || '#000000';
+  const botFontColor = urlOverrides.botFontColor || config?.botFontColor || config?.bot_font_color || '#1f2937';
+  const userFontColor = urlOverrides.userFontColor || config?.userFontColor || config?.user_font_color || '#ffffff';
   
-  const agentBubbleColor = urlOverrides.agentBubbleColor || config?.agent_bubble_color || '#f3f4f6';
-  const userBubbleColor = urlOverrides.userBubbleColor || config?.user_bubble_color || primaryColor;
-  const launcherColor = urlOverrides.launcherColor || config?.launcher_color || primaryColor;
-  const launcherIconColor = urlOverrides.launcherIconColor || config?.launcher_icon_color || userFontColor;
+  const agentBubbleColor = urlOverrides.agentBubbleColor || config?.agentBubbleColor || config?.agent_bubble_color || '#f3f4f6';
+  const userBubbleColor = urlOverrides.userBubbleColor || config?.userBubbleColor || config?.user_bubble_color || primaryColor;
+  const launcherColor = urlOverrides.launcherColor || config?.launcherColor || config?.launcher_color || primaryColor;
+  const launcherIconColor = urlOverrides.launcherIconColor || config?.launcherIconColor || config?.launcher_icon_color || userFontColor;
   
-  const headerText = urlOverrides.header || config?.header_text || 'Documentation Bot';
-  const descriptionText = urlOverrides.description || config?.description_text || '';
-  const welcomeMessage = config?.welcome_message || 'How can I help you today?';
-  const inputPlaceholder = urlOverrides.placeholder || config?.input_placeholder || 'Ask a question...';
-  const removeBranding = urlOverrides.removeBranding !== null ? urlOverrides.removeBranding : (config?.remove_branding ?? false);
+  const headerText = urlOverrides.header || config?.headerText || config?.header_text || 'Documentation Bot';
+  const descriptionText = urlOverrides.description || config?.descriptionText || config?.description_text || '';
+  const welcomeMessage = config?.welcomeMessage || config?.welcome_message || 'How can I help you today?';
+  const inputPlaceholder = urlOverrides.placeholder || config?.inputPlaceholder || config?.input_placeholder || 'Ask a question...';
+  const removeBranding = urlOverrides.removeBranding !== null ? urlOverrides.removeBranding : (config?.removeBranding ?? config?.remove_branding ?? false);
   
-  const botAvatar = config?.bot_avatar || null;
-  const agentsOnline = config?.agents_online ?? false;
+  const botAvatar = config?.botAvatar || config?.bot_avatar || null;
+  const agentsOnline = config?.agentsOnline ?? config?.agents_online ?? false;
   
-  const enablePageContext = urlOverrides.pageContextEnabled !== undefined && urlOverrides.pageContextEnabled !== null ? urlOverrides.pageContextEnabled : (config?.page_context_enabled ?? false);
-  const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routing_config || []);
+  const enablePageContext = urlOverrides.pageContextEnabled !== undefined && urlOverrides.pageContextEnabled !== null ? urlOverrides.pageContextEnabled : (config?.pageContextEnabled ?? config?.page_context_enabled ?? false);
+  const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routingConfig || config?.routing_config || []);
 
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
   const defaultPrompts = ["How do I reset my password?", "Where can I find the documentation?", "How do I contact support?"];
-  const showPrompts = urlOverrides.showPrompts !== null ? urlOverrides.showPrompts : (config?.show_prompts ?? true);
-  const suggestedPrompts = urlOverrides.prompts !== null ? urlOverrides.prompts : (config?.suggested_prompts || defaultPrompts);
+  const showPrompts = urlOverrides.showPrompts !== null ? urlOverrides.showPrompts : (config?.showPrompts ?? config?.show_prompts ?? true);
+  const suggestedPrompts = urlOverrides.prompts !== null ? urlOverrides.prompts : (config?.suggestedPrompts || config?.suggested_prompts || defaultPrompts);
 
   const initMsg = { id: 'init', role: 'assistant', content: welcomeMessage } as const;
   
@@ -360,7 +361,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
-  const isLeft = config?.position === 'left';
+  const isLeft = (config?.position === 'left');
   const showChatWindow = isOpen || urlOverrides.preview;
   const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
@@ -487,7 +488,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   return (
-    <div className="fixed inset-0 pointer-events-none text-[var(--text-primary)] font-sans text-sm" data-theme={urlOverrides.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+    <div className="fixed inset-0 pointer-events-none text-[var(--text-primary)] font-sans text-sm" data-theme={urlOverrides.theme || config?.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       
       {/* Force page background transparency to absolutely prevent the "gray box" in the iframe */}
       <style dangerouslySetInnerHTML={{__html: `
