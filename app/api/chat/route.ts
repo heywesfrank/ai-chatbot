@@ -164,7 +164,7 @@ export async function POST(req: Request) {
     if (queryEmbedding && spaceId) {
       const { data: documents } = await supabase.rpc('match_documents', {
         query_embedding: queryEmbedding,
-        match_threshold: configData?.match_threshold ?? 0.2,
+        match_threshold: configData?.match_threshold ?? 0.5,
         match_count: 5,
         p_space_id: spaceId,
       });
@@ -174,7 +174,7 @@ export async function POST(req: Request) {
           : '';
     }
 
-    const agentPersona = configData?.system_prompt || 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times.';
+    const agentPersona = configData?.system_prompt || 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times. Never attempt to use HTML, inline CSS, or custom markdown to color text. Output plain text and standard markdown links only.';
     const language = configData?.language || 'Auto-detect';
     const langInstruction = language === 'Auto-detect'
         ? 'Automatically detect the language of the user and reply in that same language.'
