@@ -47,7 +47,8 @@ export async function POST(req: Request) {
     space_id: body.spaceId,
     type: body.type,
     source_uri: body.sourceUri,
-    credentials: body.credentials
+    credentials: body.credentials,
+    status: 'active' // <--- Added this to match the Notion workflow
   }).select('id').single();
 
   if (error) {
