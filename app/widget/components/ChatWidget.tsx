@@ -7,7 +7,8 @@ import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import ChatInput from './ChatInput';
 import MessageBubble from './MessageBubble';
-import { ClearIcon, ChatBubbleIcon, ChevronDownIcon, LeadIcon } from '@/components/icons';
+import LeadCaptureForm from './LeadCaptureForm';
+import { ClearIcon, ChatBubbleIcon, ChevronDownIcon } from '@/components/icons';
 
 const playPopSound = () => {
   try {
@@ -49,8 +50,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const enableLeadCapture = urlOverrides.leadCapture !== null ? urlOverrides.leadCapture : (config?.lead_capture_enabled ?? false);
   const [isLeadCaptured, setIsLeadCaptured, removeLeadCaptured] = useLocalStorage(`lead_captured_${spaceId}`, !enableLeadCapture);
   
-  const [leadName, setLeadName] = useState('');
-  const [leadEmail, setLeadEmail] = useState('');
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
@@ -235,14 +234,13 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     } catch (e) { console.error(e); }
   };
 
-  const handleLeadFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLeadFormSubmit = async (name: string, email: string) => {
     setIsSubmittingLead(true);
     try {
       await fetch('/api/lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceId, name: leadName, email: leadEmail })
+        body: JSON.stringify({ spaceId, name, email })
       });
       setIsLeadCaptured(true);
     } catch (e) { console.error('Lead capture failed', e); }
@@ -373,27 +371,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const renderBodyContent = () => {
     if (!isLeadCaptured) {
-      return (
-        <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col items-center justify-center">
-          <div className="w-12 h-12 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mb-4 border border-[var(--border-color)]">
-            <LeadIcon className="w-5 h-5 text-[var(--text-secondary)]" />
-          </div>
-          <h3 className="text-base font-medium text-[var(--text-primary)] mb-1">Let's get started</h3>
-          <p className="text-xs text-[var(--text-secondary)] text-center mb-6 max-w-[250px]">Please enter your details so we can assist you better and follow up if needed.</p>
-          
-          <form onSubmit={handleLeadFormSubmit} className="w-full max-w-[280px] space-y-3">
-            <div>
-              <input aria-label="Your Name" type="text" required placeholder="Your Name" className="w-full p-2.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-md focus:outline-none focus:ring-2 transition-all text-sm shadow-sm" style={{ '--tw-ring-color': 'var(--primary-color)' } as any} value={leadName} onChange={e => setLeadName(e.target.value)} />
-            </div>
-            <div>
-              <input aria-label="Your Email" type="email" required placeholder="Your Email" className="w-full p-2.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-md focus:outline-none focus:ring-2 transition-all text-sm shadow-sm" style={{ '--tw-ring-color': 'var(--primary-color)' } as any} value={leadEmail} onChange={e => setLeadEmail(e.target.value)} />
-            </div>
-            <button aria-label="Start Chat" type="submit" disabled={isSubmittingLead} className="w-full py-3 rounded-md hover:opacity-90 transition-all font-medium shadow-sm mt-2 disabled:opacity-50 active:scale-95" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
-              {isSubmittingLead ? 'Starting chat...' : 'Start Chat'}
-            </button>
-          </form>
-        </div>
-      );
+      return <LeadCaptureForm onSubmit={handleLeadFormSubmit} isSubmitting={isSubmittingLead} />;
     }
 
     return (
