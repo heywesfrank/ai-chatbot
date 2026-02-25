@@ -96,7 +96,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       previewConfig: urlOverrides.preview ? {
         systemPrompt: urlOverrides.systemPrompt,
         language: urlOverrides.language,
-        followUpQuestionsEnabled: urlOverrides.followUpQuestionsEnabled
+        followUpQuestionsEnabled: urlOverrides.followUpQuestionsEnabled,
+        matchThreshold: urlOverrides.matchThreshold,
+        reasoningEffort: urlOverrides.reasoningEffort,
+        verbosity: urlOverrides.verbosity,
       } : undefined
     }, 
     initialMessages: savedMessages,
