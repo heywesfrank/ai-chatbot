@@ -59,8 +59,11 @@ create table public.data_sources (
   source_uri text null,
   credentials jsonb null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  status text null default 'active'::text,
   constraint data_sources_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_data_sources_space_id on public.data_sources using btree (space_id) TABLESPACE pg_default;
 
 create index IF not exists idx_data_sources_space_id on public.data_sources using btree (space_id) TABLESPACE pg_default;
 
