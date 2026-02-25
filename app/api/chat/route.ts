@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     // 1. Fetch Core Configuration
     const { data: configData } = await supabase
       .from('bot_config')
-      .select('system_prompt, language, match_threshold, allowed_domains, follow_up_questions_enabled')
+      .select('system_prompt, language, match_threshold, allowed_domains, follow_up_questions_enabled, reasoning_effort, verbosity')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -160,11 +160,13 @@ export async function POST(req: Request) {
       queryEmbedding = embeddingResponse.data?.[0]?.embedding;
     }
 
+    const matchThreshold = previewConfig?.matchThreshold ?? configData?.match_threshold ?? 0.5;
+
     let context = '';
     if (queryEmbedding && spaceId) {
       const { data: documents } = await supabase.rpc('match_documents', {
         query_embedding: queryEmbedding,
-        match_threshold: configData?.match_threshold ?? 0.5,
+        match_threshold: matchThreshold,
         match_count: 5,
         p_space_id: spaceId,
       });
@@ -190,6 +192,11 @@ export async function POST(req: Request) {
       ? `\n5. FOLLOW-UP QUESTIONS: At the very end of your response, always provide exactly 3 short, relevant follow-up questions the user can click to ask you next. These MUST be written from the user's perspective (e.g., "How do I do X?" or "Tell me more about Y."). Format them exactly like this:\n**Follow-ups:**\n- [Question 1]\n- [Question 2]\n- [Question 3]`
       : '';
 
+    const verbosity = previewConfig?.verbosity ?? configData?.verbosity ?? 'medium';
+    let verbosityInstruction = '';
+    if (verbosity === 'low') verbosityInstruction = '\n6. VERBOSITY: Keep your responses as concise and brief as possible.';
+    else if (verbosity === 'high') verbosityInstruction = '\n6. VERBOSITY: Provide highly detailed, comprehensive, and thorough explanations.';
+
     const systemInstructions = `
 ${agentPersona}
 
@@ -197,7 +204,7 @@ CORE DIRECTIVES:
 1. LANGUAGE: ${langInstruction}
 2. CONVERSATIONAL MODE: If the user is making casual conversation, respond naturally and politely.
 3. SUPPORT MODE: If asking a question, you MUST answer using ONLY the CONTEXT below. You MUST append the source URLs at the very end in this format: **Sources:** [1](URL) [2](URL)
-4. UNKNOWN INFO: If the CONTEXT does not contain the answer, politely state you do not have that information.${followUpInstruction}${sentimentContext}
+4. UNKNOWN INFO: If the CONTEXT does not contain the answer, politely state you do not have that information.${followUpInstruction}${verbosityInstruction}${sentimentContext}
 
 SESSION METADATA:
 ${routingInstruction}
@@ -207,6 +214,8 @@ CONTEXT:
 ${context || 'No context available.'}
 `.trim();
 
+    const reasoningEffort = previewConfig?.reasoningEffort ?? configData?.reasoning_effort;
+
     const requestPayload: any = {
       model: 'gpt-5-nano',
       instructions: systemInstructions,
@@ -215,6 +224,7 @@ ${context || 'No context available.'}
         content: m.content,
       })),
       stream: true,
+      ...(reasoningEffort && reasoningEffort !== 'medium' ? { reasoning_effort: reasoningEffort } : {})
     };
 
     const stream = await (openai as any).responses.create(requestPayload);
