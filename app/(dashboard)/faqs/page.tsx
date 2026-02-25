@@ -1,4 +1,3 @@
-// app/(dashboard)/faqs/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -6,7 +5,7 @@ import { toast } from 'sonner';
 import { useBotConfig } from '../BotConfigProvider';
 
 export default function FAQsPage() {
-  const { activeSpaceId } = useBotConfig();
+  const { activeSpaceId, triggerRefresh } = useBotConfig();
   const [faqs, setFaqs] = useState<any[]>([]);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -41,6 +40,7 @@ export default function FAQsPage() {
     setQuestion('');
     setAnswer('');
     fetchFaqs();
+    triggerRefresh();
   };
 
   const removeFaq = async (id: string) => {
@@ -49,6 +49,7 @@ export default function FAQsPage() {
     await fetch(`/api/faq?id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } });
     toast.success('FAQ removed.');
     fetchFaqs();
+    triggerRefresh();
   };
 
   return (
