@@ -39,7 +39,7 @@ export default function TriggersPage() {
     });
     
     if (res.ok) {
-      toast.success('Proactive Trigger added.');
+      toast.success('Trigger added.');
       setUrlMatch('');
       setDelaySeconds(10);
       setMessage('');
@@ -75,7 +75,7 @@ export default function TriggersPage() {
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">URL Path Match</label>
-              <input required type="text" placeholder="e.g. /pricing" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={urlMatch} onChange={e => setUrlMatch(e.target.value)} />
+              <input required type="text" placeholder="e.g. /pricing or https://yourwebsite.com/pricing" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={urlMatch} onChange={e => setUrlMatch(e.target.value)} />
             </div>
             <div className="w-32">
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Delay (Secs)</label>
