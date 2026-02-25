@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -43,10 +43,13 @@ const navGroups = [
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoading, activeSpaceId, config, isOwner, saveConfig, isSaving, refreshKey, userEmail } = useBotConfig();
+  const { isLoading, activeSpaceId, config, isOwner, saveConfig, isSaving, userEmail } = useBotConfig();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState<number>(0);
+  
+  // Reference to the iframe to send postMessages
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -80,6 +83,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return () => { if (ticketsChannel) supabase.removeChannel(ticketsChannel); };
   }, [activeSpaceId]);
 
+  // Instantly push configuration changes to the iframe using postMessage
+  useEffect(() => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: 'kb-config-update', config },
+        '*'
+      );
+    }
+  }, [config]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.refresh();
@@ -101,8 +114,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
   const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/faqs', '/triggers', '/install'].includes(pathname);
   
-  // Appended agentBubbleColor, userBubbleColor, launcherColor, launcherIconColor
-  const previewUrl = `/widget?spaceId=${activeSpaceId}&color=${encodeURIComponent(config.primaryColor)}&botFontColor=${encodeURIComponent(config.botFontColor)}&userFontColor=${encodeURIComponent(config.userFontColor)}&agentBubbleColor=${encodeURIComponent(config.agentBubbleColor)}&userBubbleColor=${encodeURIComponent(config.userBubbleColor)}&launcherColor=${encodeURIComponent(config.launcherColor)}&launcherIconColor=${encodeURIComponent(config.launcherIconColor)}&header=${encodeURIComponent(config.headerText)}&description=${encodeURIComponent(config.descriptionText || '')}&placeholder=${encodeURIComponent(config.inputPlaceholder || '')}&removeBranding=${config.removeBranding}&showPrompts=${config.showPrompts}&prompts=${encodeURIComponent(JSON.stringify(config.suggestedPrompts))}&leadCapture=${config.leadCaptureEnabled}&theme=${config.theme}&position=${config.position}&preview=true`;
+  // Use a static URL for the preview so it never hard-refreshes
+  const previewUrl = `/widget?spaceId=${activeSpaceId}&preview=true`;
 
   return (
     <div className="flex h-screen w-full bg-white text-gray-900 font-sans overflow-hidden">
@@ -210,7 +223,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           {isBuilderRoute && activeSpaceId && (
             <div className="hidden lg:flex w-[460px] xl:w-[500px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0">
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[448px] h-[800px] max-h-[100vh] animate-in fade-in zoom-in-95 duration-500">
-                <iframe key={refreshKey} src={previewUrl} className="w-full h-full border-none bg-transparent" title="Widget Preview" />
+                <iframe 
+                  ref={iframeRef} 
+                  src={previewUrl} 
+                  className="w-full h-full border-none bg-transparent" 
+                  title="Widget Preview" 
+                />
               </div>
             </div>
           )}
