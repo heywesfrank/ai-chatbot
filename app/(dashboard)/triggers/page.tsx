@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useBotConfig } from '../BotConfigProvider';
 
 export default function TriggersPage() {
-  const { activeSpaceId } = useBotConfig();
+  const { activeSpaceId, isOwner } = useBotConfig();
   const [triggers, setTriggers] = useState<any[]>([]);
   const [urlMatch, setUrlMatch] = useState('');
   const [delaySeconds, setDelaySeconds] = useState<number>(10);
@@ -27,30 +27,40 @@ export default function TriggersPage() {
 
   const handleAddTrigger = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!urlMatch.trim() || !message.trim() || !activeSpaceId) return;
+    if (!urlMatch.trim() || !message.trim() || !activeSpaceId || !isOwner) return;
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    await fetch('/api/triggers', {
+    const res = await fetch('/api/triggers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify({ spaceId: activeSpaceId, urlMatch, delaySeconds, message })
     });
     
-    toast.success('Proactive Trigger added.');
-    setUrlMatch('');
-    setDelaySeconds(10);
-    setMessage('');
-    fetchTriggers();
+    if (res.ok) {
+      toast.success('Proactive Trigger added.');
+      setUrlMatch('');
+      setDelaySeconds(10);
+      setMessage('');
+      fetchTriggers();
+    } else {
+      toast.error('Failed to add trigger.');
+    }
   };
 
   const removeTrigger = async (id: string) => {
+    if (!isOwner) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    await fetch(`/api/triggers?id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } });
-    toast.success('Trigger removed.');
-    fetchTriggers();
+    const res = await fetch(`/api/triggers?id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } });
+    
+    if (res.ok) {
+      toast.success('Trigger removed.');
+      fetchTriggers();
+    } else {
+      toast.error('Failed to remove trigger.');
+    }
   };
 
   return (
@@ -60,23 +70,25 @@ export default function TriggersPage() {
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Automatically pop open the chat widget and send a message if a user spends time on a specific page.</p>
       </div>
 
-      <form onSubmit={handleAddTrigger} className="bg-white border border-gray-200 rounded-md p-6 mb-8 flex flex-col gap-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">URL Path Match</label>
-            <input required type="text" placeholder="e.g. /pricing" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={urlMatch} onChange={e => setUrlMatch(e.target.value)} />
+      {isOwner && (
+        <form onSubmit={handleAddTrigger} className="bg-white border border-gray-200 rounded-md p-6 mb-8 flex flex-col gap-4">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">URL Path Match</label>
+              <input required type="text" placeholder="e.g. /pricing" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={urlMatch} onChange={e => setUrlMatch(e.target.value)} />
+            </div>
+            <div className="w-32">
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Delay (Secs)</label>
+              <input required type="number" min="0" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={delaySeconds} onChange={e => setDelaySeconds(Number(e.target.value))} />
+            </div>
           </div>
-          <div className="w-32">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Delay (Secs)</label>
-            <input required type="number" min="0" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={delaySeconds} onChange={e => setDelaySeconds(Number(e.target.value))} />
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Initial Message</label>
+            <textarea required placeholder="e.g. Need help picking a plan?" className="w-full p-2.5 border border-gray-200 rounded-md text-sm h-20 outline-none focus:border-black resize-none transition-colors" value={message} onChange={e => setMessage(e.target.value)} />
           </div>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Initial Message</label>
-          <textarea required placeholder="e.g. Need help picking a plan?" className="w-full p-2.5 border border-gray-200 rounded-md text-sm h-20 outline-none focus:border-black resize-none transition-colors" value={message} onChange={e => setMessage(e.target.value)} />
-        </div>
-        <button type="submit" className="self-end px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">Add Trigger</button>
-      </form>
+          <button type="submit" className="self-end px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">Add Trigger</button>
+        </form>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-md">
         <div className="p-6 border-b border-gray-100">
@@ -100,7 +112,9 @@ export default function TriggersPage() {
                     {trigger.message}
                   </p>
                 </div>
-                <button onClick={() => removeTrigger(trigger.id)} className="text-xs text-red-500 hover:text-red-700 font-medium shrink-0 transition-colors bg-red-50 px-3 py-1.5 rounded-md opacity-0 group-hover:opacity-100 focus:opacity-100">Remove</button>
+                {isOwner && (
+                  <button onClick={() => removeTrigger(trigger.id)} className="text-xs text-red-500 hover:text-red-700 font-medium shrink-0 transition-colors bg-red-50 px-3 py-1.5 rounded-md opacity-0 group-hover:opacity-100 focus:opacity-100">Remove</button>
+                )}
               </div>
             ))}
           </div>
