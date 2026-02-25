@@ -74,7 +74,7 @@ export default function AppearancePage() {
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar URL</label>
           <div className="flex items-center gap-3">
              {config.botAvatar && <img src={config.botAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0" />}
-             <input type="url" placeholder="[https://example.com/avatar.png](https://example.com/avatar.png)" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
+             <input type="url" placeholder="https://example.com/avatar.png" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.botAvatar} onChange={(e) => updateConfig('botAvatar', e.target.value)} />
           </div>
         </section>
 
