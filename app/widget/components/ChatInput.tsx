@@ -2,7 +2,16 @@
 import { useRef, useState } from 'react';
 import { PaperclipIcon } from '@/components/icons';
 
-export default function ChatInput({ input, handleInputChange, handleFormSubmit, disabled, primaryColor, isLiveChat, onFileUpload }: any) {
+export default function ChatInput({ 
+  input, 
+  handleInputChange, 
+  handleFormSubmit, 
+  disabled, 
+  primaryColor, 
+  isLiveChat, 
+  onFileUpload,
+  inputPlaceholder // Added prop
+}: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -53,7 +62,7 @@ export default function ChatInput({ input, handleInputChange, handleFormSubmit, 
           <input 
             type="text" 
             aria-label="Chat input"
-            placeholder="Ask a question..."
+            placeholder={inputPlaceholder || "Ask a question..."} 
             className="w-full p-3.5 border border-[var(--border-strong)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-full focus:outline-none focus:border-transparent focus:ring-2 transition-all shadow-sm pl-4 pr-20"
             style={{ '--tw-ring-color': 'var(--primary-color)' } as any}
             value={input}
