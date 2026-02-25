@@ -122,7 +122,7 @@ export default function AppearancePage() {
              </div>
              
              <div className="flex-1">
-               <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors shadow-sm">
+               <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors">
                  <span>Upload Image</span>
                  <input 
                    type="file" 
