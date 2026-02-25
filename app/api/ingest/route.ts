@@ -19,17 +19,13 @@ function chunkText(text: string, sourceUrl: string): string[] {
   const cleanText = text.replace(/\n{3,}/g, '\n\n').trim();
   const chunks: string[] = [];
   
-  // Only proceed if there is meaningful text (more than just whitespace)
   if (cleanText.length > 0) {
     let currentChunk = '';
     const rawChunks = cleanText.split('\n\n');
     
     for (const chunk of rawChunks) {
       if (!chunk.trim()) continue;
-      
-      // If adding the next paragraph exceeds limit, push current chunk
       if (currentChunk.length + chunk.length > MAX_CHUNK_LENGTH) {
-        // Ensure we don't push empty chunks
         if (currentChunk.trim().length > 0) {
             chunks.push(`Source: ${sourceUrl}\n\n${currentChunk.trim()}`);
         }
@@ -38,7 +34,6 @@ function chunkText(text: string, sourceUrl: string): string[] {
         currentChunk += chunk + '\n\n';
       }
     }
-    // Push remaining text
     if (currentChunk.trim().length > 0) {
       chunks.push(`Source: ${sourceUrl}\n\n${currentChunk.trim()}`);
     }
@@ -90,15 +85,16 @@ function extractPageIds(pages: any[]): string[] {
 }
 
 export async function POST(req: Request) {
+  let dataSourceIdRef: string | null = null; // Keep track of ID for error handling
+
   try {
-    // 1. IP Rate Limiting (Protects against spam/abuse)
+    // 1. IP Rate Limiting
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
       try {
         const redis = new Redis({
           url: process.env.UPSTASH_REDIS_REST_URL,
           token: process.env.UPSTASH_REDIS_REST_TOKEN,
         });
-        // Limit to 5 requests per minute per IP for ingestions
         const ratelimit = new Ratelimit({
           redis,
           limiter: Ratelimit.slidingWindow(5, '1 m'),
@@ -123,15 +119,18 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { spaceId, type, dataSourceId } = body;
+    dataSourceIdRef = dataSourceId;
 
     if (!spaceId || !type || !dataSourceId) {
       return NextResponse.json({ error: 'Space ID, Type, and Data Source ID are required.' }, { status: 400 });
     }
 
+    // Set status to syncing explicitly (in case it wasn't already)
+    await supabase.from('data_sources').update({ status: 'syncing' }).eq('id', dataSourceId);
+
     console.log(`[INGEST] Starting ingestion for Space ID: ${spaceId} | Type: ${type} | Source ID: ${dataSourceId}`);
     
     // --- 0. CLEANUP EXISTING DATA ---
-    // Ensure idempotency: Remove any existing documents for this specific data source before adding new ones.
     await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceId);
 
     let extractedParagraphs: { content: string, url: string }[] = [];
@@ -139,7 +138,7 @@ export async function POST(req: Request) {
     // --- 1. GITBOOK INGESTION ---
     if (type === 'gitbook') {
       const { apiKey, gitbookSpaceId } = body;
-      if (!apiKey || !gitbookSpaceId) return NextResponse.json({ error: 'GitBook API Key and Space ID required.' }, { status: 400 });
+      if (!apiKey || !gitbookSpaceId) throw new Error('GitBook API Key and Space ID required.');
 
       const gitbookResponse = await fetch(`https://api.gitbook.com/v1/spaces/${gitbookSpaceId}/content`, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
@@ -171,7 +170,6 @@ export async function POST(req: Request) {
       let notionToken = body.token;
       let pageIds: string[] = body.pageId ? [body.pageId] : [];
 
-      // If token not provided in body (new OAuth flow), fetch from DB
       if (!notionToken && dataSourceId) {
          const { data: ds } = await supabase.from('data_sources').select('credentials').eq('id', dataSourceId).single();
          if (ds?.credentials?.access_token) {
@@ -179,9 +177,8 @@ export async function POST(req: Request) {
          }
       }
 
-      if (!notionToken) return NextResponse.json({ error: 'Notion Access Token not found.' }, { status: 400 });
+      if (!notionToken) throw new Error('Notion Access Token not found.');
 
-      // If no specific Page ID provided, Search for ALL available pages
       if (pageIds.length === 0) {
         console.log('[INGEST] Searching for all accessible Notion pages...');
         const searchRes = await fetch('https://api.notion.com/v1/search', {
@@ -200,15 +197,13 @@ export async function POST(req: Request) {
         if (!searchRes.ok) throw new Error(`Notion Search API Error: ${searchRes.statusText}`);
         
         const searchData = await searchRes.json();
-        // Notion returns all shared pages. We'll ingest the top results.
         pageIds = searchData.results.map((r: any) => r.id);
         
         if (pageIds.length === 0) {
-           return NextResponse.json({ error: 'No pages found. Please ensure you shared pages with the integration.' }, { status: 400 });
+           throw new Error('No pages found. Please ensure you shared pages with the integration.');
         }
       }
 
-      // Helper to fetch content (recursive)
       async function fetchNotionBlocks(blockId: string, depth = 0): Promise<string> {
         if (depth > 5) return ''; 
         let text = '';
@@ -250,8 +245,6 @@ export async function POST(req: Request) {
       }
 
       console.log(`[INGEST] Ingesting ${pageIds.length} Notion pages...`);
-      
-      // Process pages in parallel (capped by rate limits effectively)
       await Promise.all(pageIds.map(async (pid) => {
         const rawText = await fetchNotionBlocks(pid);
         if (rawText.trim()) {
@@ -264,7 +257,7 @@ export async function POST(req: Request) {
     // --- 3. GOOGLE DRIVE INGESTION ---
     else if (type === 'gdrive') {
       const { folderId, token: driveToken } = body;
-      if (!folderId || !driveToken) return NextResponse.json({ error: 'GDrive Folder ID and Access Token required.' }, { status: 400 });
+      if (!folderId || !driveToken) throw new Error('GDrive Folder ID and Access Token required.');
 
       const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType)`, {
         headers: { 'Authorization': `Bearer ${driveToken}` }
@@ -298,7 +291,7 @@ export async function POST(req: Request) {
     // --- 4. ZENDESK INGESTION ---
     else if (type === 'zendesk') {
       const { subdomain, email, token: zendeskToken } = body;
-      if (!subdomain || !email || !zendeskToken) return NextResponse.json({ error: 'Zendesk credentials required.' }, { status: 400 });
+      if (!subdomain || !email || !zendeskToken) throw new Error('Zendesk credentials required.');
 
       const auth = Buffer.from(`${email}/token:${zendeskToken}`).toString('base64');
       const res = await fetch(`https://${subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100`, {
@@ -322,7 +315,7 @@ export async function POST(req: Request) {
     // --- 5. WEBSITE / SITEMAP INGESTION ---
     else if (type === 'website') {
       const { url } = body;
-      if (!url) return NextResponse.json({ error: 'URL required.' }, { status: 400 });
+      if (!url) throw new Error('URL required.');
 
       if (url.endsWith('.xml')) {
         const res = await fetch(url);
@@ -351,14 +344,14 @@ export async function POST(req: Request) {
     // --- 6. RAW TEXT / FILE INGESTION ---
     else if (type === 'file') {
        const { text, filename } = body;
-       if (!text) return NextResponse.json({ error: 'Text content required.' }, { status: 400 });
+       if (!text) throw new Error('Text content required.');
        
        const chunks = chunkText(text, filename || 'Uploaded File');
        chunks.forEach(c => extractedParagraphs.push({ content: c, url: filename || 'File Upload' }));
     }
 
     if (extractedParagraphs.length === 0) {
-      return NextResponse.json({ error: 'No readable text content found.' }, { status: 400 });
+      throw new Error('No readable text content found.');
     }
 
     // --- CHECK QUOTA / LIMITS ---
@@ -368,9 +361,7 @@ export async function POST(req: Request) {
       .eq('space_id', spaceId);
 
     if ((existingCount || 0) + extractedParagraphs.length > 1000) {
-      return NextResponse.json({ 
-        error: `Chunk limit exceeded. You have ${existingCount || 0} chunks and are trying to add ${extractedParagraphs.length} more. The limit is 1000.` 
-      }, { status: 400 });
+      throw new Error(`Chunk limit exceeded. You have ${existingCount || 0} chunks and are trying to add ${extractedParagraphs.length} more. The limit is 1000.`);
     }
 
     // --- 7. GENERATE EMBEDDINGS & INSERT ---
@@ -406,11 +397,20 @@ export async function POST(req: Request) {
       if (error) throw new Error(`Supabase Database error: ${error.message}`);
     }
 
+    // --- 8. SUCCESS: UPDATE STATUS TO 'active' ---
+    await supabase.from('data_sources').update({ status: 'active' }).eq('id', dataSourceId);
+
     console.log(`[INGEST] Ingestion fully completed successfully.`);
     return NextResponse.json({ success: true, count: allDocumentsToInsert.length });
     
   } catch (error: any) {
     console.error("[INGEST] Fatal Route Error:", error);
+    
+    // --- ERROR: UPDATE STATUS TO 'error' ---
+    if (dataSourceIdRef) {
+      await supabase.from('data_sources').update({ status: 'error' }).eq('id', dataSourceIdRef);
+    }
+
     return NextResponse.json({ error: error.message || 'Unknown internal server error' }, { status: 500 });
   }
 }
