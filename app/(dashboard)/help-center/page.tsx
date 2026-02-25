@@ -94,13 +94,13 @@ export default function HelpCenterPage() {
 
   if (isEditing) {
     return (
-      <div className="flex flex-col h-full w-full bg-white text-gray-900 font-sans animate-in fade-in duration-300">
+      <div className="flex flex-col h-full w-full bg-white text-gray-900 font-sans">
         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0 bg-white">
           <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
             <ArrowLeftIcon className="w-4 h-4" />
             Back to articles
           </button>
-          <button onClick={handleSave} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 shadow-sm">
+          <button onClick={handleSave} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
             {isSaving ? 'Saving...' : 'Save & Publish'}
           </button>
         </div>
@@ -125,19 +125,19 @@ export default function HelpCenterPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
-      <div className="max-w-[1200px] mx-auto w-full p-8 pb-20 animate-in fade-in duration-300">
+      <div className="max-w-[1200px] mx-auto w-full p-8 pb-20">
         <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <h1 className="text-xl font-medium mb-1 tracking-tight">Help Center</h1>
             <p className="text-gray-500 text-sm leading-relaxed">Create and manage support articles. Saved articles automatically train your AI bot.</p>
           </div>
-          <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">
+          <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">
              <PlusIcon className="w-4 h-4" />
              New Article
           </button>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
           {articles.length === 0 ? (
             <div className="p-12 text-center flex flex-col items-center justify-center">
               <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 mb-4">
@@ -145,7 +145,7 @@ export default function HelpCenterPage() {
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">No articles yet</h3>
               <p className="text-xs text-gray-500 max-w-xs mb-6 mx-auto">Write your first help center article to instantly train your AI and help your customers.</p>
-              <button onClick={() => openEditor()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm">Create Article</button>
+              <button onClick={() => openEditor()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">Create Article</button>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
