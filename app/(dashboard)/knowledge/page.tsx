@@ -24,11 +24,10 @@ export default function KnowledgeBasePage() {
   // but individual items track their own status via the sources array
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const [sourceType, setSourceType] = useState<'website' | 'gitbook' | 'file' | 'notion' | 'gdrive' | 'zendesk'>('website');
+  const [sourceType, setSourceType] = useState<'website' | 'gitbook' | 'file' | 'notion' | 'zendesk'>('website');
   
   const [inputValue, setInputValue] = useState('');
   const [gitbookToken, setGitbookToken] = useState('');
-  const [gdriveToken, setGdriveToken] = useState('');
   const [zendeskEmail, setZendeskEmail] = useState('');
   const [zendeskToken, setZendeskToken] = useState('');
 
@@ -120,7 +119,6 @@ export default function KnowledgeBasePage() {
       let credentials = null;
 
       if (payload.type === 'gitbook') credentials = { api_key: payload.apiKey };
-      if (payload.type === 'gdrive') credentials = { api_key: payload.token };
       if (payload.type === 'zendesk') credentials = { email: payload.email, api_key: payload.token };
 
       // 1. Insert into data_sources and get the ID back
@@ -153,7 +151,6 @@ export default function KnowledgeBasePage() {
       // Reset form inputs
       setInputValue('');
       setGitbookToken('');
-      setGdriveToken('');
       setZendeskEmail('');
       setZendeskToken('');
 
@@ -216,7 +213,6 @@ export default function KnowledgeBasePage() {
     { id: 'file', label: 'File Upload' },
     { id: 'notion', label: 'Notion' },
     { id: 'gitbook', label: 'GitBook' },
-    { id: 'gdrive', label: 'Google Drive' },
     { id: 'zendesk', label: 'Zendesk' }
   ] as const;
 
@@ -309,24 +305,6 @@ export default function KnowledgeBasePage() {
             </div>
           )}
 
-          {sourceType === 'gdrive' && (
-            <div className="flex flex-col gap-4 max-w-2xl">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Folder ID</label>
-                  <input type="text" placeholder="Folder ID from URL" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Access Token</label>
-                  <input type="password" placeholder="ya29..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={gdriveToken} onChange={(e) => setGdriveToken(e.target.value)} />
-                </div>
-              </div>
-              <button onClick={() => handleAddSource({ type: 'gdrive', folderId: inputValue, token: gdriveToken })} disabled={isSyncing || !inputValue || !gdriveToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
-                {isSyncing ? 'Syncing...' : 'Connect Google Drive'}
-              </button>
-            </div>
-          )}
-
           {sourceType === 'zendesk' && (
             <div className="flex flex-col gap-4 max-w-2xl">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -373,11 +351,11 @@ export default function KnowledgeBasePage() {
                     <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
                       {src.type === 'website' && <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>}
                       {src.type === 'file' && <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>}
-                      {['gitbook', 'notion', 'gdrive', 'zendesk'].includes(src.type) && <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>}
+                      {['gitbook', 'notion', 'zendesk'].includes(src.type) && <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>}
                     </div>
                     <div className="min-w-0 pr-4">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-900 capitalize">{src.type === 'gdrive' ? 'Google Drive' : src.type}</p>
+                        <p className="text-sm font-semibold text-gray-900 capitalize">{src.type}</p>
                         {isItemSyncing && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">
                              Syncing...
