@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { messages, spaceId, currentUrl, routingContext } = body;
+    const { messages, spaceId, currentUrl, routingContext, previewConfig } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400, headers: corsHeaders });
@@ -174,8 +174,10 @@ export async function POST(req: Request) {
           : '';
     }
 
-    const agentPersona = configData?.system_prompt || 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times. Never attempt to use HTML, inline CSS, or custom markdown to color text. Output plain text and standard markdown links only.';
-    const language = configData?.language || 'Auto-detect';
+    // Capture Unsaved Live Preview Overrides or default to DB configuration
+    const agentPersona = previewConfig?.systemPrompt ?? (configData?.system_prompt || 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times. Never attempt to use HTML, inline CSS, or custom markdown to color text. Output plain text and standard markdown links only.');
+    
+    const language = previewConfig?.language ?? (configData?.language || 'Auto-detect');
     const langInstruction = language === 'Auto-detect'
         ? 'Automatically detect the language of the user and reply in that same language.'
         : `You MUST always reply in ${language}, regardless of the language the user speaks.`;
@@ -183,7 +185,8 @@ export async function POST(req: Request) {
     const routingInstruction = routingContext ? `USER SELECTED CONTEXT: ${routingContext}` : '';
     const pageContextInstruction = currentUrl ? `USER IS VIEWING PAGE: ${currentUrl}` : '';
 
-    const followUpInstruction = configData?.follow_up_questions_enabled
+    const followUpEnabled = previewConfig?.followUpQuestionsEnabled ?? configData?.follow_up_questions_enabled;
+    const followUpInstruction = followUpEnabled
       ? `\n5. FOLLOW-UP QUESTIONS: At the very end of your response, always provide exactly 3 short, relevant follow-up questions the user might ask next. Format them exactly like this:\n**Follow-ups:**\n- [Question 1]\n- [Question 2]\n- [Question 3]`
       : '';
 
