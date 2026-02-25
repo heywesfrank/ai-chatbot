@@ -92,6 +92,9 @@ export default function MessageBubble({
     content = content.trim();
   }
 
+  // A strict set of Tailwind Typography overrides to ensure perfect, tight spacing across all bubbles
+  const sharedMarkdownClasses = "prose prose-sm max-w-none text-current leading-snug whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:mt-0 prose-p:mb-2 prose-headings:mt-0 prose-headings:mb-2 prose-ul:mt-0 prose-ul:mb-2 prose-ol:mt-0 prose-ol:mb-2 prose-pre:mt-0 prose-pre:mb-2 prose-blockquote:mt-0 prose-blockquote:mb-2 prose-img:mt-0 prose-img:mb-2 prose-img:rounded-xl prose-img:shadow-sm";
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
       {!isUser && botAvatar && (
@@ -104,7 +107,7 @@ export default function MessageBubble({
       
       <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div 
-          className={`px-3.5 py-2.5 rounded-2xl leading-snug break-words shadow-sm w-fit border ${isUser ? 'rounded-tr-sm border-transparent' : 'border-[var(--border-color)] rounded-tl-sm'}`}
+          className={`px-3.5 py-2 rounded-2xl break-words shadow-sm w-fit border ${isUser ? 'rounded-tr-sm border-transparent' : 'border-[var(--border-color)] rounded-tl-sm'}`}
           style={{
             backgroundColor: isUser ? (userBubbleColor || 'var(--primary-color)') : (agentBubbleColor || 'var(--msg-bot-bg)'),
             color: isUser ? (userFontColor || 'var(--msg-user-text)') : (botFontColor || 'var(--msg-bot-text)'),
@@ -119,13 +122,13 @@ export default function MessageBubble({
         >
           {isUser ? (
             <ReactMarkdown 
-              className="prose prose-sm max-w-none text-current prose-p:text-current prose-headings:text-current prose-strong:text-current prose-li:text-current prose-code:text-current prose-em:text-current prose-p:whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-current prose-a:underline prose-img:rounded-xl prose-img:shadow-sm prose-img:max-w-full prose-img:my-1"
+              className={`${sharedMarkdownClasses} prose-a:text-current prose-a:underline`}
             >
               {msg.content}
             </ReactMarkdown>
           ) : (
             <ReactMarkdown 
-              className="prose prose-sm max-w-none text-current prose-p:text-current prose-headings:text-current prose-strong:text-current prose-li:text-current prose-code:text-current prose-em:text-current prose-p:whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)] prose-img:rounded-xl prose-img:max-w-full"
+              className={`${sharedMarkdownClasses} prose-a:text-blue-500 prose-pre:bg-[var(--input-bg)] prose-pre:text-[var(--text-primary)] prose-pre:border prose-pre:border-[var(--border-color)]`}
               components={{
                 pre: ({ children, ...props }) => {
                   const codeText = flattenText(children);
@@ -145,7 +148,7 @@ export default function MessageBubble({
           )}
 
           {sources.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[var(--border-strong)] flex flex-col gap-2 animate-in fade-in duration-300 overflow-hidden">
+            <div className="mt-2 pt-2 border-t border-[var(--border-strong)] flex flex-col gap-1.5 animate-in fade-in duration-300 overflow-hidden">
               <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">References</span>
               <div className="flex flex-col gap-1.5">
                 {sources.map((src, i) => (
@@ -165,7 +168,7 @@ export default function MessageBubble({
           )}
 
           {!isUser && msg.id !== 'init' && !isTyping && !liveSessionId && escalatingId === msg.id && (
-            <div className="mt-3 border-t border-[var(--border-strong)] pt-3 animate-in fade-in duration-200">
+            <div className="mt-2 border-t border-[var(--border-strong)] pt-2 animate-in fade-in duration-200">
               <div className="flex gap-1.5">
                 <input 
                   type="email" 
@@ -226,7 +229,7 @@ export default function MessageBubble({
           )}
         </div>
 
-        {/* Dynamic AI Follow-up Chips - Rendered only at the bottom of the latest bot message */}
+        {/* Dynamic AI Follow-up Chips */}
         {isLatest && followUps.length > 0 && !isTyping && !liveSessionId && (
           <div className="mt-1.5 flex flex-col gap-2 w-full animate-in fade-in slide-in-from-top-2 duration-300">
             {followUps.map((q, i) => (
