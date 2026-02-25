@@ -6,7 +6,6 @@ import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-// Define a type for our source items to handle the UI state
 type DataSource = {
   id: string;
   type: string;
@@ -20,10 +19,7 @@ export default function KnowledgeBasePage() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [isFetchingSources, setIsFetchingSources] = useState(true);
   
-  // We keep isSyncing for the global form disabled state, 
-  // but individual items track their own status via the sources array
   const [isSyncing, setIsSyncing] = useState(false);
-
   const [sourceType, setSourceType] = useState<'website' | 'gitbook' | 'file' | 'notion' | 'zendesk'>('website');
   
   const [inputValue, setInputValue] = useState('');
@@ -55,34 +51,41 @@ export default function KnowledgeBasePage() {
     }
 
     if (newSourceId && activeSpaceId && sources.length > 0) {
+      const exists = sources.find(s => s.id === newSourceId);
+      if (!exists) return;
+      if (exists.status === 'syncing') return;
+
       const triggerAutoSync = async () => {
         toast.success('Notion connected! Starting initial sync...');
         setSources(prev => prev.map(s => s.id === newSourceId ? { ...s, status: 'syncing' } : s));
 
         try {
+          const { data: { session } } = await supabase.auth.getSession();
           const res = await fetch('/api/ingest', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
             body: JSON.stringify({ spaceId: activeSpaceId, dataSourceId: newSourceId, type: 'notion' }),
           });
           
           if (res.ok) {
             toast.success('Sync completed successfully.');
-            await fetchSources();
           } else {
-             toast.error('Failed to sync.');
-             fetchSources();
+             const errData = await res.json().catch(() => ({}));
+             setSources(prev => prev.filter(s => s.id !== newSourceId));
+             toast.error(errData.error || 'Failed to sync. Source removed.');
           }
         } catch (e) {
           console.error(e);
+          setSources(prev => prev.filter(s => s.id !== newSourceId));
           toast.error('An error occurred during sync.');
+        } finally {
           fetchSources();
+          router.replace('/knowledge');
         }
-        router.replace('/knowledge');
       };
       triggerAutoSync();
     }
-  }, [searchParams, activeSpaceId, sources.length]);
+  }, [searchParams, activeSpaceId, sources, router]);
 
   const fetchSources = async () => {
     setIsFetchingSources(true);
@@ -113,15 +116,11 @@ export default function KnowledgeBasePage() {
       if (payload.type === 'gitbook') credentials = { api_key: payload.apiKey };
       
       if (payload.type === 'zendesk') {
-        // CLEANUP: If user pasted a full URL, strip it down to just the subdomain
-        // e.g. "https://mycompany.zendesk.com" -> "mycompany"
         if (sourceUri) {
           sourceUri = sourceUri
-            .replace(/^https?:\/\//, '') // Remove protocol
-            .replace(/\.zendesk\.com.*$/, '') // Remove domain suffix
-            .replace(/\/$/, ''); // Remove trailing slash
-          
-          // Update the payload to use the clean version
+            .replace(/^https?:\/\//, '')
+            .replace(/\.zendesk\.com.*$/, '')
+            .replace(/\/$/, '');
           payload.subdomain = sourceUri;
         }
 
@@ -174,7 +173,9 @@ export default function KnowledgeBasePage() {
         if (syncRes.status === 504) {
           toast.success('Syncing continuing in background.');
         } else {
-          const errData = await syncRes.json();
+          // Immediately hide it from UI if it failed to ingest
+          setSources(prev => prev.filter(s => s.id !== newDataSourceId));
+          const errData = await syncRes.json().catch(() => ({}));
           throw new Error(errData.error || 'Failed to sync source');
         }
       } else {
@@ -257,7 +258,7 @@ export default function KnowledgeBasePage() {
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 leading-relaxed">Provide a link to your website's sitemap.xml to crawl multiple pages, or a direct link to a single page.</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed mt-1">Provide a link to your website's <strong>sitemap.xml</strong> to crawl multiple pages, or a direct link to a single page. Ensure the content is publicly accessible.</p>
             </div>
           )}
 
@@ -274,6 +275,7 @@ export default function KnowledgeBasePage() {
                   <p className="text-xs text-gray-500">Supports .txt, .csv, and .json files</p>
                 </div>
               </div>
+              <p className="text-[11px] text-gray-500 leading-relaxed mt-1">Upload a raw data file to directly ingest its text into your bot's memory.</p>
             </div>
           )}
 
@@ -282,7 +284,7 @@ export default function KnowledgeBasePage() {
                <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Connect Notion</label>
                   <div className="p-4 bg-gray-50 rounded-md border border-gray-200">
-                    <p className="text-sm text-gray-600 mb-4">Grant access to specific Notion pages. We will automatically import all sub-pages you share.</p>
+                    <p className="text-sm text-gray-600 mb-4">Click below to authenticate with Notion. You will be prompted to select the pages you want your bot to read. All sub-pages are automatically included.</p>
                     <a 
                       href={`https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_APP_URL + '/api/notion/oauth')}&state=kb_${activeSpaceId}`}
                       className={`inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors ${!activeSpaceId ? 'opacity-50 pointer-events-none' : ''}`}
@@ -292,6 +294,7 @@ export default function KnowledgeBasePage() {
                     </a>
                   </div>
                </div>
+               <p className="text-[11px] text-gray-500 leading-relaxed mt-1">Note: Ensure your selected Notion pages are accessible and contain text. Blank pages or pages containing only databases may be skipped.</p>
             </div>
           )}
 
@@ -310,6 +313,7 @@ export default function KnowledgeBasePage() {
               <button onClick={() => handleAddSource({ type: 'gitbook', gitbookSpaceId: inputValue, apiKey: gitbookToken })} disabled={isSyncing || !inputValue || !gitbookToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect GitBook'}
               </button>
+              <p className="text-[11px] text-gray-500 leading-relaxed mt-1">You can find your Space ID in the URL of your GitBook space. Generate an API Token from your GitBook Developer Settings.</p>
             </div>
           )}
 
@@ -331,7 +335,6 @@ export default function KnowledgeBasePage() {
                   </div>
                 </div>
 
-                {/* Minimalist Instructions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Agent Email <span className="text-[10px] font-normal lowercase">(For Private Content)</span></label>
@@ -342,11 +345,11 @@ export default function KnowledgeBasePage() {
                     <input type="password" placeholder="Token..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskToken} onChange={(e) => setZendeskToken(e.target.value)} />
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">Leave email & token blank for public help centers.</p>
               </div>
               <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Zendesk'}
               </button>
+              <p className="text-[11px] text-gray-500 leading-relaxed mt-1">For a public Help Center, enter only your subdomain. If your Help Center requires a login, provide an Agent Email and API Token.</p>
             </div>
           )}
         </div>
