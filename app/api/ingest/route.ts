@@ -132,7 +132,6 @@ export async function POST(req: Request) {
     
     // --- 0. CLEANUP EXISTING DATA ---
     // Ensure idempotency: Remove any existing documents for this specific data source before adding new ones.
-    // This fixes the "duplicates" issue if the user syncs multiple times or if ingestion retries.
     await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceId);
 
     let extractedParagraphs: { content: string, url: string }[] = [];
@@ -167,13 +166,51 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- 2. NOTION INGESTION ---
+    // --- 2. NOTION INGESTION (OAUTH) ---
     else if (type === 'notion') {
-      const { pageId, token: notionToken } = body;
-      if (!pageId || !notionToken) return NextResponse.json({ error: 'Notion Page ID and Integration Token required.' }, { status: 400 });
+      let notionToken = body.token;
+      let pageIds: string[] = body.pageId ? [body.pageId] : [];
 
+      // If token not provided in body (new OAuth flow), fetch from DB
+      if (!notionToken && dataSourceId) {
+         const { data: ds } = await supabase.from('data_sources').select('credentials').eq('id', dataSourceId).single();
+         if (ds?.credentials?.access_token) {
+            notionToken = ds.credentials.access_token;
+         }
+      }
+
+      if (!notionToken) return NextResponse.json({ error: 'Notion Access Token not found.' }, { status: 400 });
+
+      // If no specific Page ID provided, Search for ALL available pages
+      if (pageIds.length === 0) {
+        console.log('[INGEST] Searching for all accessible Notion pages...');
+        const searchRes = await fetch('https://api.notion.com/v1/search', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${notionToken}`, 
+            'Notion-Version': '2022-06-28', 
+            'Content-Type': 'application/json' 
+          },
+          body: JSON.stringify({ 
+            filter: { value: 'page', property: 'object' },
+            sort: { direction: 'descending', timestamp: 'last_edited_time' }
+          })
+        });
+
+        if (!searchRes.ok) throw new Error(`Notion Search API Error: ${searchRes.statusText}`);
+        
+        const searchData = await searchRes.json();
+        // Notion returns all shared pages. We'll ingest the top results.
+        pageIds = searchData.results.map((r: any) => r.id);
+        
+        if (pageIds.length === 0) {
+           return NextResponse.json({ error: 'No pages found. Please ensure you shared pages with the integration.' }, { status: 400 });
+        }
+      }
+
+      // Helper to fetch content (recursive)
       async function fetchNotionBlocks(blockId: string, depth = 0): Promise<string> {
-        if (depth > 5) return ''; // Prevent deep recursion
+        if (depth > 5) return ''; 
         let text = '';
         let cursor = undefined;
         let hasMore = true;
@@ -212,11 +249,16 @@ export async function POST(req: Request) {
         return text;
       }
 
-      const rawText = await fetchNotionBlocks(pageId);
-      if (!rawText) throw new Error('Could not fetch Notion content. Check integration token and page sharing permissions.');
+      console.log(`[INGEST] Ingesting ${pageIds.length} Notion pages...`);
       
-      const chunks = chunkText(rawText, `notion://${pageId}`);
-      chunks.forEach(c => extractedParagraphs.push({ content: c, url: `notion://${pageId}` }));
+      // Process pages in parallel (capped by rate limits effectively)
+      await Promise.all(pageIds.map(async (pid) => {
+        const rawText = await fetchNotionBlocks(pid);
+        if (rawText.trim()) {
+           const chunks = chunkText(rawText, `notion://${pid}`);
+           chunks.forEach(c => extractedParagraphs.push({ content: c, url: `notion://${pid}` }));
+        }
+      }));
     }
 
     // --- 3. GOOGLE DRIVE INGESTION ---
@@ -224,7 +266,6 @@ export async function POST(req: Request) {
       const { folderId, token: driveToken } = body;
       if (!folderId || !driveToken) return NextResponse.json({ error: 'GDrive Folder ID and Access Token required.' }, { status: 400 });
 
-      // Fetch files in the folder
       const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType)`, {
         headers: { 'Authorization': `Bearer ${driveToken}` }
       });
@@ -233,7 +274,6 @@ export async function POST(req: Request) {
 
       for (const file of data.files || []) {
          let fileRes;
-         // Support native Google Docs (export to text) or plain text documents
          if (file.mimeType === 'application/vnd.google-apps.document') {
            fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text/plain`, {
              headers: { 'Authorization': `Bearer ${driveToken}` }
@@ -260,7 +300,6 @@ export async function POST(req: Request) {
       const { subdomain, email, token: zendeskToken } = body;
       if (!subdomain || !email || !zendeskToken) return NextResponse.json({ error: 'Zendesk credentials required.' }, { status: 400 });
 
-      // Create base64 basic auth string natively
       const auth = Buffer.from(`${email}/token:${zendeskToken}`).toString('base64');
       const res = await fetch(`https://${subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100`, {
         headers: { 'Authorization': `Basic ${auth}` }
@@ -295,7 +334,6 @@ export async function POST(req: Request) {
           urls = parsed.urlset.url.map((u: any) => u.loc[0]).slice(0, MAX_SITEMAP_PAGES);
         }
         
-        // Deduplicate URLs to prevent duplicate chunks from sitemap issues
         const uniqueUrls = [...new Set(urls)];
 
         for (const pageUrl of uniqueUrls) {
