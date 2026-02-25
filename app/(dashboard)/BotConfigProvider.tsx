@@ -61,7 +61,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     verbosity: 'medium',
     allowedDomains: '',
     agentsOnline: false,
-    cannedResponses: []
+    cannedResponses: [],
+    triggers: [] // Added default state for triggers
   });
 
   const updateConfig = (key: string, value: any) => {
@@ -132,7 +133,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
         verbosity: spaceData.verbosity || prev.verbosity,
         allowedDomains: spaceData.allowed_domains || '',
         agentsOnline: spaceData.agents_online ?? false,
-        cannedResponses: spaceData.canned_responses || []
+        cannedResponses: spaceData.canned_responses || [],
+        triggers: spaceData.triggers || [] // Added mapping for triggers
       }));
       if (spaceData.space_id) setActiveSpaceId(spaceData.space_id);
     }
