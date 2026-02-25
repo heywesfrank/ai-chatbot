@@ -188,7 +188,7 @@ export async function POST(req: Request) {
 
     const followUpEnabled = previewConfig?.followUpQuestionsEnabled ?? configData?.follow_up_questions_enabled;
     const followUpInstruction = followUpEnabled
-      ? `\n5. FOLLOW-UP QUESTIONS: At the very end of your response, always provide exactly 3 short, relevant follow-up questions the user can click to ask you next. These MUST be written from the user's perspective (e.g., "How do I do X?" or "Tell me more about Y."). Format them exactly like this:\n**Follow-ups:**\n- [Question 1]\n- [Question 2]\n- [Question 3]`
+      ? `\n5. FOLLOW-UP QUESTIONS: At the very end of your response, always provide exactly 3 short, relevant follow-up questions the user can click to ask you next. These MUST be written strictly from the USER'S perspective as things they would ask YOU (e.g. "How do I do X?", "Tell me more about Y."). NEVER write questions from your (the agent's) perspective asking the user for more information. Format them exactly like this:\n**Follow-ups:**\n- [Question 1]\n- [Question 2]\n- [Question 3]`
       : '';
 
     const verbosity = previewConfig?.verbosity ?? configData?.verbosity ?? 'medium';
