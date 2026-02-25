@@ -55,12 +55,8 @@ export default function KnowledgeBasePage() {
     }
 
     if (newSourceId && activeSpaceId && sources.length > 0) {
-      // Find the source (it should be in the list after fetchSources called by activeSpaceId change or we force fetch)
-      
       const triggerAutoSync = async () => {
         toast.success('Notion connected! Starting initial sync...');
-        
-        // 1. UPDATE UI STATE IMMEDIATELY to show syncing spinner
         setSources(prev => prev.map(s => s.id === newSourceId ? { ...s, status: 'syncing' } : s));
 
         try {
@@ -72,11 +68,9 @@ export default function KnowledgeBasePage() {
           
           if (res.ok) {
             toast.success('Sync completed successfully.');
-            // 2. REFRESH SOURCES to get the final "active" status from DB
             await fetchSources();
           } else {
              toast.error('Failed to sync.');
-             // Optional: Refresh to show error state if DB was updated
              fetchSources();
           }
         } catch (e) {
@@ -84,10 +78,8 @@ export default function KnowledgeBasePage() {
           toast.error('An error occurred during sync.');
           fetchSources();
         }
-        // Clean URL
         router.replace('/knowledge');
       };
-
       triggerAutoSync();
     }
   }, [searchParams, activeSpaceId, sources.length]);
@@ -119,14 +111,26 @@ export default function KnowledgeBasePage() {
       let credentials = null;
 
       if (payload.type === 'gitbook') credentials = { api_key: payload.apiKey };
+      
       if (payload.type === 'zendesk') {
-        // Only save credentials if they were actually provided
+        // CLEANUP: If user pasted a full URL, strip it down to just the subdomain
+        // e.g. "https://mycompany.zendesk.com" -> "mycompany"
+        if (sourceUri) {
+          sourceUri = sourceUri
+            .replace(/^https?:\/\//, '') // Remove protocol
+            .replace(/\.zendesk\.com.*$/, '') // Remove domain suffix
+            .replace(/\/$/, ''); // Remove trailing slash
+          
+          // Update the payload to use the clean version
+          payload.subdomain = sourceUri;
+        }
+
         if (payload.email && payload.token) {
            credentials = { email: payload.email, api_key: payload.token };
         }
       }
 
-      // 1. Insert into data_sources and get the ID back
+      // 1. Insert into data_sources
       const dsRes = await fetch('/api/data-sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
@@ -142,7 +146,7 @@ export default function KnowledgeBasePage() {
       if (dsData.error) throw new Error(dsData.error);
       const newDataSourceId = dsData.id;
 
-      // Optimistically update UI to show "Syncing..."
+      // Optimistic UI Update
       const newSource: DataSource = {
         id: newDataSourceId,
         type: payload.type,
@@ -159,7 +163,7 @@ export default function KnowledgeBasePage() {
       setZendeskEmail('');
       setZendeskToken('');
 
-      // 2. Start the heavy ingestion job
+      // 2. Start ingestion
       const syncRes = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
@@ -280,7 +284,6 @@ export default function KnowledgeBasePage() {
                   <div className="p-4 bg-gray-50 rounded-md border border-gray-200">
                     <p className="text-sm text-gray-600 mb-4">Grant access to specific Notion pages. We will automatically import all sub-pages you share.</p>
                     <a 
-                      /* We force the state to be a string with a 'kb_' prefix to avoid Notion validation errors if the ID looks like a number */
                       href={`https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_APP_URL + '/api/notion/oauth')}&state=kb_${activeSpaceId}`}
                       className={`inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors ${!activeSpaceId ? 'opacity-50 pointer-events-none' : ''}`}
                     >
@@ -328,21 +331,18 @@ export default function KnowledgeBasePage() {
                   </div>
                 </div>
 
-                {/* --- ADDED THIS INSTRUCTION BOX --- */}
-                <div className="p-3 bg-blue-50 border border-blue-100 rounded-md text-xs text-blue-700 leading-relaxed">
-                   <strong>Note:</strong> Most Help Centers are public. You only need to fill out the email and token below if your Help Center requires users to log in to view articles.
-                </div>
-
+                {/* Minimalist Instructions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Agent Email <span className="text-[10px] font-normal lowercase">(Private Help Centers)</span></label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Agent Email <span className="text-[10px] font-normal lowercase">(For Private Content)</span></label>
                     <input type="email" placeholder="agent@example.com" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskEmail} onChange={(e) => setZendeskEmail(e.target.value)} />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">API Token <span className="text-[10px] font-normal lowercase">(Private Help Centers)</span></label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">API Token <span className="text-[10px] font-normal lowercase">(For Private Content)</span></label>
                     <input type="password" placeholder="Token..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={zendeskToken} onChange={(e) => setZendeskToken(e.target.value)} />
                   </div>
                 </div>
+                <p className="text-xs text-gray-400">Leave email & token blank for public help centers.</p>
               </div>
               <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Zendesk'}
