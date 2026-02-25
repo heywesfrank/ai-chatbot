@@ -7,7 +7,7 @@ import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { BotConfigProvider, useBotConfig } from './BotConfigProvider';
 import { 
   DatabaseIcon, SettingsIcon, PaletteIcon, MessageSquareIcon, 
-  CodeIcon, InboxIcon, BarChartIcon, LinkIcon, UsersIcon, CpuIcon, ZapIcon 
+  CodeIcon, InboxIcon, BarChartIcon, LinkIcon, UsersIcon, CpuIcon, ZapIcon, FileTextIcon 
 } from '@/components/icons';
 
 const navGroups = [
@@ -28,6 +28,7 @@ const navGroups = [
     title: 'Operations',
     items: [
       { name: 'Inbox', path: '/inbox', icon: <InboxIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Help Center', path: '/help-center', icon: <FileTextIcon className="w-[18px] h-[18px]" /> },
       { name: 'Analytics', path: '/analytics', icon: <BarChartIcon className="w-[18px] h-[18px]" /> },
     ]
   },
