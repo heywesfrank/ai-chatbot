@@ -1,4 +1,3 @@
-// app/widget/components/ChatWidget.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -73,8 +72,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const botAvatar = config?.bot_avatar || null;
   const agentsOnline = config?.agents_online ?? false;
   
-  const enablePageContext = config?.page_context_enabled ?? false;
-  const routingOptions = config?.routing_config || [];
+  const enablePageContext = urlOverrides.pageContextEnabled !== undefined && urlOverrides.pageContextEnabled !== null ? urlOverrides.pageContextEnabled : (config?.page_context_enabled ?? false);
+  const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routing_config || []);
 
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
