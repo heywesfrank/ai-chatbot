@@ -77,8 +77,10 @@ export default async function HelpCenterIndex({ params }: { params: { spaceId: s
                         <Link 
                           href={`/help/${params.spaceId}/${article.id}`}
                           className="flex flex-col p-4 rounded-lg hover:bg-gray-50 transition-colors group"
+                          // We pass the brand color as a CSS variable to be used by Tailwind's group-hover
+                          style={{ '--brand-color': brandColor } as React.CSSProperties}
                         >
-                          <span className="font-medium text-gray-900 group-hover:text-black transition-colors" style={{ '--tw-text-opacity': 1, color: `var(--hover-color, #000)` } as any} onMouseEnter={(e) => (e.currentTarget.style.color = brandColor)} onMouseLeave={(e) => (e.currentTarget.style.color = '#111827')}>
+                          <span className="font-medium text-gray-900 group-hover:text-[var(--brand-color)] transition-colors">
                             {article.title}
                           </span>
                           <span className="text-sm text-gray-500 line-clamp-1 mt-1">
