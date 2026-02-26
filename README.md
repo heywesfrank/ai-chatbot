@@ -47,8 +47,11 @@ create table public.help_center_articles (
   content text not null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
   updated_at timestamp with time zone null default timezone ('utc'::text, now()),
+  category text null default 'General'::text,
   constraint help_center_articles_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
 
 create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
 
