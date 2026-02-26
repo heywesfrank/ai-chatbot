@@ -1,4 +1,3 @@
-// app/api/help-center/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import OpenAI from 'openai';
@@ -57,10 +56,16 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser(authHeader?.replace('Bearer ', '') || '');
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id, spaceId, title, content } = await req.json();
+    const { id, spaceId, title, content, category } = await req.json();
     if (!spaceId || !title || !content) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-    const payload = { space_id: spaceId, title, content, updated_at: new Date().toISOString() };
+    const payload = { 
+      space_id: spaceId, 
+      title, 
+      content, 
+      category: category || 'General',
+      updated_at: new Date().toISOString() 
+    };
     
     let articleRes;
     if (id) {
@@ -73,13 +78,14 @@ export async function POST(req: Request) {
     const article = articleRes.data;
 
     // Auto-sync to AI knowledge base
-    const articleUrl = `help-center/${article.id}`;
+    // Use the new public URL as the source URL!
+    const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article.id}`;
     
     // Clear old embeddings for this article
     await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
 
-    // Build the full context
-    const fullText = `Title: ${article.title}\n\n${article.content}`;
+    // Build the full context (inject category so AI knows what context it belongs to)
+    const fullText = `Title: ${article.title}\nCategory: ${article.category}\n\n${article.content}`;
     const chunks = chunkText(fullText, articleUrl);
 
     if (chunks.length > 0) {
@@ -113,10 +119,13 @@ export async function DELETE(req: Request) {
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
+    const spaceId = url.searchParams.get('spaceId'); // Need this to reconstruct the URL
+    if (!id || !spaceId) return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+
+    const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${id}`;
 
     // Delete from knowledge docs first to ensure RAG stops answering based on it
-    await supabase.from('knowledge_documents').delete().eq('page_url', `help-center/${id}`);
+    await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
     
     // Delete article record
     await supabase.from('help_center_articles').delete().eq('id', id);
