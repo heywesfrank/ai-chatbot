@@ -1,10 +1,9 @@
-// app/(dashboard)/help-center/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { useBotConfig } from '../BotConfigProvider';
-import { FileTextIcon, PlusIcon, ArrowLeftIcon, ClearIcon } from '@/components/icons';
+import { FileTextIcon, PlusIcon, ArrowLeftIcon, ClearIcon, ExternalLinkIcon } from '@/components/icons';
 
 export default function HelpCenterPage() {
   const { activeSpaceId } = useBotConfig();
@@ -14,6 +13,7 @@ export default function HelpCenterPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('General');
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -40,11 +40,11 @@ export default function HelpCenterPage() {
     const res = await fetch('/api/help-center', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-      body: JSON.stringify({ id: currentId, spaceId: activeSpaceId, title, content })
+      body: JSON.stringify({ id: currentId, spaceId: activeSpaceId, title, content, category })
     });
     setIsSaving(false);
     if (res.ok) {
-      toast.success('Article saved & synced to AI!');
+      toast.success('Article published live & synced to AI!');
       setIsEditing(false);
       fetchArticles();
     } else {
@@ -55,7 +55,7 @@ export default function HelpCenterPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`/api/help-center?id=${id}`, {
+    const res = await fetch(`/api/help-center?id=${id}&spaceId=${activeSpaceId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${session?.access_token}` }
     });
@@ -71,10 +71,12 @@ export default function HelpCenterPage() {
     if (article) {
       setCurrentId(article.id);
       setTitle(article.title);
+      setCategory(article.category || 'General');
       setContent(article.content);
     } else {
       setCurrentId(null);
       setTitle('');
+      setCategory('General');
       setContent('');
     }
     setIsEditing(true);
@@ -100,9 +102,20 @@ export default function HelpCenterPage() {
             <ArrowLeftIcon className="w-4 h-4" />
             Back to articles
           </button>
-          <button onClick={handleSave} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
-            {isSaving ? 'Saving...' : 'Save & Publish'}
-          </button>
+          <div className="flex items-center gap-3">
+            {currentId && (
+              <a 
+                href={`/help/${activeSpaceId}/${currentId}`} 
+                target="_blank" 
+                className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-gray-50"
+              >
+                View Live <ExternalLinkIcon className="w-3.5 h-3.5" />
+              </a>
+            )}
+            <button onClick={handleSave} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
+              {isSaving ? 'Saving...' : 'Save & Publish'}
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-8 flex flex-col max-w-4xl mx-auto w-full gap-4">
           <input 
@@ -112,9 +125,19 @@ export default function HelpCenterPage() {
             value={title}
             onChange={e => setTitle(e.target.value)}
           />
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Category:</span>
+            <input 
+              type="text" 
+              placeholder="e.g. Getting Started" 
+              className="text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-3 py-1 outline-none focus:border-black focus:bg-white transition-colors"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+            />
+          </div>
           <textarea 
             placeholder="Write your article content here... (Markdown supported)"
-            className="w-full flex-1 resize-none text-base text-gray-700 leading-relaxed placeholder:text-gray-400 outline-none border-none bg-transparent mt-4"
+            className="w-full flex-1 resize-none text-base text-gray-700 leading-relaxed placeholder:text-gray-400 outline-none border-none bg-transparent mt-6"
             value={content}
             onChange={e => setContent(e.target.value)}
           />
@@ -129,12 +152,22 @@ export default function HelpCenterPage() {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <h1 className="text-xl font-medium mb-1 tracking-tight">Help Center</h1>
-            <p className="text-gray-500 text-sm leading-relaxed">Create and manage support articles. Saved articles automatically train your AI bot.</p>
+            <p className="text-gray-500 text-sm leading-relaxed">Create and manage support articles. Articles are instantly published to your public portal and synced to the AI.</p>
           </div>
-          <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">
-             <PlusIcon className="w-4 h-4" />
-             New Article
-          </button>
+          <div className="flex items-center gap-3">
+             <a 
+                href={`/help/${activeSpaceId}`} 
+                target="_blank" 
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                 <ExternalLinkIcon className="w-4 h-4" />
+                 View Portal
+              </a>
+              <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">
+                <PlusIcon className="w-4 h-4" />
+                New Article
+              </button>
+          </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
@@ -144,7 +177,7 @@ export default function HelpCenterPage() {
                  <FileTextIcon className="w-6 h-6 text-gray-400" />
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">No articles yet</h3>
-              <p className="text-xs text-gray-500 max-w-xs mb-6 mx-auto">Write your first help center article to instantly train your AI and help your customers.</p>
+              <p className="text-xs text-gray-500 max-w-xs mb-6 mx-auto">Write your first help center article to instantly train your AI and generate a public knowledge base.</p>
               <button onClick={() => openEditor()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">Create Article</button>
             </div>
           ) : (
@@ -156,14 +189,17 @@ export default function HelpCenterPage() {
                        <FileTextIcon className="w-5 h-5" />
                      </div>
                      <div className="min-w-0">
-                       <h4 className="text-sm font-semibold text-gray-900 truncate">{article.title}</h4>
-                       <p className="text-xs text-gray-500 mt-1 truncate max-w-lg">
+                       <div className="flex items-center gap-2 mb-1">
+                         <h4 className="text-sm font-semibold text-gray-900 truncate">{article.title}</h4>
+                         <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium shrink-0">{article.category || 'General'}</span>
+                       </div>
+                       <p className="text-xs text-gray-500 truncate max-w-lg">
                          {article.content.substring(0, 100)}{article.content.length > 100 ? '...' : ''}
                        </p>
                      </div>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-[11px] text-gray-400 font-medium">
+                    <span className="text-[11px] text-gray-400 font-medium hidden sm:block">
                       {new Date(article.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                     <button 
