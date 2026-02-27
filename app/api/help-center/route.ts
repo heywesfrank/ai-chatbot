@@ -6,7 +6,6 @@ import * as cheerio from 'cheerio';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function chunkText(htmlString: string, sourceUrl: string) {
-  // Use Cheerio to cleanly extract raw text from HTML content 
   const $ = cheerio.load(htmlString);
   const rawText = $('body').text();
   
@@ -77,7 +76,16 @@ export async function POST(req: Request) {
     };
     
     let articleRes;
+    
     if (id) {
+      // First, fetch the existing record to get its CURRENT slug.
+      // If the author changed the slug, we need to delete the old embeddings using the old URL.
+      const { data: existing } = await supabase.from('help_center_articles').select('slug').eq('id', id).maybeSingle();
+      if (existing) {
+        const oldUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${existing.slug || id}`;
+        await supabase.from('knowledge_documents').delete().eq('page_url', oldUrl);
+      }
+      
       articleRes = await supabase.from('help_center_articles').update(payload).eq('id', id).select().single();
     } else {
       articleRes = await supabase.from('help_center_articles').insert(payload).select().single();
@@ -88,10 +96,9 @@ export async function POST(req: Request) {
 
     const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article.slug || article.id}`;
     
-    // Always clear old embeddings for this article (to prevent stale data or to remove drafted data)
+    // Safety clear of any embeddings for the *new* URL just in case
     await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
 
-    // Only process and push to AI knowledge base if status is published
     if (article.status === 'published') {
       const fullText = `Title: ${article.title}\nCategory: ${article.category}\n\n${article.content}`;
       const chunks = chunkText(fullText, articleUrl);
@@ -131,15 +138,10 @@ export async function DELETE(req: Request) {
     const spaceId = url.searchParams.get('spaceId');
     if (!id || !spaceId) return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
 
-    // Try to get the article to find the exact URL it was synced with
     const { data: article } = await supabase.from('help_center_articles').select('slug').eq('id', id).single();
-    
     const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article?.slug || id}`;
 
-    // Delete from knowledge docs first to ensure RAG stops answering based on it
     await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
-    
-    // Delete article record
     await supabase.from('help_center_articles').delete().eq('id', id);
 
     return NextResponse.json({ success: true });
