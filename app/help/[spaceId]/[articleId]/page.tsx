@@ -4,9 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
-export const revalidate = 60; // Revalidate cache every 60 seconds
-
-// --- Helper Functions ---
+export const revalidate = 60;
 
 function formatTimeAgo(dateString: string) {
   const date = new Date(dateString);
@@ -41,7 +39,6 @@ const slugify = (text: string) => {
   return text.toLowerCase().replace(/[^\w]+/g, '-').replace(/(^-|-$)/g, '');
 };
 
-// Extracts headings for the Table of Contents right from the Markdown string
 function extractHeadings(content: string) {
   const headings: { level: number; text: string; slug: string }[] = [];
   const lines = content.split('\n');
@@ -58,41 +55,49 @@ function extractHeadings(content: string) {
     if (match) {
       const level = match[1].length;
       let text = match[2].trim();
-      text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // Remove markdown links
-      text = text.replace(/[*_~`]/g, ''); // Remove simple bold/italic formatting
-      headings.push({
-        level,
-        text,
-        slug: slugify(text)
-      });
+      text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); 
+      text = text.replace(/[*_~`]/g, ''); 
+      headings.push({ level, text, slug: slugify(text) });
     }
   }
   return headings;
 }
 
-// --- Metadata ---
-
 export async function generateMetadata({ params }: { params: { spaceId: string, articleId: string } }): Promise<Metadata> {
-  const { data: article } = await supabase.from('help_center_articles').select('title, content').eq('id', params.articleId).eq('space_id', params.spaceId).maybeSingle();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.articleId);
+  let query = supabase.from('help_center_articles').select('title, content, seo_title, seo_description').eq('space_id', params.spaceId);
+  
+  if (isUuid) query = query.or(`id.eq.${params.articleId},slug.eq.${params.articleId}`);
+  else query = query.eq('slug', params.articleId);
+
+  const { data: article } = await query.maybeSingle();
   const { data: config } = await supabase.from('bot_config').select('workspace_name').eq('space_id', params.spaceId).maybeSingle();
   
   if (!article) return { title: 'Not Found' };
 
+  const metaTitle = article.seo_title || `${article.title} | ${config?.workspace_name || 'Help Center'}`;
+  const metaDescription = article.seo_description || article.content.substring(0, 160).replace(/[#*`~_\[\]>]/g, '').replace(/\n/g, ' ').trim() + '...';
+
   return {
-    title: `${article.title} | ${config?.workspace_name || 'Help Center'}`,
-    description: article.content.substring(0, 160).replace(/\n/g, ' ') + '...',
+    title: metaTitle,
+    description: metaDescription,
     openGraph: {
-      title: article.title,
-      description: article.content.substring(0, 160).replace(/\n/g, ' ') + '...',
+      title: metaTitle,
+      description: metaDescription,
     }
   };
 }
 
-// --- Page Component ---
-
 export default async function ArticlePage({ params }: { params: { spaceId: string, articleId: string } }) {
   const { data: config } = await supabase.from('bot_config').select('workspace_name, primary_color, bot_avatar').eq('space_id', params.spaceId).maybeSingle();
-  const { data: article } = await supabase.from('help_center_articles').select('*').eq('id', params.articleId).eq('space_id', params.spaceId).maybeSingle();
+  
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.articleId);
+  let query = supabase.from('help_center_articles').select('*').eq('space_id', params.spaceId);
+  
+  if (isUuid) query = query.or(`id.eq.${params.articleId},slug.eq.${params.articleId}`);
+  else query = query.eq('slug', params.articleId);
+
+  const { data: article } = await query.maybeSingle();
 
   if (!article) notFound();
 
@@ -101,8 +106,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
 
   return (
     <div className="bg-white min-h-screen text-gray-900 font-sans">
-      
-      {/* Top Navbar */}
       <nav className="px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-50">
         <Link href={`/help/${params.spaceId}`} className="flex items-center gap-2 transition-opacity hover:opacity-80">
           <img src="/apoyo.png" alt="Apoyo" className="h-6 object-contain" />
@@ -118,7 +121,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
         </div>
       </nav>
 
-      {/* Hero Search Section */}
       <div className="bg-gray-50 border-b border-gray-100 py-10 px-6 relative">
         <div className="max-w-3xl mx-auto relative z-10">
           <form action={`/help/${params.spaceId}`} method="GET" className="relative">
@@ -136,13 +138,8 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
         </div>
       </div>
 
-      {/* Main Layout */}
       <main className="max-w-[1100px] mx-auto w-full px-6 py-12 flex flex-col lg:flex-row gap-16 items-start">
-        
-        {/* Article Content */}
         <article className="flex-1 min-w-0">
-          
-          {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 whitespace-nowrap overflow-x-auto pb-1">
             <Link href={`/help/${params.spaceId}`} className="hover:text-gray-900 transition-colors">All Collections</Link>
             <span>›</span>
@@ -155,7 +152,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
             {article.title}
           </h1>
 
-          {/* Author Meta */}
           <div className="flex items-center gap-3 mb-10">
              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
                 {config?.bot_avatar ? (
@@ -174,7 +170,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
              </div>
           </div>
 
-          {/* Markdown Body */}
           <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:scroll-mt-24 prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl prose-img:shadow-sm leading-relaxed text-[15px] text-gray-700">
             <ReactMarkdown 
               components={{
@@ -188,7 +183,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
           </div>
         </article>
 
-        {/* Right Sidebar: Table of Contents */}
         {headings.length > 0 && (
           <aside className="w-[260px] shrink-0 hidden lg:block sticky top-28">
             <ul className="space-y-3 border-l-2 border-gray-100 pl-4">
@@ -206,7 +200,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
           </aside>
         )}
       </main>
-
     </div>
   );
 }
