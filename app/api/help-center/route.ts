@@ -8,7 +8,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 function chunkText(htmlString: string, sourceUrl: string) {
   // Use Cheerio to cleanly extract raw text from HTML content 
   const $ = cheerio.load(htmlString);
-  const rawText = $.text();
+  const rawText = $('body').text();
   
   const cleanText = rawText.replace(/\n{3,}/g, '\n\n').trim();
   const chunks: { content: string, url: string }[] = [];
