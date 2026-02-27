@@ -7,8 +7,7 @@ import { FileTextIcon, PlusIcon, ArrowLeftIcon, ClearIcon, ExternalLinkIcon } fr
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 
-// Dynamically import Quill editor to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { 
+const ReactQuill = dynamic(() => import('react-quill'), {
   ssr: false,
   loading: () => <div className="h-64 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 text-sm text-gray-400">Loading editor...</div>
 }) as any;
@@ -17,7 +16,13 @@ export default function HelpCenterPage() {
   const { activeSpaceId } = useBotConfig();
   const [articles, setArticles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
+  // List filters/sort state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [sortBy, setSortBy] = useState<'updated' | 'alpha' | 'category'>('updated');
+
+  // Editor state
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -47,42 +52,55 @@ export default function HelpCenterPage() {
     setIsLoading(false);
   };
 
-  const generateSlug = (text: string) => {
-    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-  };
+  // Derive unique categories from articles
+  const allCategories = useMemo(() => {
+    const cats = Array.from(new Set(articles.map(a => a.category || 'General'))).sort();
+    return cats;
+  }, [articles]);
+
+  // Filtered + sorted articles
+  const displayedArticles = useMemo(() => {
+    let list = [...articles];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(a => a.title.toLowerCase().includes(q));
+    }
+
+    if (filterCategory) {
+      list = list.filter(a => (a.category || 'General') === filterCategory);
+    }
+
+    if (sortBy === 'updated') {
+      list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    } else if (sortBy === 'alpha') {
+      list.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === 'category') {
+      list.sort((a, b) => (a.category || 'General').localeCompare(b.category || 'General'));
+    }
+
+    return list;
+  }, [articles, searchQuery, filterCategory, sortBy]);
+
+  const generateSlug = (text: string) =>
+    text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
-    if (!currentId && !slug) { // Only auto-generate slug for new articles if slug is empty
-      setSlug(generateSlug(newTitle));
-    }
+    if (!currentId && !slug) setSlug(generateSlug(newTitle));
   };
 
   const handleSave = async (targetStatus: 'draft' | 'published') => {
     if (!title.trim() || !content.trim()) return toast.error('Title and content are required.');
     setIsSaving(true);
-    
-    // Auto-fill slug if empty
     const finalSlug = slug.trim() || generateSlug(title);
-
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch('/api/help-center', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-      body: JSON.stringify({ 
-        id: currentId, 
-        spaceId: activeSpaceId, 
-        title, 
-        content, 
-        category,
-        slug: finalSlug,
-        seo_title: seoTitle,
-        seo_description: seoDescription,
-        status: targetStatus
-      })
+      body: JSON.stringify({ id: currentId, spaceId: activeSpaceId, title, content, category, slug: finalSlug, seo_title: seoTitle, seo_description: seoDescription, status: targetStatus })
     });
-    
     setIsSaving(false);
     if (res.ok) {
       toast.success(targetStatus === 'published' ? 'Article published & synced to AI!' : 'Draft saved successfully.');
@@ -100,12 +118,8 @@ export default function HelpCenterPage() {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${session?.access_token}` }
     });
-    if (res.ok) {
-      toast.success('Article deleted.');
-      fetchArticles();
-    } else {
-      toast.error('Failed to delete.');
-    }
+    if (res.ok) { toast.success('Article deleted.'); fetchArticles(); }
+    else toast.error('Failed to delete.');
   };
 
   const openEditor = (article: any = null) => {
@@ -117,7 +131,7 @@ export default function HelpCenterPage() {
       setSlug(article.slug || '');
       setSeoTitle(article.seo_title || '');
       setSeoDescription(article.seo_description || '');
-      setStatus(article.status || 'published'); // Default to published for legacy records
+      setStatus(article.status || 'published');
     } else {
       setCurrentId(null);
       setTitle('');
@@ -131,37 +145,22 @@ export default function HelpCenterPage() {
     setIsEditing(true);
   };
 
-  // Custom Image Handler for Quill
   const imageHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
     input.click();
-
     input.onchange = async () => {
       if (input !== null && input.files !== null) {
         const file = input.files[0];
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${activeSpaceId}/${fileName}`;
-
         const uploadPromise = supabase.storage.from('article_images').upload(filePath, file);
-        toast.promise(uploadPromise, {
-          loading: 'Uploading image...',
-          success: 'Image uploaded!',
-          error: 'Error uploading image.'
-        });
-
+        toast.promise(uploadPromise, { loading: 'Uploading image...', success: 'Image uploaded!', error: 'Error uploading image.' });
         const { data, error } = await uploadPromise;
-
-        if (error) {
-          console.error('Upload error:', error);
-          return;
-        }
-
+        if (error) { console.error('Upload error:', error); return; }
         const { data: publicUrlData } = supabase.storage.from('article_images').getPublicUrl(filePath);
-        
-        // Insert the image into the editor
         if (reactQuillRef.current) {
           const editor = reactQuillRef.current.getEditor();
           const range = editor.getSelection();
@@ -176,13 +175,11 @@ export default function HelpCenterPage() {
       container: [
         [{ 'header': [1, 2, 3, false] }],
         ['bold', 'italic', 'underline', 'strike'],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
         ['link', 'image', 'code-block'],
         ['clean']
       ],
-      handlers: {
-        image: imageHandler
-      }
+      handlers: { image: imageHandler }
     }
   }), [activeSpaceId]);
 
@@ -207,54 +204,37 @@ export default function HelpCenterPage() {
               <ArrowLeftIcon className="w-4 h-4" />
               Back
             </button>
-            <div className="h-4 w-px bg-gray-200"></div>
-            <span className="text-sm font-medium text-gray-900">
-              {currentId ? 'Edit Article' : 'New Article'}
-            </span>
+            <div className="h-4 w-px bg-gray-200" />
+            <span className="text-sm font-medium text-gray-900">{currentId ? 'Edit Article' : 'New Article'}</span>
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${status === 'published' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
               {status}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {currentId && status === 'published' && (
-              <a 
-                href={`/help/${activeSpaceId}/${slug || currentId}`} 
-                target="_blank" 
-                className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-gray-50 border border-transparent"
-              >
+              <a href={`/help/${activeSpaceId}/${slug || currentId}`} target="_blank" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-gray-50 border border-transparent">
                 View Live <ExternalLinkIcon className="w-3.5 h-3.5" />
               </a>
             )}
-            <button 
-              onClick={() => handleSave('draft')} 
-              disabled={isSaving || !title.trim() || !content.trim()} 
-              className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
+            <button onClick={() => handleSave('draft')} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">
               Save as Draft
             </button>
-            <button 
-              onClick={() => handleSave('published')} 
-              disabled={isSaving || !title.trim() || !content.trim()} 
-              className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
+            <button onClick={() => handleSave('published')} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
               {isSaving ? 'Saving...' : 'Publish to Live'}
             </button>
           </div>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Main Editor Area */}
           <div className="flex-1 overflow-y-auto p-8 bg-white">
             <div className="max-w-3xl mx-auto w-full flex flex-col gap-6">
-              <input 
-                type="text" 
-                placeholder="Article Title" 
+              <input
+                type="text"
+                placeholder="Article Title"
                 className="w-full text-4xl font-bold text-gray-900 placeholder:text-gray-300 outline-none border-none bg-transparent"
                 value={title}
                 onChange={handleTitleChange}
               />
-              
-              {/* Quill Editor styling overrides to make it look clean and flat */}
               <style dangerouslySetInnerHTML={{__html: `
                 .ql-toolbar.ql-snow { border: 1px solid #E5E7EB; border-radius: 0.375rem 0.375rem 0 0; background: #FAFAFA; border-bottom: none; }
                 .ql-container.ql-snow { border: 1px solid #E5E7EB; border-radius: 0 0 0.375rem 0.375rem; font-family: inherit; font-size: 1rem; }
@@ -263,14 +243,13 @@ export default function HelpCenterPage() {
                 .ql-editor p { margin-bottom: 1em; }
                 .ql-editor img { border-radius: 0.5rem; border: 1px solid #F3F4F6; }
               `}} />
-              
               <div className="flex-1">
-                {/* @ts-ignore - dynamic component ref typing issue */}
-                <ReactQuill 
+                {/* @ts-ignore */}
+                <ReactQuill
                   ref={reactQuillRef}
-                  theme="snow" 
-                  value={content} 
-                  onChange={setContent} 
+                  theme="snow"
+                  value={content}
+                  onChange={setContent}
                   modules={modules}
                   placeholder="Write your amazing article here..."
                 />
@@ -278,46 +257,47 @@ export default function HelpCenterPage() {
             </div>
           </div>
 
-          {/* Settings Sidebar */}
           <div className="w-80 shrink-0 border-l border-gray-200 bg-[#FAFAFA] p-6 overflow-y-auto flex flex-col gap-8">
-            
-            {/* Classification */}
             <div>
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Classification</h3>
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Getting Started" 
-                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
-                    value={category}
-                    onChange={e => setCategory(e.target.value)}
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+                {/* datalist provides suggestions from existing categories while still allowing free text */}
+                <input
+                  type="text"
+                  list="category-suggestions"
+                  placeholder="e.g. Getting Started"
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                />
+                <datalist id="category-suggestions">
+                  {allCategories.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
               </div>
             </div>
 
-            {/* Meta & SEO */}
             <div>
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Meta & SEO</h3>
               <div className="flex flex-col gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">URL Slug</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. how-to-reset-password" 
+                  <input
+                    type="text"
+                    placeholder="e.g. how-to-reset-password"
                     className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
                     value={slug}
                     onChange={e => setSlug(e.target.value)}
                   />
-                  <p className="text-[11px] text-gray-500 mt-1">Leaves empty to auto-generate from title.</p>
+                  <p className="text-[11px] text-gray-500 mt-1">Leave empty to auto-generate from title.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">SEO Title</label>
-                  <input 
-                    type="text" 
-                    placeholder="Optional optimized title" 
+                  <input
+                    type="text"
+                    placeholder="Optional optimized title"
                     className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
                     value={seoTitle}
                     onChange={e => setSeoTitle(e.target.value)}
@@ -325,8 +305,8 @@ export default function HelpCenterPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">SEO Description</label>
-                  <textarea 
-                    placeholder="Brief description for search engines" 
+                  <textarea
+                    placeholder="Brief description for search engines"
                     rows={3}
                     className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none"
                     value={seoDescription}
@@ -335,7 +315,6 @@ export default function HelpCenterPage() {
                 </div>
               </div>
             </div>
-            
           </div>
         </div>
       </div>
@@ -351,58 +330,89 @@ export default function HelpCenterPage() {
             <p className="text-gray-500 text-sm leading-relaxed">Create and manage support articles. Published articles sync seamlessly to your AI agent.</p>
           </div>
           <div className="flex items-center gap-3">
-             <a 
-                href={`/help/${activeSpaceId}`} 
-                target="_blank" 
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                 <ExternalLinkIcon className="w-4 h-4" />
-                 View Portal
-              </a>
-              <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">
-                <PlusIcon className="w-4 h-4" />
-                New Article
-              </button>
+            <a href={`/help/${activeSpaceId}`} target="_blank" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm">
+              <ExternalLinkIcon className="w-4 h-4" />
+              View Portal
+            </a>
+            <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">
+              <PlusIcon className="w-4 h-4" />
+              New Article
+            </button>
           </div>
         </div>
+
+        {/* Search / Filter / Sort controls */}
+        {articles.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="Search articles..."
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            <select
+              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors cursor-pointer"
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {allCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors cursor-pointer"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+            >
+              <option value="updated">Last Updated</option>
+              <option value="alpha">Alphabetical</option>
+              <option value="category">Category</option>
+            </select>
+          </div>
+        )}
 
         <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
           {articles.length === 0 ? (
             <div className="p-12 text-center flex flex-col items-center justify-center">
               <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 mb-4">
-                 <FileTextIcon className="w-6 h-6 text-gray-400" />
+                <FileTextIcon className="w-6 h-6 text-gray-400" />
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">No articles yet</h3>
               <p className="text-xs text-gray-500 max-w-xs mb-6 mx-auto">Write your first help center article to instantly train your AI and generate a public knowledge base.</p>
               <button onClick={() => openEditor()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">Create Article</button>
             </div>
+          ) : displayedArticles.length === 0 ? (
+            <div className="p-10 text-center text-sm text-gray-500">
+              No articles match your search.
+            </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {articles.map((article) => (
+              {displayedArticles.map((article) => (
                 <div key={article.id} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => openEditor(article)}>
                   <div className="flex items-center gap-4 min-w-0 pr-4">
-                     <div className="w-10 h-10 rounded-md bg-indigo-50/50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                       <FileTextIcon className="w-5 h-5" />
-                     </div>
-                     <div className="min-w-0 flex flex-col justify-center">
-                       <div className="flex items-center gap-2 mb-1">
-                         <h4 className="text-sm font-semibold text-gray-900 truncate">{article.title}</h4>
-                         {article.status === 'draft' && (
-                           <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Draft</span>
-                         )}
-                         <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium shrink-0">{article.category || 'General'}</span>
-                       </div>
-                       <p className="text-xs text-gray-500 truncate max-w-lg">
-                         {/* Strip HTML tags for preview just in case since content is now HTML */}
-                         {article.content.replace(/<[^>]*>?/gm, '').substring(0, 100)}{article.content.length > 100 ? '...' : ''}
-                       </p>
-                     </div>
+                    <div className="w-10 h-10 rounded-md bg-indigo-50/50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                      <FileTextIcon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 flex flex-col justify-center">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-900 truncate">{article.title}</h4>
+                        {article.status === 'draft' && (
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Draft</span>
+                        )}
+                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium shrink-0">{article.category || 'General'}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate max-w-lg">
+                        {article.content.replace(/<[^>]*>?/gm, '').substring(0, 100)}{article.content.length > 100 ? '...' : ''}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
                     <span className="text-[11px] text-gray-400 font-medium hidden sm:block">
                       {new Date(article.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(article.id); }}
                       className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100 outline-none"
                       title="Delete article"
