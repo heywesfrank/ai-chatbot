@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
-export const revalidate = 60; // Revalidate cache every 60 seconds
+export const revalidate = 60; 
 
 export async function generateMetadata({ params }: { params: { spaceId: string } }): Promise<Metadata> {
   const { data: config } = await supabase.from('bot_config').select('workspace_name').eq('space_id', params.spaceId).maybeSingle();
@@ -14,7 +14,6 @@ export async function generateMetadata({ params }: { params: { spaceId: string }
 }
 
 export default async function HelpCenterIndex({ params }: { params: { spaceId: string } }) {
-  // We use the Service Role Supabase client to bypass RLS for public viewing.
   const { data: config } = await supabase.from('bot_config')
     .select('workspace_name, primary_color, bot_avatar, description_text')
     .eq('space_id', params.spaceId)
@@ -22,12 +21,13 @@ export default async function HelpCenterIndex({ params }: { params: { spaceId: s
 
   if (!config) notFound();
 
+  // ONLY fetch published articles and include the slug
   const { data: articles } = await supabase.from('help_center_articles')
-    .select('id, title, category, content')
+    .select('id, title, category, content, slug')
     .eq('space_id', params.spaceId)
+    .eq('status', 'published')
     .order('created_at', { ascending: false });
 
-  // Group by category
   const grouped = articles?.reduce((acc, article) => {
     const cat = article.category || 'General';
     if (!acc[cat]) acc[cat] = [];
@@ -36,12 +36,10 @@ export default async function HelpCenterIndex({ params }: { params: { spaceId: s
   }, {} as Record<string, any[]>) || {};
 
   const categories = Object.keys(grouped).sort();
-
   const brandColor = config.primary_color || '#000000';
 
   return (
     <div>
-      {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto w-full px-6 py-12 text-center md:py-16">
           {config.bot_avatar && (
@@ -56,7 +54,6 @@ export default async function HelpCenterIndex({ params }: { params: { spaceId: s
         </div>
       </header>
 
-      {/* Content */}
       <main className="max-w-4xl mx-auto w-full px-6 py-12">
         {categories.length === 0 ? (
           <div className="text-center py-20 text-gray-500">
@@ -74,17 +71,18 @@ export default async function HelpCenterIndex({ params }: { params: { spaceId: s
                   <ul className="divide-y divide-gray-50">
                     {grouped[category].map((article: any) => (
                       <li key={article.id}>
+                        {/* Uses slug for SEO friendly URLs, falls back to ID */}
                         <Link 
-                          href={`/help/${params.spaceId}/${article.id}`}
+                          href={`/help/${params.spaceId}/${article.slug || article.id}`}
                           className="flex flex-col p-4 rounded-lg hover:bg-gray-50 transition-colors group"
-                          // We pass the brand color as a CSS variable to be used by Tailwind's group-hover
                           style={{ '--brand-color': brandColor } as React.CSSProperties}
                         >
                           <span className="font-medium text-gray-900 group-hover:text-[var(--brand-color)] transition-colors">
                             {article.title}
                           </span>
                           <span className="text-sm text-gray-500 line-clamp-1 mt-1">
-                            {article.content.substring(0, 120)}...
+                            {/* Strips out markdown syntax completely for the preview text */}
+                            {article.content.replace(/[#*`~_\[\]>]/g, '').substring(0, 120)}...
                           </span>
                         </Link>
                       </li>
