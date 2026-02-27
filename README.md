@@ -52,8 +52,16 @@ create table public.help_center_articles (
   seo_title text null,
   seo_description text null,
   status text null default 'published'::text,
+  views integer null default 0,
+  upvotes integer null default 0,
+  neutral_votes integer null default 0,
+  downvotes integer null default 0,
   constraint help_center_articles_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
+
+create index IF not exists idx_help_center_articles_slug on public.help_center_articles using btree (slug) TABLESPACE pg_default;
 
 create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
 
