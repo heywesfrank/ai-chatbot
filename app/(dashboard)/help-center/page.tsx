@@ -1,9 +1,10 @@
+// app/(dashboard)/help-center/page.tsx
 'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { useBotConfig } from '../BotConfigProvider';
-import { FileTextIcon, PlusIcon, ArrowLeftIcon, ClearIcon, ExternalLinkIcon } from '@/components/icons';
+import { FileTextIcon, PlusIcon, ArrowLeftIcon, ClearIcon, ExternalLinkIcon, EyeIcon, SmileIcon, FrownIcon } from '@/components/icons';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 
@@ -409,6 +410,18 @@ export default function HelpCenterPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
+                    <div className="hidden md:flex items-center gap-4 mr-2">
+                      <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium" title="Views">
+                        <EyeIcon className="w-3.5 h-3.5 text-gray-400" /> {article.views || 0}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-green-600 font-medium" title="Helpful">
+                        <SmileIcon className="w-3.5 h-3.5 text-green-500" /> {article.upvotes || 0}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-red-500 font-medium" title="Not Helpful">
+                        <FrownIcon className="w-3.5 h-3.5 text-red-400" /> {article.downvotes || 0}
+                      </span>
+                    </div>
+                    <span className="w-px h-3 bg-gray-200 hidden md:block"></span>
                     <span className="text-[11px] text-gray-400 font-medium hidden sm:block">
                       {new Date(article.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
