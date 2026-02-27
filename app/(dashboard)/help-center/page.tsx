@@ -52,13 +52,11 @@ export default function HelpCenterPage() {
     setIsLoading(false);
   };
 
-  // Derive unique categories from articles
   const allCategories = useMemo(() => {
     const cats = Array.from(new Set(articles.map(a => a.category || 'General'))).sort();
     return cats;
   }, [articles]);
 
-  // Filtered + sorted articles
   const displayedArticles = useMemo(() => {
     let list = [...articles];
 
@@ -262,12 +260,11 @@ export default function HelpCenterPage() {
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Classification</h3>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-                {/* datalist provides suggestions from existing categories while still allowing free text */}
                 <input
                   type="text"
                   list="category-suggestions"
                   placeholder="e.g. Getting Started"
-                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
                   value={category}
                   onChange={e => setCategory(e.target.value)}
                 />
@@ -281,15 +278,15 @@ export default function HelpCenterPage() {
 
             <div>
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Meta & SEO</h3>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">URL Slug</label>
                   <input
                     type="text"
                     placeholder="e.g. how-to-reset-password"
-                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
+                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
                     value={slug}
-                    onChange={e => setSlug(e.target.value)}
+                    onChange={e => setSlug(generateSlug(e.target.value))}
                   />
                   <p className="text-[11px] text-gray-500 mt-1">Leave empty to auto-generate from title.</p>
                 </div>
@@ -298,17 +295,21 @@ export default function HelpCenterPage() {
                   <input
                     type="text"
                     placeholder="Optional optimized title"
-                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
+                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
                     value={seoTitle}
                     onChange={e => setSeoTitle(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">SEO Description</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-gray-700">SEO Description</label>
+                    <span className="text-[10px] font-medium text-gray-400">{seoDescription.length}/160</span>
+                  </div>
                   <textarea
                     placeholder="Brief description for search engines"
                     rows={3}
-                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none"
+                    maxLength={160}
+                    className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none shadow-sm"
                     value={seoDescription}
                     onChange={e => setSeoDescription(e.target.value)}
                   />
@@ -341,18 +342,17 @@ export default function HelpCenterPage() {
           </div>
         </div>
 
-        {/* Search / Filter / Sort controls */}
         {articles.length > 0 && (
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <input
               type="text"
               placeholder="Search articles..."
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors shadow-sm"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
             <select
-              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors cursor-pointer"
+              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors cursor-pointer shadow-sm"
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value)}
             >
@@ -362,7 +362,7 @@ export default function HelpCenterPage() {
               ))}
             </select>
             <select
-              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors cursor-pointer"
+              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white outline-none focus:border-black transition-colors cursor-pointer shadow-sm"
               value={sortBy}
               onChange={e => setSortBy(e.target.value as any)}
             >
@@ -373,7 +373,7 @@ export default function HelpCenterPage() {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm">
           {articles.length === 0 ? (
             <div className="p-12 text-center flex flex-col items-center justify-center">
               <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 mb-4">
@@ -381,7 +381,7 @@ export default function HelpCenterPage() {
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">No articles yet</h3>
               <p className="text-xs text-gray-500 max-w-xs mb-6 mx-auto">Write your first help center article to instantly train your AI and generate a public knowledge base.</p>
-              <button onClick={() => openEditor()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">Create Article</button>
+              <button onClick={() => openEditor()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors shadow-sm">Create Article</button>
             </div>
           ) : displayedArticles.length === 0 ? (
             <div className="p-10 text-center text-sm text-gray-500">
