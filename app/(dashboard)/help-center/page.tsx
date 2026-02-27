@@ -11,7 +11,7 @@ import 'react-quill/dist/quill.snow.css';
 const ReactQuill = dynamic(() => import('react-quill'), { 
   ssr: false,
   loading: () => <div className="h-64 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 text-sm text-gray-400">Loading editor...</div>
-});
+}) as any;
 
 export default function HelpCenterPage() {
   const { activeSpaceId } = useBotConfig();
