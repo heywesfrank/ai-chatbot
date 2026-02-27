@@ -1,8 +1,10 @@
+// app/help/[spaceId]/[articleId]/page.tsx
 import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import ArticleFeedback from '../../components/ArticleFeedback';
 
 export const revalidate = 60;
 
@@ -181,6 +183,8 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
               {article.content}
             </ReactMarkdown>
           </div>
+          
+          <ArticleFeedback articleId={article.id} />
         </article>
 
         {headings.length > 0 && (
