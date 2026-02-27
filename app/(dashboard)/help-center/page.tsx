@@ -265,6 +265,7 @@ export default function HelpCenterPage() {
               `}} />
               
               <div className="flex-1">
+                {/* @ts-ignore - dynamic component ref typing issue */}
                 <ReactQuill 
                   ref={reactQuillRef}
                   theme="snow" 
