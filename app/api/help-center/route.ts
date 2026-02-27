@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import OpenAI from 'openai';
+import * as cheerio from 'cheerio';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-function chunkText(text: string, sourceUrl: string) {
-  const cleanText = text.replace(/\n{3,}/g, '\n\n').trim();
+function chunkText(htmlString: string, sourceUrl: string) {
+  // Use Cheerio to cleanly extract raw text from HTML content 
+  const $ = cheerio.load(htmlString);
+  const rawText = $.text();
+  
+  const cleanText = rawText.replace(/\n{3,}/g, '\n\n').trim();
   const chunks: { content: string, url: string }[] = [];
   const MAX_CHUNK_LENGTH = 3000;
   
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser(authHeader?.replace('Bearer ', '') || '');
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id, spaceId, title, content, category } = await req.json();
+    const { id, spaceId, title, content, category, slug, seo_title, seo_description, status } = await req.json();
     if (!spaceId || !title || !content) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
     const payload = { 
@@ -64,6 +69,10 @@ export async function POST(req: Request) {
       title, 
       content, 
       category: category || 'General',
+      slug: slug || null,
+      seo_title: seo_title || null,
+      seo_description: seo_description || null,
+      status: status || 'published',
       updated_at: new Date().toISOString() 
     };
     
@@ -77,32 +86,32 @@ export async function POST(req: Request) {
     if (articleRes.error) throw new Error(articleRes.error.message);
     const article = articleRes.data;
 
-    // Auto-sync to AI knowledge base
-    // Use the new public URL as the source URL!
-    const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article.id}`;
+    const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article.slug || article.id}`;
     
-    // Clear old embeddings for this article
+    // Always clear old embeddings for this article (to prevent stale data or to remove drafted data)
     await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
 
-    // Build the full context (inject category so AI knows what context it belongs to)
-    const fullText = `Title: ${article.title}\nCategory: ${article.category}\n\n${article.content}`;
-    const chunks = chunkText(fullText, articleUrl);
+    // Only process and push to AI knowledge base if status is published
+    if (article.status === 'published') {
+      const fullText = `Title: ${article.title}\nCategory: ${article.category}\n\n${article.content}`;
+      const chunks = chunkText(fullText, articleUrl);
 
-    if (chunks.length > 0) {
-      const embeddings = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: chunks.map(c => c.content),
-      });
+      if (chunks.length > 0) {
+        const embeddings = await openai.embeddings.create({
+          model: 'text-embedding-3-small',
+          input: chunks.map(c => c.content),
+        });
 
-      const docs = chunks.map((chunk, i) => ({
-        space_id: spaceId,
-        page_url: articleUrl,
-        content: chunk.content,
-        embedding: embeddings.data[i].embedding,
-        source_type: 'help_center'
-      }));
+        const docs = chunks.map((chunk, i) => ({
+          space_id: spaceId,
+          page_url: articleUrl,
+          content: chunk.content,
+          embedding: embeddings.data[i].embedding,
+          source_type: 'help_center'
+        }));
 
-      await supabase.from('knowledge_documents').insert(docs);
+        await supabase.from('knowledge_documents').insert(docs);
+      }
     }
 
     return NextResponse.json({ success: true, article });
@@ -119,10 +128,13 @@ export async function DELETE(req: Request) {
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
-    const spaceId = url.searchParams.get('spaceId'); // Need this to reconstruct the URL
+    const spaceId = url.searchParams.get('spaceId');
     if (!id || !spaceId) return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
 
-    const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${id}`;
+    // Try to get the article to find the exact URL it was synced with
+    const { data: article } = await supabase.from('help_center_articles').select('slug').eq('id', id).single();
+    
+    const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article?.slug || id}`;
 
     // Delete from knowledge docs first to ensure RAG stops answering based on it
     await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
