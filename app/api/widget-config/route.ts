@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabase
       .from('bot_config')
-      .select('primary_color, bot_font_color, user_font_color, agent_bubble_color, user_bubble_color, launcher_color, launcher_icon_color, header_text, description_text, input_placeholder, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, page_context_enabled, tabs_enabled, routing_config, agents_online, allowed_domains, help_search_placeholder, greeting_title, greeting_body, home_tab_enabled, home_content')
+      .select('user_id, primary_color, bot_font_color, user_font_color, agent_bubble_color, user_bubble_color, launcher_color, launcher_icon_color, header_text, description_text, input_placeholder, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, page_context_enabled, tabs_enabled, routing_config, agents_online, allowed_domains, help_search_placeholder, greeting_title, greeting_body, home_tab_enabled, home_content')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -55,16 +55,23 @@ export async function GET(req: Request) {
       .select('url_match, delay_seconds, message')
       .eq('space_id', spaceId);
 
-    // FIX: explicitly typed as any[] to satisfy TypeScript strict mode
     let teamMembers: any[] = [];
     if (data?.agents_online) {
       const { data: members } = await supabase.from('team_members').select('email').eq('space_id', spaceId);
-      // Fetch the owner too if needed, but team_members often suffices for generic 'support staff' feel
       teamMembers = members || [];
+      
+      // Fetch the owner and add them as a primary agent if they have a profile
+      if (data.user_id) {
+        const { data: ownerProfile } = await supabase.from('profiles').select('first_name, email').eq('id', data.user_id).maybeSingle();
+        if (ownerProfile) {
+          teamMembers.unshift({ email: ownerProfile.email, name: ownerProfile.first_name });
+        }
+      }
     }
 
     if (data) {
       delete data.allowed_domains;
+      delete (data as any).user_id; // Keep payload clean
       (data as any).triggers = triggersData || [];
       (data as any).teamMembers = teamMembers;
     }
