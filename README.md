@@ -65,18 +65,6 @@ create index IF not exists idx_help_center_articles_space_id on public.help_cent
 
 create index IF not exists idx_help_center_articles_slug on public.help_center_articles using btree (slug) TABLESPACE pg_default;
 
-create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
-
-create index IF not exists idx_help_center_articles_slug on public.help_center_articles using btree (slug) TABLESPACE pg_default;
-
-create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
-
-create index IF not exists idx_help_center_articles_slug on public.help_center_articles using btree (slug) TABLESPACE pg_default;
-
-create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
-
-create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
-
 create table public.proactive_triggers (
   id uuid not null default gen_random_uuid (),
   space_id text not null,
