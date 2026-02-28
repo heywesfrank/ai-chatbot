@@ -47,7 +47,14 @@ export async function POST(req: Request) {
       temperature: body.temperature,
       match_threshold: body.matchThreshold,
       reasoning_effort: body.reasoningEffort,
-      verbosity: body.verbosity
+      verbosity: body.verbosity,
+      
+      // Page Extensions (make sure these columns exist in DB)
+      help_search_placeholder: body.helpSearchPlaceholder,
+      greeting_title: body.greetingTitle,
+      greeting_body: body.greetingBody,
+      home_tab_enabled: body.homeTabEnabled,
+      home_content: body.homeContent
     };
 
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
