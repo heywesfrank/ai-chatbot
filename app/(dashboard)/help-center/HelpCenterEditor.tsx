@@ -1,4 +1,3 @@
-// app/(dashboard)/help-center/HelpCenterEditor.tsx
 'use client';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -72,10 +71,20 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
   const [slug, setSlug] = useState(article?.slug || '');
   const [seoTitle, setSeoTitle] = useState(article?.seo_title || '');
   const [seoDescription, setSeoDescription] = useState(article?.seo_description || '');
-  const [status, setStatus] = useState<'draft' | 'published'>(article?.status || 'draft');
+  const [status, setStatus] = useState<'draft' | 'published' | 'archived'>(article?.status || 'draft');
+  const [visibility, setVisibility] = useState<'public' | 'private'>(article?.visibility || 'public');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isPreview, setIsPreview] = useState(false);
+
+  // Format date for the datetime-local input safely
+  const formatForDateInput = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+  };
+  const [scheduledAt, setScheduledAt] = useState<string>(formatForDateInput(article?.scheduled_at));
 
   // Organization & Search states
   const [tags, setTags] = useState<string[]>(article?.tags || []);
@@ -120,7 +129,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
     }
   };
 
-  const handleSave = async (targetStatus: 'draft' | 'published', silent = false) => {
+  const handleSave = async (targetStatus: 'draft' | 'published' | 'archived', silent = false) => {
     if (!title.trim() || !content.trim()) {
       if (!silent) toast.error('Title and content are required.');
       return;
@@ -130,13 +139,16 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
     const finalSlug = slug.trim() || generateSlug(title);
     const { data: { session } } = await supabase.auth.getSession();
     
+    const scheduledDate = scheduledAt ? new Date(scheduledAt).toISOString() : null;
+
     const res = await fetch('/api/help-center', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
       body: JSON.stringify({ 
         id: currentId, spaceId: activeSpaceId, title, content, category, 
         slug: finalSlug, seo_title: seoTitle, seo_description: seoDescription, 
-        status: targetStatus, tags, relatedArticles 
+        status: targetStatus, tags, relatedArticles,
+        visibility, scheduled_at: scheduledDate
       })
     });
     
@@ -149,7 +161,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
       setLastSaved(new Date());
 
       if (!silent) {
-        toast.success(targetStatus === 'published' ? 'Article published & synced to AI!' : 'Draft saved successfully.');
+        toast.success(targetStatus === 'published' ? 'Article published & synced to AI!' : `Saved as ${targetStatus}.`);
         onSuccess();
         onClose();
       }
@@ -163,7 +175,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
     const timeoutId = setTimeout(() => handleSave(status, true), 30000);
     return () => clearTimeout(timeoutId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, content, category, slug, seoTitle, seoDescription, status, tags, relatedArticles]);
+  }, [title, content, category, slug, seoTitle, seoDescription, status, tags, relatedArticles, visibility, scheduledAt]);
 
   const imageHandler = () => {
     const input = document.createElement('input');
@@ -223,7 +235,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
           </button>
           <div className="h-4 w-px bg-gray-200" />
           <span className="text-sm font-medium text-gray-900">{currentId ? 'Edit Article' : 'New Article'}</span>
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${status === 'published' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${status === 'published' ? 'bg-green-100 text-green-700' : status === 'archived' ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-amber-700'}`}>
             {status}
           </span>
         </div>
@@ -233,17 +245,20 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
             <button onClick={() => setIsPreview(false)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${!isPreview ? 'bg-white text-black' : 'text-gray-500 hover:text-gray-900'}`}>Edit</button>
             <button onClick={() => setIsPreview(true)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${isPreview ? 'bg-white text-black' : 'text-gray-500 hover:text-gray-900'}`}>Preview</button>
           </div>
-          {lastSaved && <span className="text-[10px] text-gray-400 mr-2 font-medium hidden sm:block">Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
-          {currentId && status === 'published' && (
+          {lastSaved && <span className="text-[10px] text-gray-400 mr-2 font-medium hidden lg:block">Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+          {currentId && status === 'published' && (!scheduledAt || new Date(scheduledAt) <= new Date()) && visibility === 'public' && (
             <a href={`/help/${activeSpaceId}/${slug || currentId}`} target="_blank" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-gray-50 border border-transparent">
               View Live <ExternalLinkIcon className="w-3.5 h-3.5" />
             </a>
           )}
-          <button onClick={() => handleSave('draft')} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">
+          <button onClick={() => handleSave('archived')} disabled={isSaving || !title.trim() || !content.trim()} className="px-4 py-2.5 bg-white border border-gray-200 text-red-600 text-xs font-medium rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 hidden sm:block">
+            Archive
+          </button>
+          <button onClick={() => handleSave('draft')} disabled={isSaving || !title.trim() || !content.trim()} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">
             Save as Draft
           </button>
-          <button onClick={() => handleSave('published')} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
-            {isSaving ? 'Saving...' : 'Publish to Live'}
+          <button onClick={() => handleSave('published')} disabled={isSaving || !title.trim() || !content.trim()} className="px-5 py-2.5 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
+            {isSaving ? 'Saving...' : (scheduledAt && new Date(scheduledAt) > new Date() ? 'Schedule Publish' : 'Publish to Live')}
           </button>
         </div>
       </div>
@@ -273,6 +288,33 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
         </div>
 
         <div className="w-[340px] shrink-0 border-l border-gray-200 bg-[#FAFAFA] p-6 overflow-y-auto flex flex-col gap-8">
+          <div>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Lifecycle & Visibility</h3>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Visibility</label>
+                <select 
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors cursor-pointer"
+                  value={visibility}
+                  onChange={e => setVisibility(e.target.value as 'public' | 'private')}
+                >
+                  <option value="public">Public (Help Center & AI)</option>
+                  <option value="private">Private (AI Only)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Schedule Publishing</label>
+                <input 
+                  type="datetime-local" 
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors" 
+                  value={scheduledAt}
+                  onChange={e => setScheduledAt(e.target.value)}
+                />
+                <p className="text-[10px] text-gray-500 mt-1.5 leading-relaxed">Leave empty to publish immediately. Scheduled articles remain hidden from the public portal until this date.</p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Classification</h3>
             <div className="space-y-5">
