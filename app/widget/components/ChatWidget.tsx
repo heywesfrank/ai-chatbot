@@ -5,11 +5,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useChat } from 'ai/react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import ReactMarkdown from 'react-markdown';
 import ChatInput from './ChatInput';
 import MessageBubble from './MessageBubble';
 import LeadCaptureForm from './LeadCaptureForm';
 import HelpTab from './HelpTab';
-import { ClearIcon, ChatBubbleIcon, ChevronDownIcon, MessageSquareIcon, HelpCircleIcon } from '@/components/icons';
+import { ClearIcon, ChatBubbleIcon, ChevronDownIcon, MessageSquareIcon, HelpCircleIcon, HomeIcon } from '@/components/icons';
 
 const playPopSound = () => {
   try {
@@ -29,6 +30,14 @@ const playPopSound = () => {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.1);
   } catch(e) {}
+};
+
+// Generates a consistent pastel-ish background color for an email
+const getAvatarColor = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) { hash = str.charCodeAt(i) + ((hash << 5) - hash); }
+  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+  return '#' + '00000'.substring(0, 6 - c.length) + c;
 };
 
 type Conversation = { id: string; updatedAt: number; messages: any[]; liveSessionId: string | null; liveMessages: any[] };
@@ -73,10 +82,17 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   
   const botAvatar = config?.botAvatar || config?.bot_avatar || null;
   const agentsOnline = config?.agentsOnline ?? config?.agents_online ?? false;
+  const teamMembers = config?.teamMembers || [];
   
   const enablePageContext = urlOverrides.pageContextEnabled !== undefined && urlOverrides.pageContextEnabled !== null ? urlOverrides.pageContextEnabled : (config?.pageContextEnabled ?? config?.page_context_enabled ?? false);
   const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routingConfig || config?.routing_config || []);
   const tabsEnabled = urlOverrides.tabsEnabled !== null ? urlOverrides.tabsEnabled : (config?.tabsEnabled ?? config?.tabs_enabled ?? false);
+
+  // New features
+  const homeTabEnabled = urlOverrides.homeTabEnabled !== null ? urlOverrides.homeTabEnabled : (config?.homeTabEnabled ?? config?.home_tab_enabled ?? false);
+  const greetingTitle = urlOverrides.greetingTitle || config?.greetingTitle || config?.greeting_title || 'Hello there.';
+  const greetingBody = urlOverrides.greetingBody || config?.greetingBody || config?.greeting_body || 'How can we help you today?';
+  const homeContent = urlOverrides.homeContent || config?.homeContent || config?.home_content || '';
 
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
@@ -91,7 +107,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'messages' | 'help'>('messages');
+  const [activeTab, setActiveTab] = useState<'home' | 'messages' | 'help'>(tabsEnabled && homeTabEnabled ? 'home' : 'messages');
   const [messagesView, setMessagesView] = useState<'list' | 'chat'>(tabsEnabled ? 'list' : 'chat');
 
   // Legacy local storage hook for seamless transition
@@ -140,9 +156,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     }
     if (!tabsEnabled) {
       setMessagesView('chat');
+      setActiveTab('messages');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabsEnabled]);
+  }, [tabsEnabled, homeTabEnabled]);
 
   // Keep `conversations` array strictly synchronized with the current active chat view
   useEffect(() => {
@@ -261,6 +278,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     setLiveMessages([]);
     setRoutingContext(null);
     setMessagesView('chat');
+    setActiveTab('messages');
   };
 
   const loadConversation = (id: string) => {
@@ -423,10 +441,38 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const showChatWindow = isOpen || urlOverrides.preview;
   const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
+  // The Big Header Component (Shared by Home Tab or Messages list if Home is disabled)
+  const GreetingHeader = () => (
+    <div className="p-6 shrink-0 relative overflow-hidden" style={{ background: `linear-gradient(145deg, var(--primary-color) 0%, transparent 100%)` }}>
+      {/* Avatars */}
+      {agentsOnline && teamMembers.length > 0 && (
+        <div className="absolute top-5 right-5 flex flex-row-reverse -space-x-reverse -space-x-2">
+          {teamMembers.slice(0, 3).map((m: any, i: number) => (
+            <div key={i} className="w-8 h-8 rounded-full border-2 border-[var(--bg-primary)] flex items-center justify-center text-[11px] font-bold text-white shadow-sm" style={{ backgroundColor: getAvatarColor(m.email), zIndex: i }}>
+              {m.email.charAt(0).toUpperCase()}
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Bot Logo / Fallback */}
+      {botAvatar && <img src={botAvatar} alt="Logo" className="w-12 h-12 rounded-xl mb-6 object-cover shadow-sm bg-white" />}
+      
+      <h1 className="text-[28px] font-bold text-[var(--text-primary)] mb-1 leading-tight">{greetingTitle}</h1>
+      <p className="text-base text-[var(--text-primary)] opacity-80 mb-6">{greetingBody}</p>
+
+      {/* Send Message Card */}
+      <button onClick={startNewConversation} className="w-full bg-[var(--bg-primary)] rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all border border-[var(--border-strong)] group active:scale-[0.98]">
+        <span className="font-semibold text-[var(--text-primary)]">Send us a message</span>
+        <svg className="w-5 h-5 text-[var(--primary-color)] group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+  );
+
   const ChatHeader = () => (
-    <div className="p-3.5 flex items-center relative z-10 shrink-0 shadow-sm" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
+    <div className="p-3.5 flex items-center relative z-10 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.05)]" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
       {tabsEnabled && (
-        <button onClick={() => setMessagesView('list')} className="p-2 rounded-md hover:bg-white/20 transition-colors mr-2 outline-none">
+        <button onClick={() => setMessagesView('list')} className="p-1.5 rounded-md hover:bg-white/20 transition-colors mr-2 outline-none">
           <svg className="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
         </button>
       )}
@@ -452,33 +498,45 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     </div>
   );
 
+  const HomeTab = () => (
+    <div className="flex flex-col h-full bg-[var(--bg-secondary)] overflow-y-auto">
+      <GreetingHeader />
+      {/* News/Home Content */}
+      {homeContent && (
+        <div className="p-5 flex-1">
+          <div className="bg-[var(--bg-primary)] rounded-xl p-5 border border-[var(--border-strong)] shadow-sm prose prose-sm max-w-none text-[var(--text-primary)] prose-headings:text-[var(--text-primary)] prose-a:text-[var(--primary-color)] prose-img:rounded-xl">
+            <ReactMarkdown>{homeContent}</ReactMarkdown>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const ConversationsList = () => (
     <div className="flex flex-col h-full bg-[var(--bg-primary)]">
-      <div className="p-6 shrink-0 bg-[var(--bg-primary)] relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-40 opacity-[0.08] pointer-events-none" style={{ backgroundColor: 'var(--primary-color)' }} />
-        <div className="relative z-10 text-center flex flex-col items-center">
-          {botAvatar && <img src={botAvatar} alt="Logo" className="w-16 h-16 rounded-full mx-auto mb-4 object-cover shadow-sm border border-[var(--border-strong)] bg-white" />}
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-1.5">Hi there 👋</h2>
-          <p className="text-[var(--text-secondary)] text-sm mb-6">How can we help you today?</p>
-          <button onClick={startNewConversation} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-medium shadow-sm hover:opacity-90 transition-opacity active:scale-95" style={{ backgroundColor: 'var(--primary-color)' }}>
-            Send us a message
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+      {homeTabEnabled ? (
+        <div className="p-5 pb-3 shrink-0 bg-[var(--bg-primary)] border-b border-[var(--border-strong)] sticky top-0 z-10 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Messages</h2>
+          <button onClick={startNewConversation} className="text-[11px] font-medium text-[var(--primary-color)] bg-[var(--primary-color)]/10 hover:bg-[var(--primary-color)]/20 px-3 py-1.5 rounded-full transition-colors">
+            New Chat
           </button>
         </div>
-      </div>
+      ) : (
+        <GreetingHeader />
+      )}
 
-      <div className="flex-1 overflow-y-auto px-5 pb-5">
-        {conversations.length > 0 && (
+      <div className="flex-1 overflow-y-auto p-5 bg-[var(--bg-secondary)]">
+        {conversations.length > 0 ? (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-3 px-1">Recent messages</div>
+            {homeTabEnabled && <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-3 px-1">Recent History</div>}
             <div className="flex flex-col gap-2.5">
               {conversations.sort((a,b) => b.updatedAt - a.updatedAt).map(conv => {
                 const lastUserMsg = conv.messages.slice().reverse().find(m => m.role === 'user')?.content || 'New Conversation';
                 return (
-                  <button key={conv.id} onClick={() => loadConversation(conv.id)} className="flex flex-col p-4 bg-[var(--bg-secondary)] hover:bg-[var(--border-strong)] border border-transparent rounded-xl transition-colors text-left shadow-sm group">
+                  <button key={conv.id} onClick={() => loadConversation(conv.id)} className="flex flex-col p-4 bg-[var(--bg-primary)] border border-[var(--border-strong)] rounded-xl transition-colors text-left shadow-sm group hover:border-[var(--primary-color)]">
                      <div className="flex items-center justify-between mb-1.5">
                        <span className="text-[10px] text-[var(--text-secondary)] font-medium group-hover:text-[var(--text-primary)] transition-colors">{formatTimeAgo(conv.updatedAt)}</span>
-                       <svg className="w-3.5 h-3.5 text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                       <svg className="w-3.5 h-3.5 text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity group-hover:text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                      </div>
                      <span className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 leading-snug">{lastUserMsg}</span>
                   </button>
@@ -486,6 +544,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               })}
             </div>
           </div>
+        ) : (
+          homeTabEnabled && (
+            <div className="text-center mt-10">
+              <p className="text-[var(--text-secondary)] text-sm">No recent messages.</p>
+            </div>
+          )
         )}
       </div>
     </div>
@@ -592,7 +656,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       <style dangerouslySetInnerHTML={{__html: `:root, html, body, main { background: transparent !important; }`}} />
 
       {/* Floating Chat Window */}
-      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_4px_14px_rgba(0,0,0,0.1)]
+      <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_4px_24px_rgba(0,0,0,0.15)]
         ${isMobile
           ? 'inset-0 rounded-none'
           : `bottom-[104px] w-[calc(100%-48px)] max-w-[420px] h-[calc(100%-120px)] max-h-[720px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
@@ -603,25 +667,35 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         {(!tabsEnabled || (activeTab === 'messages' && messagesView === 'chat')) && <ChatHeader />}
 
         <div className="flex-1 overflow-hidden flex flex-col relative bg-[var(--bg-primary)]">
+           {tabsEnabled && homeTabEnabled && activeTab === 'home' && <HomeTab />}
            {tabsEnabled && activeTab === 'messages' && messagesView === 'list' && <ConversationsList />}
            {(!tabsEnabled || (activeTab === 'messages' && messagesView === 'chat')) && renderChatInterface()}
-           {tabsEnabled && activeTab === 'help' && <HelpTab spaceId={spaceId} primaryColor={primaryColor} />}
+           {tabsEnabled && activeTab === 'help' && <HelpTab spaceId={spaceId} primaryColor={primaryColor} searchPlaceholder={config?.helpSearchPlaceholder || config?.help_search_placeholder} />}
         </div>
 
         {tabsEnabled && (
           <div className="flex border-t border-[var(--border-strong)] bg-[var(--bg-primary)] p-1.5 shrink-0 z-20 pb-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+            {homeTabEnabled && (
+              <button 
+                onClick={() => setActiveTab('home')} 
+                className={`flex-1 py-2 flex flex-col items-center gap-1.5 rounded-lg transition-all ${activeTab === 'home' ? 'text-[var(--primary-color)] font-semibold' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
+              >
+                <HomeIcon className="w-5 h-5" />
+                <span className="text-[10px]">Home</span>
+              </button>
+            )}
             <button 
               onClick={() => { setActiveTab('messages'); if (conversations.length > 0) setMessagesView('list'); }} 
               className={`flex-1 py-2 flex flex-col items-center gap-1.5 rounded-lg transition-all ${activeTab === 'messages' ? 'text-[var(--primary-color)] font-semibold' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
             >
-              <MessageSquareIcon className="w-[22px] h-[22px]" />
+              <MessageSquareIcon className="w-5 h-5" />
               <span className="text-[10px]">Messages</span>
             </button>
             <button 
               onClick={() => setActiveTab('help')} 
               className={`flex-1 py-2 flex flex-col items-center gap-1.5 rounded-lg transition-all ${activeTab === 'help' ? 'text-[var(--primary-color)] font-semibold' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
             >
-              <HelpCircleIcon className="w-[22px] h-[22px]" />
+              <HelpCircleIcon className="w-5 h-5" />
               <span className="text-[10px]">Help</span>
             </button>
           </div>
