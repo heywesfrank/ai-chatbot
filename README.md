@@ -58,6 +58,8 @@ create table public.help_center_articles (
   downvotes integer null default 0,
   tags jsonb null default '[]'::jsonb,
   related_articles jsonb null default '[]'::jsonb,
+  visibility text null default 'public'::text,
+  scheduled_at timestamp with time zone null,
   constraint help_center_articles_pkey primary key (id)
 ) TABLESPACE pg_default;
 
