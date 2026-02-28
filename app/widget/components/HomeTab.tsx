@@ -4,11 +4,23 @@ import GreetingHeader from './GreetingHeader';
 export default function HomeTab({ homeContent, greetingProps }: any) {
   let blocks = [];
   try {
-    blocks = JSON.parse(homeContent || '[]');
-    if (!Array.isArray(blocks)) blocks = [];
+    const parsed = JSON.parse(homeContent || '[]');
+    if (Array.isArray(parsed)) {
+      blocks = parsed;
+    } else if (parsed.blocks) {
+      blocks = parsed.blocks;
+    }
   } catch (e) {
     blocks = [];
   }
+
+  const formatUrl = (url: string) => {
+    if (!url) return '#';
+    if (!/^https?:\/\//i.test(url)) {
+      return `https://${url}`;
+    }
+    return url;
+  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-secondary)] overflow-y-auto">
@@ -36,7 +48,7 @@ export default function HomeTab({ homeContent, greetingProps }: any) {
 
             if (block.linkUrl) {
               return (
-                <a key={block.id || i} href={block.linkUrl} target="_blank" rel="noopener noreferrer" className={cardClasses}>
+                <a key={block.id || i} href={formatUrl(block.linkUrl)} target="_blank" rel="noopener noreferrer" className={cardClasses}>
                   {innerContent}
                 </a>
               );
