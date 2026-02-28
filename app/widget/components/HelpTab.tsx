@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { ChevronDownIcon } from '@/components/icons';
 
-export default function HelpTab({ spaceId, primaryColor }: any) {
+export default function HelpTab({ spaceId, primaryColor, searchPlaceholder }: any) {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
@@ -31,7 +31,7 @@ export default function HelpTab({ spaceId, primaryColor }: any) {
         </div>
         <div className="flex-1 overflow-y-auto p-5 pb-6">
           <h1 className="text-xl font-bold text-[var(--text-primary)] mb-5">{selectedArticle.title}</h1>
-          <div className="prose prose-sm max-w-none text-[var(--text-primary)] prose-a:text-blue-500 prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-img:rounded-xl leading-relaxed whitespace-pre-wrap">
+          <div className="prose prose-sm max-w-none text-[var(--text-primary)] prose-a:text-[var(--primary-color)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-img:rounded-xl leading-relaxed whitespace-pre-wrap">
             <ReactMarkdown rehypePlugins={[rehypeRaw]}>{selectedArticle.content}</ReactMarkdown>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function HelpTab({ spaceId, primaryColor }: any) {
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           <input 
             type="text" 
-            placeholder="Search articles..." 
+            placeholder={searchPlaceholder || "Search articles..."} 
             value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
             className="w-full pl-9 pr-3 py-2.5 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-transparent focus:ring-2 transition-all shadow-sm" 
