@@ -19,7 +19,7 @@ const navGroups = [
       { name: 'Model', path: '/model', icon: <CpuIcon className="w-[18px] h-[18px]" /> },
       { name: 'Context & Routing', path: '/context-routing', icon: <LinkIcon className="w-[18px] h-[18px]" /> },
       { name: 'Appearance', path: '/appearance', icon: <PaletteIcon className="w-[18px] h-[18px]" /> },
-      { name: 'Pages', path: '/widget-tabs', icon: <LayoutTemplateIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Pages', path: '/pages', icon: <LayoutTemplateIcon className="w-[18px] h-[18px]" /> },
       { name: 'Custom FAQs', path: '/faqs', icon: <MessageSquareIcon className="w-[18px] h-[18px]" /> },
       { name: 'Triggers', path: '/triggers', icon: <ZapIcon className="w-[18px] h-[18px]" /> },
       { name: 'Embed & Install', path: '/install', icon: <CodeIcon className="w-[18px] h-[18px]" /> },
@@ -113,7 +113,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
-  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/widget-tabs', '/faqs', '/triggers', '/install'].includes(pathname);
+  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/pages', '/faqs', '/triggers', '/install'].includes(pathname);
   
   const previewUrl = `/widget?spaceId=${activeSpaceId}&preview=true`;
 
