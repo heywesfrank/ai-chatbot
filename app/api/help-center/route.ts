@@ -1,3 +1,4 @@
+// app/api/help-center/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import OpenAI from 'openai';
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser(authHeader?.replace('Bearer ', '') || '');
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id, spaceId, title, content, category, slug, seo_title, seo_description, status } = await req.json();
+    const { id, spaceId, title, content, category, slug, seo_title, seo_description, status, tags, relatedArticles } = await req.json();
     if (!spaceId || !title || !content) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
     const payload = { 
@@ -72,14 +73,14 @@ export async function POST(req: Request) {
       seo_title: seo_title || null,
       seo_description: seo_description || null,
       status: status || 'published',
+      tags: tags || [],
+      related_articles: relatedArticles || [],
       updated_at: new Date().toISOString() 
     };
     
     let articleRes;
     
     if (id) {
-      // First, fetch the existing record to get its CURRENT slug.
-      // If the author changed the slug, we need to delete the old embeddings using the old URL.
       const { data: existing } = await supabase.from('help_center_articles').select('slug').eq('id', id).maybeSingle();
       if (existing) {
         const oldUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${existing.slug || id}`;
@@ -96,7 +97,6 @@ export async function POST(req: Request) {
 
     const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article.slug || article.id}`;
     
-    // Safety clear of any embeddings for the *new* URL just in case
     await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
 
     if (article.status === 'published') {
