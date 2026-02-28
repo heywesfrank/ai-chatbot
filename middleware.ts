@@ -49,6 +49,7 @@ export const config = {
     '/integrations/:path*', 
     '/analytics/:path*', 
     '/team/:path*',
-    '/help-center/:path*'
+    '/help-center/:path*',
+    '/pages/:path*'
   ],
 };
