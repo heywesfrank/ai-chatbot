@@ -77,7 +77,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isPreview, setIsPreview] = useState(false);
 
-  // New Organization & Search states
+  // Organization & Search states
   const [tags, setTags] = useState<string[]>(article?.tags || []);
   const [tagInput, setTagInput] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>(article?.related_articles || []);
@@ -230,8 +230,8 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
         
         <div className="flex items-center gap-3">
           <div className="bg-gray-100 p-0.5 rounded-md flex items-center mr-2">
-            <button onClick={() => setIsPreview(false)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${!isPreview ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-900'}`}>Edit</button>
-            <button onClick={() => setIsPreview(true)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${isPreview ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-900'}`}>Preview</button>
+            <button onClick={() => setIsPreview(false)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${!isPreview ? 'bg-white text-black' : 'text-gray-500 hover:text-gray-900'}`}>Edit</button>
+            <button onClick={() => setIsPreview(true)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${isPreview ? 'bg-white text-black' : 'text-gray-500 hover:text-gray-900'}`}>Preview</button>
           </div>
           {lastSaved && <span className="text-[10px] text-gray-400 mr-2 font-medium hidden sm:block">Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
           {currentId && status === 'published' && (
@@ -254,7 +254,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
             <input type="text" placeholder="Article Title" className="w-full text-4xl font-bold text-gray-900 placeholder:text-gray-300 outline-none border-none bg-transparent" value={title} onChange={handleTitleChange} />
             
             {isPreview ? (
-              <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl prose-img:shadow-sm leading-relaxed text-[15px] text-gray-700 min-h-[400px] p-6 border border-gray-100 rounded-lg bg-gray-50/30">
+              <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl leading-relaxed text-[15px] text-gray-700 min-h-[400px] p-6 border border-gray-100 rounded-lg bg-gray-50/30">
                 {content ? (
                   <ReactMarkdown rehypePlugins={[rehypeRaw]} components={{ a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />, h2: ({ node, children, ...props }) => <h2 id={generateSlug(flattenText(children))} {...props}>{children}</h2>, h3: ({ node, children, ...props }) => <h3 id={generateSlug(flattenText(children))} {...props}>{children}</h3> }}>
                     {content}
@@ -299,7 +299,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
                   <label className="block text-sm font-medium text-gray-700">Related Articles</label>
                   <span className="text-[10px] font-medium text-gray-400">{relatedArticles.length}/3</span>
                 </div>
-                <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto bg-white p-1.5 space-y-0.5 shadow-sm">
+                <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto bg-white p-1.5 space-y-0.5">
                   {allArticles.filter(a => a.id !== currentId).map(a => (
                     <label key={a.id} className="flex items-center gap-2.5 p-2 hover:bg-gray-50 rounded-sm cursor-pointer transition-colors group">
                       <input 
@@ -322,23 +322,23 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
             <div className="flex flex-col gap-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">URL Slug</label>
-                <input type="text" placeholder="e.g. how-to-reset-password" className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm" value={slug} onChange={e => setSlug(generateSlug(e.target.value))} />
+                <input type="text" placeholder="e.g. how-to-reset-password" className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors" value={slug} onChange={e => setSlug(generateSlug(e.target.value))} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">SEO Title</label>
-                <input type="text" placeholder="Optimized title" className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm" value={seoTitle} onChange={e => setSeoTitle(e.target.value)} />
+                <input type="text" placeholder="Optimized title" className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors" value={seoTitle} onChange={e => setSeoTitle(e.target.value)} />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-sm font-medium text-gray-700">SEO Description</label>
                   <span className="text-[10px] font-medium text-gray-400">{seoDescription.length}/160</span>
                 </div>
-                <textarea placeholder="Brief description for search engines" rows={3} maxLength={160} className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none shadow-sm" value={seoDescription} onChange={e => setSeoDescription(e.target.value)} />
+                <textarea placeholder="Brief description for search engines" rows={3} maxLength={160} className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none" value={seoDescription} onChange={e => setSeoDescription(e.target.value)} />
               </div>
 
               {/* Minimalistic Google SERP Preview */}
-              <div className="mt-2 p-4 border border-gray-200 rounded-md bg-white shadow-sm flex flex-col gap-1.5 select-none relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+              <div className="mt-2 p-4 border border-gray-200 rounded-md bg-white flex flex-col gap-1.5 select-none relative overflow-hidden">
+                 <div className="absolute top-0 left-0 w-1 h-full bg-black"></div>
                  <span className="text-[9px] uppercase font-bold text-gray-400 mb-0.5 tracking-wider">Search Preview</span>
                  <div className="text-[11px] text-[#202124] flex items-center gap-1.5 truncate">
                    <div className="w-3.5 h-3.5 rounded-full bg-gray-200 flex-shrink-0" />
@@ -358,16 +358,16 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
 
       {altTextModal && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in duration-200">
-          <form onSubmit={handleAltTextSubmit} className="bg-white border border-gray-200 shadow-2xl rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+          <form onSubmit={handleAltTextSubmit} className="bg-white border border-gray-200 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 animate-in zoom-in-95 duration-200">
             <h3 className="text-sm font-semibold text-gray-900">Image Details</h3>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-gray-700">Alt Text</label>
-              <input autoFocus type="text" placeholder="Describe the image..." className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm" value={altText} onChange={e => setAltText(e.target.value)} />
+              <input autoFocus type="text" placeholder="Describe the image..." className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors" value={altText} onChange={e => setAltText(e.target.value)} />
               <p className="text-[10px] text-gray-500">Improves accessibility and AI document context.</p>
             </div>
             <div className="flex justify-end gap-2 mt-2">
-              <button type="button" onClick={() => { setAltTextModal(null); setAltText(''); }} className="px-4 py-2.5 bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors shadow-sm">Cancel</button>
-              <button type="submit" className="px-4 py-2.5 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">Insert Image</button>
+              <button type="button" onClick={() => { setAltTextModal(null); setAltText(''); }} className="px-4 py-2.5 bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors">Cancel</button>
+              <button type="submit" className="px-4 py-2.5 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 transition-colors">Insert Image</button>
             </div>
           </form>
         </div>
