@@ -503,10 +503,15 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       <GreetingHeader />
       {/* News/Home Content */}
       {homeContent && (
-        <div className="p-5 flex-1">
-          <div className="bg-[var(--bg-primary)] rounded-xl p-5 border border-[var(--border-strong)] shadow-sm prose prose-sm max-w-none text-[var(--text-primary)] prose-headings:text-[var(--text-primary)] prose-a:text-[var(--primary-color)] prose-img:rounded-xl">
-            <ReactMarkdown>{homeContent}</ReactMarkdown>
-          </div>
+        <div className="p-5 flex-1 flex flex-col gap-4">
+          {homeContent.split('---').map((block: string, i: number) => {
+            if (!block.trim()) return null;
+            return (
+              <div key={i} className="bg-[var(--bg-primary)] rounded-xl p-5 border border-[var(--border-strong)] shadow-sm prose prose-sm max-w-none text-[var(--text-primary)] prose-headings:text-[var(--text-primary)] prose-a:text-[var(--primary-color)] prose-img:rounded-xl prose-p:leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <ReactMarkdown>{block.trim()}</ReactMarkdown>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
