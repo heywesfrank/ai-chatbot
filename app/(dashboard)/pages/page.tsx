@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useBotConfig } from '../BotConfigProvider';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
-import { ClearIcon, PlusIcon, GripVerticalIcon } from '@/components/icons';
+import { ClearIcon, PlusIcon, GripVerticalIcon, ChevronDownIcon } from '@/components/icons';
 import {
   DndContext,
   closestCenter,
@@ -30,6 +30,8 @@ function SortableBlockItem({
   isOwner 
 }: any) {
   const [isUploading, setIsUploading] = useState(false);
+  // Auto-collapse if it already has content, otherwise expand for new blocks
+  const [isExpanded, setIsExpanded] = useState(!(block.title || block.imageUrl || block.description));
   const { config } = useBotConfig();
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
@@ -61,56 +63,74 @@ function SortableBlockItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`flex gap-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm relative group ${isDragging ? 'opacity-50' : ''}`}>
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-2 shrink-0 outline-none">
-        <GripVerticalIcon className="w-5 h-5" />
-      </div>
+    <div ref={setNodeRef} style={style} className={`flex flex-col p-4 bg-white border border-gray-200 rounded-lg shadow-sm relative group ${isDragging ? 'opacity-50' : ''}`}>
       
-      <div className="flex-1 flex flex-col gap-4 min-w-0 pr-6">
-        {/* Image Area */}
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Landscape Image</label>
-          {block.imageUrl ? (
-            <div className="relative w-full max-w-sm aspect-video rounded-md overflow-hidden border border-gray-200 bg-gray-50 group/img">
-              <img src={block.imageUrl} alt="preview" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium shadow-sm hover:bg-gray-100 transition-colors">
-                  Replace Image
-                  <input type="file" className="hidden" accept="image/*" disabled={!isOwner || isUploading} onChange={handleUpload} />
-                </label>
-              </div>
-            </div>
-          ) : (
-            <label className="cursor-pointer flex flex-col items-center justify-center w-full max-w-sm aspect-video rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors">
-              <span className="text-xs font-medium text-gray-500">
-                {isUploading ? 'Uploading...' : 'Click to upload image'}
-              </span>
-              <input type="file" className="hidden" accept="image/*" disabled={!isOwner || isUploading} onChange={handleUpload} />
-            </label>
-          )}
+      {/* Block Header (Drag Handle & Collapse Toggle) */}
+      <div className="flex items-center gap-2">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 outline-none p-1 -ml-1">
+          <GripVerticalIcon className="w-5 h-5" />
         </div>
-
-        {/* Text & Link Inputs */}
-        <div className="grid grid-cols-1 gap-3">
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Card Title</label>
-            <input type="text" placeholder="e.g. Pioneer Summit 2026" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.title} onChange={e => updateBlock(block.id, { title: e.target.value })} disabled={!isOwner} />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Short Description</label>
-            <textarea placeholder="e.g. Join us in San Francisco..." className="w-full p-2 border border-gray-200 rounded-md text-sm h-16 resize-none outline-none focus:border-black transition-colors" value={block.description} onChange={e => updateBlock(block.id, { description: e.target.value })} disabled={!isOwner} />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Clickable Link URL</label>
-            <input type="url" placeholder="https://..." className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.linkUrl} onChange={e => updateBlock(block.id, { linkUrl: e.target.value })} disabled={!isOwner} />
-          </div>
-        </div>
-      </div>
-      
-      {isOwner && (
-        <button onClick={() => removeBlock(block.id)} className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100 outline-none" title="Delete block">
-          <ClearIcon className="w-4 h-4" />
+        
+        <button 
+          onClick={() => setIsExpanded(!isExpanded)} 
+          className="flex-1 text-left font-medium text-sm text-gray-700 hover:text-black transition-colors flex items-center gap-2 outline-none"
+        >
+          <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+          {block.title || 'Untitled Block'}
         </button>
+        
+        {isOwner && (
+          <button onClick={() => removeBlock(block.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors outline-none" title="Delete block">
+            <ClearIcon className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      
+      {/* Block Content (Hidden when collapsed) */}
+      {isExpanded && (
+        <div className="flex flex-col gap-4 mt-4 pl-8 pr-2 pb-2 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-gray-100 pt-4">
+          
+          {/* Image Area */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Landscape Image</label>
+            {block.imageUrl ? (
+              <div className="relative w-full max-w-sm aspect-[16/9] rounded-md border border-gray-200 bg-white p-2">
+                <div className="relative w-full h-full rounded-sm overflow-hidden group/img">
+                  <img src={block.imageUrl} alt="preview" className="w-full h-full object-cover border border-gray-100" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                    <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium shadow-sm hover:bg-gray-100 transition-colors">
+                      Replace Image
+                      <input type="file" className="hidden" accept="image/*" disabled={!isOwner || isUploading} onChange={handleUpload} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label className="cursor-pointer flex flex-col items-center justify-center w-full max-w-sm aspect-[16/9] rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors">
+                <span className="text-xs font-medium text-gray-500">
+                  {isUploading ? 'Uploading...' : 'Click to upload image'}
+                </span>
+                <input type="file" className="hidden" accept="image/*" disabled={!isOwner || isUploading} onChange={handleUpload} />
+              </label>
+            )}
+          </div>
+
+          {/* Text & Link Inputs */}
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Card Title</label>
+              <input type="text" placeholder="e.g. Pioneer Summit 2026" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.title} onChange={e => updateBlock(block.id, { title: e.target.value })} disabled={!isOwner} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Short Description</label>
+              <textarea placeholder="e.g. Join us in San Francisco..." className="w-full p-2 border border-gray-200 rounded-md text-sm h-16 resize-none outline-none focus:border-black transition-colors" value={block.description} onChange={e => updateBlock(block.id, { description: e.target.value })} disabled={!isOwner} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Clickable Link URL</label>
+              <input type="url" placeholder="https://..." className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.linkUrl} onChange={e => updateBlock(block.id, { linkUrl: e.target.value })} disabled={!isOwner} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
