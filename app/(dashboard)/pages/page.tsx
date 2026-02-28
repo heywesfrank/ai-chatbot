@@ -1,4 +1,4 @@
-// app/(dashboard)/widget-tabs/page.tsx
+// app/(dashboard)/pages/page.tsx
 'use client';
 import { useBotConfig } from '../BotConfigProvider';
 
