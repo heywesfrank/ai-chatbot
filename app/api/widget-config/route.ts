@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabase
       .from('bot_config')
-      .select('primary_color, bot_font_color, user_font_color, agent_bubble_color, user_bubble_color, launcher_color, launcher_icon_color, header_text, description_text, input_placeholder, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, page_context_enabled, routing_config, agents_online, allowed_domains')
+      .select('primary_color, bot_font_color, user_font_color, agent_bubble_color, user_bubble_color, launcher_color, launcher_icon_color, header_text, description_text, input_placeholder, welcome_message, bot_avatar, remove_branding, show_prompts, suggested_prompts, lead_capture_enabled, page_context_enabled, tabs_enabled, routing_config, agents_online, allowed_domains')
       .eq('space_id', spaceId)
       .maybeSingle();
 
@@ -37,7 +37,6 @@ export async function GET(req: Request) {
 
     const originHost = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase();
     
-    // Define internal dashboard domains that should ALWAYS bypass security checks to ensure the preview works
     const dashboardDomains = ['heyapoyo.com', 'app.heyapoyo.com', 'ai-chatbot-alpha-orpin.vercel.app', 'localhost'];
     const isDashboard = dashboardDomains.includes(originHost) || originHost.endsWith('.vercel.app');
 
@@ -51,7 +50,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // Fetch proactive triggers
     const { data: triggersData } = await supabase
       .from('proactive_triggers')
       .select('url_match, delay_seconds, message')
