@@ -1,12 +1,43 @@
 'use client';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { ArrowLeftIcon, ExternalLinkIcon } from '@/components/icons';
 import dynamic from 'next/dynamic';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github.css';
 import 'react-quill/dist/quill.snow.css';
 
-const ReactQuill = dynamic(() => import('react-quill'), {
+const ReactQuill = dynamic(async () => {
+  const { default: RQ } = await import('react-quill');
+  const { Quill } = RQ as any;
+  if (Quill && !Quill.imports['formats/imageWithAlt']) {
+    const ImageFormat = Quill.import('formats/image');
+    class ImageWithAlt extends ImageFormat {
+      static create(value: any) {
+        const node = super.create(typeof value === 'string' ? value : value.url);
+        if (typeof value === 'object' && value.alt) {
+          node.setAttribute('alt', value.alt);
+        }
+        return node;
+      }
+      static value(node: any) {
+        return {
+          url: node.getAttribute('src'),
+          alt: node.getAttribute('alt')
+        };
+      }
+    }
+    ImageWithAlt.blotName = 'imageWithAlt';
+    ImageWithAlt.tagName = 'IMG';
+    Quill.register(ImageWithAlt, true);
+    // Bind global hljs for react-quill
+    if (typeof window !== 'undefined') (window as any).hljs = hljs;
+  }
+  return RQ;
+}, {
   ssr: false,
   loading: () => <div className="h-64 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 text-sm text-gray-400">Loading editor...</div>
 }) as any;
@@ -19,8 +50,17 @@ interface HelpCenterEditorProps {
   onSuccess: () => void;
 }
 
+const flattenText = (node: any): string => {
+  if (typeof node === 'string') return node;
+  if (Array.isArray(node)) return node.map(flattenText).join('');
+  if (node && typeof node === 'object' && node.props && node.props.children) {
+    return flattenText(node.props.children);
+  }
+  return '';
+};
+
 export default function HelpCenterEditor({ article, activeSpaceId, allCategories, onClose, onSuccess }: HelpCenterEditorProps) {
-  const [currentId] = useState<string | null>(article?.id || null);
+  const [currentId, setCurrentId] = useState<string | null>(article?.id || null);
   const [title, setTitle] = useState(article?.title || '');
   const [category, setCategory] = useState(article?.category || 'General');
   const [content, setContent] = useState(article?.content || '');
@@ -29,6 +69,12 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
   const [seoDescription, setSeoDescription] = useState(article?.seo_description || '');
   const [status, setStatus] = useState<'draft' | 'published'>(article?.status || 'draft');
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isPreview, setIsPreview] = useState(false);
+
+  // Image Alt Text Modal State
+  const [altTextModal, setAltTextModal] = useState<{ url: string, range: any } | null>(null);
+  const [altText, setAltText] = useState('');
 
   const reactQuillRef = useRef<any>(null);
 
@@ -41,25 +87,49 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
     if (!currentId && !slug) setSlug(generateSlug(newTitle));
   };
 
-  const handleSave = async (targetStatus: 'draft' | 'published') => {
-    if (!title.trim() || !content.trim()) return toast.error('Title and content are required.');
-    setIsSaving(true);
+  const handleSave = async (targetStatus: 'draft' | 'published', silent = false) => {
+    if (!title.trim() || !content.trim()) {
+      if (!silent) toast.error('Title and content are required.');
+      return;
+    }
+    if (!silent) setIsSaving(true);
+    
     const finalSlug = slug.trim() || generateSlug(title);
     const { data: { session } } = await supabase.auth.getSession();
+    
     const res = await fetch('/api/help-center', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
       body: JSON.stringify({ id: currentId, spaceId: activeSpaceId, title, content, category, slug: finalSlug, seo_title: seoTitle, seo_description: seoDescription, status: targetStatus })
     });
-    setIsSaving(false);
+    
+    if (!silent) setIsSaving(false);
+    
     if (res.ok) {
-      toast.success(targetStatus === 'published' ? 'Article published & synced to AI!' : 'Draft saved successfully.');
-      onSuccess();
-      onClose();
+      const data = await res.json();
+      if (!currentId && data.article?.id) setCurrentId(data.article.id);
+      setStatus(targetStatus);
+      setLastSaved(new Date());
+
+      if (!silent) {
+        toast.success(targetStatus === 'published' ? 'Article published & synced to AI!' : 'Draft saved successfully.');
+        onSuccess();
+        onClose();
+      }
     } else {
-      toast.error('Failed to save article.');
+      if (!silent) toast.error('Failed to save article.');
     }
   };
+
+  // Debounced Auto-save
+  useEffect(() => {
+    if (!title.trim() || !content.trim()) return;
+    const timeoutId = setTimeout(() => {
+      handleSave(status, true);
+    }, 30000); // 30s auto-save
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, content, category, slug, seoTitle, seoDescription, status]);
 
   const imageHandler = () => {
     const input = document.createElement('input');
@@ -73,20 +143,36 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
         const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${activeSpaceId}/${fileName}`;
         const uploadPromise = supabase.storage.from('article_images').upload(filePath, file);
+        
         toast.promise(uploadPromise, { loading: 'Uploading image...', success: 'Image uploaded!', error: 'Error uploading image.' });
-        const { data, error } = await uploadPromise;
+        const { error } = await uploadPromise;
         if (error) { console.error('Upload error:', error); return; }
+        
         const { data: publicUrlData } = supabase.storage.from('article_images').getPublicUrl(filePath);
+        
         if (reactQuillRef.current) {
           const editor = reactQuillRef.current.getEditor();
-          const range = editor.getSelection();
-          editor.insertEmbed(range ? range.index : 0, 'image', publicUrlData.publicUrl);
+          const range = editor.getSelection(true);
+          setAltTextModal({ url: publicUrlData.publicUrl, range: range ? range.index : 0 });
         }
       }
     };
   };
 
+  const handleAltTextSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!altTextModal) return;
+    const editor = reactQuillRef.current?.getEditor();
+    if (editor) {
+      editor.insertEmbed(altTextModal.range, 'imageWithAlt', { url: altTextModal.url, alt: altText });
+      editor.setSelection(altTextModal.range + 1);
+    }
+    setAltTextModal(null);
+    setAltText('');
+  };
+
   const modules = useMemo(() => ({
+    syntax: true,
     toolbar: {
       container: [
         [{ 'header': [1, 2, 3, false] }],
@@ -113,7 +199,15 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
             {status}
           </span>
         </div>
+        
         <div className="flex items-center gap-3">
+          <div className="bg-gray-100 p-0.5 rounded-md flex items-center mr-2">
+            <button onClick={() => setIsPreview(false)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${!isPreview ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-900'}`}>Edit</button>
+            <button onClick={() => setIsPreview(true)} className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${isPreview ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-900'}`}>Preview</button>
+          </div>
+          
+          {lastSaved && <span className="text-[10px] text-gray-400 mr-2 font-medium hidden sm:block">Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+          
           {currentId && status === 'published' && (
             <a href={`/help/${activeSpaceId}/${slug || currentId}`} target="_blank" className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-gray-50 border border-transparent">
               View Live <ExternalLinkIcon className="w-3.5 h-3.5" />
@@ -138,25 +232,47 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
               value={title}
               onChange={handleTitleChange}
             />
-            <style dangerouslySetInnerHTML={{__html: `
-              .ql-toolbar.ql-snow { border: 1px solid #E5E7EB; border-radius: 0.375rem 0.375rem 0 0; background: #FAFAFA; border-bottom: none; }
-              .ql-container.ql-snow { border: 1px solid #E5E7EB; border-radius: 0 0 0.375rem 0.375rem; font-family: inherit; font-size: 1rem; }
-              .ql-editor { min-height: 400px; padding: 1.5rem; color: #374151; line-height: 1.7; }
-              .ql-editor h1, .ql-editor h2, .ql-editor h3 { color: #111827; font-weight: 600; margin-top: 1.5em; margin-bottom: 0.5em; }
-              .ql-editor p { margin-bottom: 1em; }
-              .ql-editor img { border-radius: 0.5rem; border: 1px solid #F3F4F6; }
-            `}} />
-            <div className="flex-1">
-              {/* @ts-ignore */}
-              <ReactQuill
-                ref={reactQuillRef}
-                theme="snow"
-                value={content}
-                onChange={setContent}
-                modules={modules}
-                placeholder="Write your amazing article here..."
-              />
-            </div>
+            
+            {isPreview ? (
+              <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl prose-img:shadow-sm leading-relaxed text-[15px] text-gray-700 min-h-[400px] p-6 border border-gray-100 rounded-lg bg-gray-50/30">
+                {content ? (
+                  <ReactMarkdown 
+                    rehypePlugins={[rehypeRaw]}
+                    components={{
+                      a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                      h2: ({ node, children, ...props }) => <h2 id={generateSlug(flattenText(children))} {...props}>{children}</h2>,
+                      h3: ({ node, children, ...props }) => <h3 id={generateSlug(flattenText(children))} {...props}>{children}</h3>,
+                    }}
+                  >
+                    {content}
+                  </ReactMarkdown>
+                ) : (
+                  <span className="text-gray-400 italic">No content to preview yet.</span>
+                )}
+              </div>
+            ) : (
+              <>
+                <style dangerouslySetInnerHTML={{__html: `
+                  .ql-toolbar.ql-snow { border: 1px solid #E5E7EB; border-radius: 0.375rem 0.375rem 0 0; background: #FAFAFA; border-bottom: none; }
+                  .ql-container.ql-snow { border: 1px solid #E5E7EB; border-radius: 0 0 0.375rem 0.375rem; font-family: inherit; font-size: 1rem; }
+                  .ql-editor { min-height: 400px; padding: 1.5rem; color: #374151; line-height: 1.7; }
+                  .ql-editor h1, .ql-editor h2, .ql-editor h3 { color: #111827; font-weight: 600; margin-top: 1.5em; margin-bottom: 0.5em; }
+                  .ql-editor p { margin-bottom: 1em; }
+                  .ql-editor img { border-radius: 0.5rem; border: 1px solid #F3F4F6; }
+                  .ql-syntax { background-color: #f3f4f6 !important; border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; font-size: 0.875rem; }
+                `}} />
+                <div className="flex-1 pb-10">
+                  <ReactQuill
+                    ref={reactQuillRef}
+                    theme="snow"
+                    value={content}
+                    onChange={setContent}
+                    modules={modules}
+                    placeholder="Write your amazing article here..."
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -223,6 +339,30 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
           </div>
         </div>
       </div>
+
+      {altTextModal && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in duration-200">
+          <form onSubmit={handleAltTextSubmit} className="bg-white border border-gray-200 shadow-2xl rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            <h3 className="text-sm font-semibold text-gray-900">Image Details</h3>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-700">Alt Text</label>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Describe the image..."
+                className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
+                value={altText}
+                onChange={e => setAltText(e.target.value)}
+              />
+              <p className="text-[10px] text-gray-500">Improves accessibility and AI document context.</p>
+            </div>
+            <div className="flex justify-end gap-2 mt-2">
+              <button type="button" onClick={() => { setAltTextModal(null); setAltText(''); }} className="px-4 py-2.5 bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors shadow-sm">Cancel</button>
+              <button type="submit" className="px-4 py-2.5 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm">Insert Image</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
