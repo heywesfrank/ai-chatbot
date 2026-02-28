@@ -99,6 +99,7 @@ export default function HelpCenterPage() {
         article={editingArticle}
         activeSpaceId={activeSpaceId}
         allCategories={allCategories}
+        allArticles={articles} // Pass articles to the editor
         onClose={() => setIsEditing(false)}
         onSuccess={fetchArticles}
       />
