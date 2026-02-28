@@ -107,6 +107,16 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
   const brandColor = config?.primary_color || '#000000';
   const headings = extractHeadings(article.content);
 
+  // Fetch Related Articles
+  let relatedDocs = [];
+  if (article.related_articles && article.related_articles.length > 0) {
+    const { data } = await supabase.from('help_center_articles')
+      .select('id, title, slug, content')
+      .in('id', article.related_articles)
+      .eq('status', 'published');
+    relatedDocs = data || [];
+  }
+
   return (
     <div className="bg-white min-h-screen text-gray-900 font-sans">
       <nav className="px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-50">
@@ -186,7 +196,39 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
             </ReactMarkdown>
           </div>
           
+          {/* Tags Display */}
+          {article.tags && article.tags.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap gap-2">
+              {article.tags.map((tag: string) => (
+                <span key={tag} className="px-2.5 py-1 bg-gray-50 text-gray-600 border border-gray-200 text-xs rounded-md font-medium">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           <ArticleFeedback articleId={article.id} />
+
+          {/* Related Articles Display */}
+          {relatedDocs.length > 0 && (
+            <div className="mt-16 pt-8 border-t border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-5">Related Articles</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {relatedDocs.map((doc: any) => (
+                  <Link 
+                    key={doc.id} 
+                    href={`/help/${params.spaceId}/${doc.slug || doc.id}`} 
+                    className="block p-5 border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all bg-white group"
+                  >
+                    <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5">{doc.title}</h4>
+                    <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                      {doc.content.replace(/<[^>]*>?/gm, '').substring(0, 120)}...
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
 
         {headings.length > 0 && (
