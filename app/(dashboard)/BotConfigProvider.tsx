@@ -65,7 +65,14 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     allowedDomains: '',
     agentsOnline: false,
     cannedResponses: [],
-    triggers: [] 
+    triggers: [],
+    
+    // New Page Settings
+    helpSearchPlaceholder: 'Search articles...',
+    greetingTitle: 'Hello there.',
+    greetingBody: 'How can we help?',
+    homeTabEnabled: false,
+    homeContent: ''
   };
 
   const [config, setConfig] = useState(defaultConfig);
@@ -147,7 +154,13 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           allowedDomains: spaceData.allowed_domains || '',
           agentsOnline: spaceData.agents_online ?? false,
           cannedResponses: spaceData.canned_responses || [],
-          triggers: spaceData.triggers || [] 
+          triggers: spaceData.triggers || [],
+          
+          helpSearchPlaceholder: spaceData.help_search_placeholder || prev.helpSearchPlaceholder,
+          greetingTitle: spaceData.greeting_title || prev.greetingTitle,
+          greetingBody: spaceData.greeting_body || prev.greetingBody,
+          homeTabEnabled: spaceData.home_tab_enabled ?? false,
+          homeContent: spaceData.home_content || ''
         };
         
         setSavedConfig(newConfig);
