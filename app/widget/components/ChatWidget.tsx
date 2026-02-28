@@ -8,7 +8,8 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import ChatInput from './ChatInput';
 import MessageBubble from './MessageBubble';
 import LeadCaptureForm from './LeadCaptureForm';
-import { ClearIcon, ChatBubbleIcon, ChevronDownIcon } from '@/components/icons';
+import HelpTab from './HelpTab';
+import { ClearIcon, ChatBubbleIcon, ChevronDownIcon, MessageSquareIcon, HelpCircleIcon } from '@/components/icons';
 
 const playPopSound = () => {
   try {
@@ -30,6 +31,8 @@ const playPopSound = () => {
   } catch(e) {}
 };
 
+type Conversation = { id: string; updatedAt: number; messages: any[]; liveSessionId: string | null; liveMessages: any[] };
+
 export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
@@ -40,7 +43,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Detect mobile viewport (<= 430px ensures a 468px desktop iframe isn't miscategorized)
     const checkMobile = () => setIsMobile(window.innerWidth <= 430);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -49,13 +51,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const enableLeadCapture = urlOverrides.leadCapture !== null ? urlOverrides.leadCapture : (config?.leadCaptureEnabled ?? config?.lead_capture_enabled ?? false);
   const [isLeadCaptured, setIsLeadCaptured, removeLeadCaptured] = useLocalStorage(`lead_captured_${spaceId}`, !enableLeadCapture);
-  
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   
-  // Color Fallbacks (Check camelCase from context first, then snake_case from DB)
   const primaryColor = urlOverrides.color || config?.primaryColor || config?.primary_color || '#000000';
   const botFontColor = urlOverrides.botFontColor || config?.botFontColor || config?.bot_font_color || '#1f2937';
   const userFontColor = urlOverrides.userFontColor || config?.userFontColor || config?.user_font_color || '#ffffff';
@@ -76,6 +76,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   
   const enablePageContext = urlOverrides.pageContextEnabled !== undefined && urlOverrides.pageContextEnabled !== null ? urlOverrides.pageContextEnabled : (config?.pageContextEnabled ?? config?.page_context_enabled ?? false);
   const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routingConfig || config?.routing_config || []);
+  const tabsEnabled = urlOverrides.tabsEnabled !== null ? urlOverrides.tabsEnabled : (config?.tabsEnabled ?? config?.tabs_enabled ?? false);
 
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
@@ -84,9 +85,21 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const suggestedPrompts = urlOverrides.prompts !== null ? urlOverrides.prompts : (config?.suggestedPrompts || config?.suggested_prompts || defaultPrompts);
 
   const initMsg = { id: 'init', role: 'assistant', content: welcomeMessage } as const;
+
+  // Migration & State for Conversations List
+  const [conversations, setConversations] = useLocalStorage<Conversation[]>(`conversations_${spaceId}`, []);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
   
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<'messages' | 'help'>('messages');
+  const [messagesView, setMessagesView] = useState<'list' | 'chat'>(tabsEnabled ? 'list' : 'chat');
+
+  // Legacy local storage hook for seamless transition
   const [savedMessages, setSavedMessages, removeSavedMessages] = useLocalStorage<any[]>(`chat_session_${spaceId}`, [initMsg]);
   const [routingContext, setRoutingContext, removeRoutingContext] = useLocalStorage<string | null>(`routing_context_${spaceId}`, null);
+
+  const [liveSessionId, setLiveSessionId, removeLiveSessionId] = useLocalStorage<string | null>(`live_session_id_${spaceId}`, null);
+  const [liveMessages, setLiveMessages, removeLiveMessages] = useLocalStorage<any[]>(`live_messages_${spaceId}`, []);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, error, setMessages, append } = useChat({
     api: '/api/chat',
@@ -106,9 +119,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     initialMessages: savedMessages,
   });
 
-  const [liveSessionId, setLiveSessionId, removeLiveSessionId] = useLocalStorage<string | null>(`live_session_id_${spaceId}`, null);
-  const [liveMessages, setLiveMessages, removeLiveMessages] = useLocalStorage<any[]>(`live_messages_${spaceId}`, []);
-
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const typingChannelRef = useRef<any>(null);
@@ -121,14 +131,37 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const triggerTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasTriggeredRef = useRef(false);
 
-  // Trigger form visibility automatically when previewing
+  // Transition legacy sessions to the new format if tabs are enabled
+  useEffect(() => {
+    if (tabsEnabled && conversations.length === 0 && savedMessages.length > 1) {
+      const legacyConv = { id: Date.now().toString(), updatedAt: Date.now(), messages: savedMessages, liveSessionId, liveMessages };
+      setConversations([legacyConv]);
+      setActiveConvId(legacyConv.id);
+    }
+    if (!tabsEnabled) {
+      setMessagesView('chat');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabsEnabled]);
+
+  // Keep `conversations` array strictly synchronized with the current active chat view
+  useEffect(() => {
+    if (activeConvId && tabsEnabled) {
+      setConversations(prev => {
+        const exists = prev.find(c => c.id === activeConvId);
+        if (exists) {
+          return prev.map(c => c.id === activeConvId ? { ...c, messages, liveSessionId, liveMessages, updatedAt: Date.now() } : c);
+        } else {
+          return [{ id: activeConvId, messages, liveSessionId, liveMessages, updatedAt: Date.now() }, ...prev];
+        }
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, liveMessages, liveSessionId]);
+
   useEffect(() => {
     if (urlOverrides.preview) {
-       if (enableLeadCapture) {
-         setIsLeadCaptured(false);
-       } else {
-         setIsLeadCaptured(true);
-       }
+       setIsLeadCaptured(!enableLeadCapture);
     }
   }, [enableLeadCapture, urlOverrides.preview, setIsLeadCaptured]);
 
@@ -149,26 +182,17 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       });
       
       setMessages(prev => {
-        if (prev.length <= 1) {
-          // FIX: Return a new array with ONLY the trigger message, 
-          // keeping the 'init' ID so it doesn't show the thumbs up/down UI
-          return [{ id: 'init', role: 'assistant', content: matchingTrigger.message }];
-        }
+        if (prev.length <= 1) return [{ id: 'init', role: 'assistant', content: matchingTrigger.message }];
         return prev;
       });
-
     }, matchingTrigger.delay_seconds * 1000);
 
-    return () => {
-      if (triggerTimerRef.current) clearTimeout(triggerTimerRef.current);
-    };
+    return () => { if (triggerTimerRef.current) clearTimeout(triggerTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentUrl]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.parent.postMessage({ type: 'kb-widget-resize', isOpen: isOpen || urlOverrides.preview }, '*');
-    }
+    if (typeof window !== 'undefined') window.parent.postMessage({ type: 'kb-widget-resize', isOpen: isOpen || urlOverrides.preview }, '*');
   }, [isOpen, urlOverrides.preview]);
 
   useEffect(() => {
@@ -227,9 +251,34 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages, liveMessages, isOpen, urlOverrides.preview]);
+  }, [messages, liveMessages, isOpen, urlOverrides.preview, messagesView, activeTab]);
+
+  const startNewConversation = () => {
+    const newId = Date.now().toString();
+    setActiveConvId(newId);
+    setMessages([initMsg]);
+    setLiveSessionId(null);
+    setLiveMessages([]);
+    setRoutingContext(null);
+    setMessagesView('chat');
+  };
+
+  const loadConversation = (id: string) => {
+    const conv = conversations.find(c => c.id === id);
+    if (conv) {
+      setActiveConvId(conv.id);
+      setMessages(conv.messages);
+      setLiveSessionId(conv.liveSessionId);
+      setLiveMessages(conv.liveMessages || []);
+      setMessagesView('chat');
+    }
+  };
 
   const handleClearChat = () => {
+    if (tabsEnabled && activeConvId) {
+       setConversations(prev => prev.filter(c => c.id !== activeConvId));
+       setMessagesView('list');
+    }
     setMessages([initMsg]);
     removeSavedMessages();
     setFeedback({});
@@ -295,11 +344,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         ]);
       }
       setEscalatingId(null);
-    } catch (e) { 
-      console.error('Ticket failed', e); 
-    } finally {
-      setIsSubmittingTicket(false);
-    }
+    } catch (e) { console.error('Ticket failed', e); } finally { setIsSubmittingTicket(false); }
   };
 
   const handleFileUpload = async (file: File) => {
@@ -330,6 +375,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
+    if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString());
 
     if (liveSessionId) {
       const userMsg = input.trim();
@@ -359,8 +405,17 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   const handleRoutingSelection = (option: any) => {
+    if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString());
     setRoutingContext(option.value);
     append({ role: 'user', content: option.label });
+  };
+
+  const formatTimeAgo = (ts: number) => {
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
   };
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
@@ -368,41 +423,82 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const showChatWindow = isOpen || urlOverrides.preview;
   const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
-  const Header = () => (
-    <div className="p-4 flex justify-center items-center relative z-10 shrink-0" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
-      <div className="flex flex-col items-center">
-        <div className="flex items-center gap-2">
-          {botAvatar && <img src={botAvatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm bg-white" />}
-          <span className="font-semibold text-sm">{headerText}</span>
+  const ChatHeader = () => (
+    <div className="p-3.5 flex items-center relative z-10 shrink-0 shadow-sm" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
+      {tabsEnabled && (
+        <button onClick={() => setMessagesView('list')} className="p-2 rounded-md hover:bg-white/20 transition-colors mr-2 outline-none">
+          <svg className="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+        </button>
+      )}
+      <div className="flex items-center gap-2.5 flex-1">
+        {botAvatar && <img src={botAvatar} alt="Avatar" className="w-7 h-7 rounded-full object-cover shadow-sm bg-white" />}
+        <div className="flex flex-col">
+          <span className="font-semibold text-sm leading-tight">{headerText}</span>
+          {descriptionText && <span className="text-[10px] font-medium opacity-90">{descriptionText}</span>}
         </div>
-        {descriptionText && (
-          <span className="text-[11px] font-medium opacity-90 mt-0.5">{descriptionText}</span>
-        )}
       </div>
       
-      {isLeadCaptured && (
-        <button aria-label="Clear Chat" onClick={handleClearChat} className="absolute left-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Clear Chat">
+      {!tabsEnabled && isLeadCaptured && (
+        <button aria-label="Clear Chat" onClick={handleClearChat} className="p-2 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Clear Chat">
           <ClearIcon className="w-4 h-4" />
         </button>
       )}
 
-      {/* Visible close button inside the header for convenience - hidden in preview */}
-      {!urlOverrides.preview && (
-        <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="absolute right-3 p-1.5 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2" title="Close Chat">
+      {!urlOverrides.preview && !tabsEnabled && (
+        <button aria-label="Close Chat" onClick={() => setIsOpen(false)} className="p-2 rounded-md hover:bg-black/10 transition-colors outline-none focus:ring-2 ml-1" title="Close Chat">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       )}
     </div>
   );
 
-  const renderBodyContent = () => {
+  const ConversationsList = () => (
+    <div className="flex flex-col h-full bg-[var(--bg-primary)]">
+      <div className="p-6 shrink-0 bg-[var(--bg-primary)] relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-40 opacity-[0.08] pointer-events-none" style={{ backgroundColor: 'var(--primary-color)' }} />
+        <div className="relative z-10 text-center flex flex-col items-center">
+          {botAvatar && <img src={botAvatar} alt="Logo" className="w-16 h-16 rounded-full mx-auto mb-4 object-cover shadow-sm border border-[var(--border-strong)] bg-white" />}
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-1.5">Hi there 👋</h2>
+          <p className="text-[var(--text-secondary)] text-sm mb-6">How can we help you today?</p>
+          <button onClick={startNewConversation} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-medium shadow-sm hover:opacity-90 transition-opacity active:scale-95" style={{ backgroundColor: 'var(--primary-color)' }}>
+            Send us a message
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 pb-5">
+        {conversations.length > 0 && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-3 px-1">Recent messages</div>
+            <div className="flex flex-col gap-2.5">
+              {conversations.sort((a,b) => b.updatedAt - a.updatedAt).map(conv => {
+                const lastUserMsg = conv.messages.slice().reverse().find(m => m.role === 'user')?.content || 'New Conversation';
+                return (
+                  <button key={conv.id} onClick={() => loadConversation(conv.id)} className="flex flex-col p-4 bg-[var(--bg-secondary)] hover:bg-[var(--border-strong)] border border-transparent rounded-xl transition-colors text-left shadow-sm group">
+                     <div className="flex items-center justify-between mb-1.5">
+                       <span className="text-[10px] text-[var(--text-secondary)] font-medium group-hover:text-[var(--text-primary)] transition-colors">{formatTimeAgo(conv.updatedAt)}</span>
+                       <svg className="w-3.5 h-3.5 text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                     </div>
+                     <span className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 leading-snug">{lastUserMsg}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderChatInterface = () => {
     if (!isLeadCaptured) {
       return <LeadCaptureForm onSubmit={handleLeadFormSubmit} isSubmitting={isSubmittingLead} />;
     }
 
     return (
-      <>
-        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col bg-[var(--bg-primary)]" aria-live="polite" aria-atomic="false">
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3 flex flex-col bg-[var(--bg-primary)] relative" aria-live="polite" aria-atomic="false">
           <div className="space-y-4">
             {messages.map((msg, index) => (
               <MessageBubble 
@@ -410,7 +506,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
                 primaryColor={primaryColor} agentBubbleColor={agentBubbleColor} userBubbleColor={userBubbleColor} 
                 botFontColor={botFontColor} userFontColor={userFontColor}
                 isTyping={isLoading && index === messages.length - 1} isLatest={index === messages.length - 1 && liveMessages.length === 0}
-                onFollowUpClick={(text: string) => append({ role: 'user', content: text })} liveSessionId={liveSessionId}
+                onFollowUpClick={(text: string) => { if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString()); append({ role: 'user', content: text }); }} liveSessionId={liveSessionId}
                 handleCopy={handleCopy} copiedId={copiedId} submitFeedback={submitFeedback} feedback={feedback}
                 userPrompt={index > 0 && messages[index - 1].role === 'user' ? messages[index - 1].content : ''}
                 submitTicket={submitTicket} isSubmittingTicket={isSubmittingTicket} escalatingId={escalatingId} setEscalatingId={setEscalatingId} agentsOnline={agentsOnline}
@@ -471,7 +567,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               <div className="flex-1" />
               <div className="w-full flex flex-wrap justify-center gap-2 mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
                 {suggestedPrompts.map((prompt: string, index: number) => (
-                  <button key={index} onClick={() => append({ role: 'user', content: prompt })} className="text-[13px] px-4 py-2.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words">
+                  <button key={index} onClick={() => { if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString()); append({ role: 'user', content: prompt }); }} className="text-[13px] px-4 py-2.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm text-center leading-tight max-w-full whitespace-normal break-words">
                     {prompt}
                   </button>
                 ))}
@@ -486,33 +582,56 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
           disabled={(isLoading && !liveSessionId) || showRouting} primaryColor={primaryColor} 
           isLiveChat={!!liveSessionId} onFileUpload={handleFileUpload} inputPlaceholder={inputPlaceholder}
         />
-      </>
+      </div>
     );
   };
 
   return (
     <div className="fixed inset-0 pointer-events-none text-[var(--text-primary)] font-sans text-sm" data-theme={urlOverrides.theme || config?.theme} style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       
-      {/* Force page background transparency to absolutely prevent the "gray box" in the iframe */}
-      <style dangerouslySetInnerHTML={{__html: `
-        :root, html, body, main { background: transparent !important; }
-      `}} />
+      <style dangerouslySetInnerHTML={{__html: `:root, html, body, main { background: transparent !important; }`}} />
 
       {/* Floating Chat Window */}
       <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_4px_14px_rgba(0,0,0,0.1)]
         ${isMobile
-          ? 'inset-0 rounded-none' // Mobile fills screen
-          : `bottom-[104px] w-[calc(100%-48px)] max-w-[420px] h-[calc(100%-120px)] max-h-[700px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
+          ? 'inset-0 rounded-none'
+          : `bottom-[104px] w-[calc(100%-48px)] max-w-[420px] h-[calc(100%-120px)] max-h-[720px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
         }
         ${showChatWindow ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
       `}>
-        <Header />
-        {renderBodyContent()}
+        
+        {(!tabsEnabled || (activeTab === 'messages' && messagesView === 'chat')) && <ChatHeader />}
+
+        <div className="flex-1 overflow-hidden flex flex-col relative bg-[var(--bg-primary)]">
+           {tabsEnabled && activeTab === 'messages' && messagesView === 'list' && <ConversationsList />}
+           {(!tabsEnabled || (activeTab === 'messages' && messagesView === 'chat')) && renderChatInterface()}
+           {tabsEnabled && activeTab === 'help' && <HelpTab spaceId={spaceId} primaryColor={primaryColor} />}
+        </div>
+
+        {tabsEnabled && (
+          <div className="flex border-t border-[var(--border-strong)] bg-[var(--bg-primary)] p-1.5 shrink-0 z-20 pb-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+            <button 
+              onClick={() => { setActiveTab('messages'); if (conversations.length > 0) setMessagesView('list'); }} 
+              className={`flex-1 py-2 flex flex-col items-center gap-1.5 rounded-lg transition-all ${activeTab === 'messages' ? 'text-[var(--primary-color)] font-semibold' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
+            >
+              <MessageSquareIcon className="w-[22px] h-[22px]" />
+              <span className="text-[10px]">Messages</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('help')} 
+              className={`flex-1 py-2 flex flex-col items-center gap-1.5 rounded-lg transition-all ${activeTab === 'help' ? 'text-[var(--primary-color)] font-semibold' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
+            >
+              <HelpCircleIcon className="w-[22px] h-[22px]" />
+              <span className="text-[10px]">Help</span>
+            </button>
+          </div>
+        )}
+
         {!removeBranding && (
-          <div className="py-2 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] border-t border-[var(--border-strong)] flex justify-center items-center shrink-0">
+          <div className="py-2.5 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-primary)] flex justify-center items-center shrink-0 z-20 pb-3">
             Powered by 
             <a href="https://heyapoyo.com" target="_blank" rel="noopener noreferrer" className="flex items-center hover:opacity-100 transition-opacity opacity-80">
-              <img src="/apoyo.png" alt="Apoyo" className="h-4 ml-1.5" />
+              <img src="/apoyo.png" alt="Apoyo" className="h-[18px] ml-1.5" />
             </a>
           </div>
         )}
@@ -533,7 +652,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               </span>
             )}
             
-            {/* Animated Icons for morphing between Chat and Arrow */}
             <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isLauncherMorphOpen ? 'rotate-0 opacity-100 scale-100' : '-rotate-90 opacity-0 scale-50'}`}>
               <ChevronDownIcon className="w-6 h-6" />
             </div>
