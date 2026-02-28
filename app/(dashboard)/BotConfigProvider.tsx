@@ -1,3 +1,4 @@
+// app/(dashboard)/BotConfigProvider.tsx
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -52,6 +53,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     followUpQuestionsEnabled: false,
     leadCaptureEnabled: false,
     pageContextEnabled: false,
+    tabsEnabled: false,
     routingConfig: [] as { id: string; label: string; value: string }[],
     language: 'Auto-detect',
     theme: 'auto',
@@ -70,7 +72,6 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
   const [savedConfig, setSavedConfig] = useState(defaultConfig);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Deep compare the current config vs what is actually saved on the backend
   useEffect(() => {
     setHasUnsavedChanges(JSON.stringify(config) !== JSON.stringify(savedConfig));
   }, [config, savedConfig]);
@@ -136,6 +137,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           followUpQuestionsEnabled: spaceData.follow_up_questions_enabled ?? false,
           leadCaptureEnabled: spaceData.lead_capture_enabled ?? false,
           pageContextEnabled: spaceData.page_context_enabled ?? false,
+          tabsEnabled: spaceData.tabs_enabled ?? false,
           routingConfig: spaceData.routing_config || [],
           language: spaceData.language || 'Auto-detect',
           temperature: spaceData.temperature ?? prev.temperature,
@@ -148,7 +150,6 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           triggers: spaceData.triggers || [] 
         };
         
-        // Hydrate both config and savedConfig directly so they match fully on load
         setSavedConfig(newConfig);
         return newConfig;
       });
@@ -181,10 +182,10 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         toast.success('Configuration updated!');
         setActiveSpaceId(activeId);
-        setSavedConfig(configToSave); // Locks the changes in so the button grays out
+        setSavedConfig(configToSave);
         triggerRefresh();
       } else {
-        toast.error('Failed to update configuration.');
+        toast.error('Failed to update configuration. Ensure you have run the database migration.');
       }
     } catch (error) { 
       toast.error('Error saving configuration.'); 
