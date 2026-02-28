@@ -108,7 +108,7 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
   const headings = extractHeadings(article.content);
 
   // Fetch Related Articles
-  let relatedDocs = [];
+  let relatedDocs: any[] = [];
   if (article.related_articles && article.related_articles.length > 0) {
     const { data } = await supabase.from('help_center_articles')
       .select('id, title, slug, content')
