@@ -40,7 +40,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Detect mobile viewport (<= 430px ensures a 448px desktop iframe isn't miscategorized)
+    // Detect mobile viewport (<= 430px ensures a 468px desktop iframe isn't miscategorized)
     const checkMobile = () => setIsMobile(window.innerWidth <= 430);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -502,7 +502,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden border border-[var(--border-strong)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[0_4px_14px_rgba(0,0,0,0.1)]
         ${isMobile
           ? 'inset-0 rounded-none' // Mobile fills screen
-          : `bottom-[104px] w-[calc(100%-48px)] max-w-[400px] h-[calc(100%-120px)] max-h-[650px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
+          : `bottom-[104px] w-[calc(100%-48px)] max-w-[420px] h-[calc(100%-120px)] max-h-[700px] rounded-2xl ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
         }
         ${showChatWindow ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
       `}>
