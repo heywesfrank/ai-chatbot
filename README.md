@@ -46,6 +46,16 @@ create table public.bot_config (
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create table public.profiles (
+  id uuid not null,
+  first_name text null,
+  last_name text null,
+  email text null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  constraint profiles_pkey primary key (id),
+  constraint profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
 create table public.help_center_articles (
   id uuid not null default gen_random_uuid (),
   space_id text not null,
