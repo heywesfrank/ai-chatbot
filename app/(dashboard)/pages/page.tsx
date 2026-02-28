@@ -28,7 +28,7 @@ function SimpleColorPicker({ label, value, onChange, disabled }: { label: string
     <div>
       <label className="block text-xs font-medium text-gray-700 mb-1.5">{label}</label>
       <div className="flex items-center gap-2">
-        <div className="relative w-8 h-8 rounded border border-gray-200 overflow-hidden shrink-0 shadow-sm">
+        <div className="relative w-8 h-8 rounded border border-gray-200 overflow-hidden shrink-0">
           <input type="color" className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer" disabled={disabled} value={value || '#000000'} onChange={(e) => onChange(e.target.value)} />
         </div>
         <input type="text" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono max-w-[100px]" disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value)} />
@@ -71,10 +71,10 @@ function ImageUpload({ label, url, onUpload, disabled, onRemove }: any) {
         )}
       </div>
       {url ? (
-        <div className="relative w-full aspect-[21/9] rounded-md border border-gray-200 bg-gray-50 p-2 flex items-center justify-center overflow-hidden group/img shadow-sm">
+        <div className="relative w-full aspect-[21/9] rounded-md border border-gray-200 bg-gray-50 p-2 flex items-center justify-center overflow-hidden group/img">
           <img src={url} alt="preview" className="max-w-full max-h-full object-contain z-0" />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center z-10">
-            <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium shadow-sm hover:bg-gray-100 transition-colors">
+            <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-100 transition-colors">
               Replace
               <input type="file" className="hidden" accept="image/*" disabled={disabled || isUploading} onChange={handleUpload} />
             </label>
@@ -135,7 +135,7 @@ function SortableBlockItem({ block, updateBlock, removeBlock, isOwner }: any) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`flex flex-col p-4 bg-white border border-gray-200 rounded-lg shadow-sm relative group ${isDragging ? 'opacity-50' : ''}`}>
+    <div ref={setNodeRef} style={style} className={`flex flex-col p-4 bg-white border border-gray-200 rounded-lg relative group ${isDragging ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-2">
         <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 outline-none p-1 -ml-1">
           <GripVerticalIcon className="w-5 h-5" />
@@ -162,7 +162,7 @@ function SortableBlockItem({ block, updateBlock, removeBlock, isOwner }: any) {
                 <div className="relative w-full h-full group/img">
                   <img src={block.imageUrl} alt="preview" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                    <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium shadow-sm hover:bg-gray-100 transition-colors">
+                    <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-100 transition-colors">
                       Replace Image
                       <input type="file" className="hidden" accept="image/*" disabled={!isOwner || isUploading} onChange={handleUpload} />
                     </label>
@@ -285,7 +285,7 @@ export default function WidgetPagesConfig() {
       <div className="space-y-6">
         
         {/* Core Tabs Toggle */}
-        <section className="bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+        <section className="bg-white border border-gray-200 p-6 rounded-md">
           <div className="flex items-center justify-between">
             <div className="pr-4">
               <label className="block text-sm font-semibold text-gray-900">Enable Tabbed Layout</label>
@@ -309,7 +309,7 @@ export default function WidgetPagesConfig() {
         {config.tabsEnabled && (
           <>
             {/* Header / Top Settings */}
-            <section className="bg-white border border-gray-200 p-6 rounded-md shadow-sm space-y-6">
+            <section className="bg-white border border-gray-200 p-6 rounded-md space-y-6">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-1">Header & Greeting</h2>
                 <p className="text-[11px] text-gray-500">Design the top banner displayed when users open the widget.</p>
@@ -335,7 +335,7 @@ export default function WidgetPagesConfig() {
             </section>
 
             {/* Home Tab Builder */}
-            <section className="bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+            <section className="bg-white border border-gray-200 p-6 rounded-md">
               <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-4">
                 <div>
                   <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Home Tab Blocks</h2>
@@ -372,7 +372,7 @@ export default function WidgetPagesConfig() {
                   <button
                     onClick={addBlock}
                     disabled={!isOwner}
-                    className="w-full py-3.5 bg-white border border-dashed border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors text-sm font-medium flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                    className="w-full py-3.5 bg-white border border-dashed border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Add Content Block
@@ -382,7 +382,7 @@ export default function WidgetPagesConfig() {
             </section>
 
             {/* Help Center Settings */}
-            <section className="bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+            <section className="bg-white border border-gray-200 p-6 rounded-md">
               <h2 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">Help Center Tab</h2>
               <div className="pt-4 border-t border-gray-100">
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Search Input Placeholder</label>
