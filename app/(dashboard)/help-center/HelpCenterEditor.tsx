@@ -11,6 +11,11 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import 'react-quill/dist/quill.snow.css';
 
+// Bind highlight.js globally synchronously so Quill can find it immediately
+if (typeof window !== 'undefined') {
+  (window as any).hljs = hljs;
+}
+
 const ReactQuill = dynamic(async () => {
   const { default: RQ } = await import('react-quill');
   const { Quill } = RQ as any;
@@ -34,7 +39,6 @@ const ReactQuill = dynamic(async () => {
     ImageWithAlt.blotName = 'imageWithAlt';
     ImageWithAlt.tagName = 'IMG';
     Quill.register(ImageWithAlt, true);
-    if (typeof window !== 'undefined') (window as any).hljs = hljs;
   }
   return RQ;
 }, {
