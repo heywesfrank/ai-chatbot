@@ -21,7 +21,8 @@ export async function middleware(req: NextRequest) {
     '/integrations', 
     '/analytics', 
     '/team',
-    '/help-center'
+    '/help-center',
+    '/pages',
   ];
 
   const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route));
