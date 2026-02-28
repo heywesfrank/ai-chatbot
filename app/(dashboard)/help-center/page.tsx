@@ -185,6 +185,15 @@ export default function HelpCenterPage() {
                         {article.status === 'draft' && (
                           <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Draft</span>
                         )}
+                        {article.status === 'archived' && (
+                          <span className="text-[10px] bg-gray-200 text-gray-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Archived</span>
+                        )}
+                        {article.status === 'published' && article.scheduled_at && new Date(article.scheduled_at) > new Date() && (
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Scheduled</span>
+                        )}
+                        {article.visibility === 'private' && (
+                          <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Private</span>
+                        )}
                         <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium shrink-0">{article.category || 'General'}</span>
                       </div>
                       <p className="text-xs text-gray-500 truncate max-w-lg">
