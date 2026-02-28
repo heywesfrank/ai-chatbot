@@ -75,15 +75,33 @@ export default function WidgetPagesConfig() {
 
               {config.homeTabEnabled && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Page Content (Markdown)</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-gray-700">Page Content</label>
+                    <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">Markdown Supported</span>
+                  </div>
+                  
                   <textarea 
                     className="w-full p-3 border border-gray-200 rounded-md text-sm h-48 outline-none focus:border-black resize-none transition-colors font-mono" 
                     value={config.homeContent || ''} 
                     disabled={!isOwner} 
                     onChange={(e) => updateConfig('homeContent', e.target.value)}
-                    placeholder="### Big Updates!&#10;Check out our new feature release today.&#10;[Read more here](https://yourwebsite.com)"
+                    placeholder="### Big Updates!&#10;Check out our new feature release today.&#10;&#10;[Read more here](https://yourwebsite.com)&#10;&#10;---&#10;&#10;Use '---' to create a new card block!"
                   />
-                  <p className="text-[10px] text-gray-500 mt-1.5">Supports links, bolding, lists, and images.</p>
+                  
+                  {/* Markdown Cheat Sheet */}
+                  <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                    <p className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Formatting Guide</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-gray-700 font-mono">
+                      <div><span className="text-gray-400">**</span>Bold Text<span className="text-gray-400">**</span></div>
+                      <div><span className="text-gray-400">[</span>Link Text<span className="text-gray-400">](https://...)</span></div>
+                      <div><span className="text-gray-400">###</span> Heading 3</div>
+                      <div><span className="text-gray-400">![</span>Image Alt<span className="text-gray-400">](https://...)</span></div>
+                      <div className="col-span-1 sm:col-span-2 mt-2 pt-2 border-t border-gray-200 font-sans text-gray-500 flex justify-between items-center">
+                        <span>Hit <strong>Enter twice</strong> for a new paragraph.</span>
+                        <span className="bg-white border border-gray-200 px-2 py-1 rounded text-gray-700 font-mono">--- <span className="font-sans text-gray-400 text-[10px]">= New Card</span></span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
