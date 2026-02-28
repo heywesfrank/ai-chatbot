@@ -101,7 +101,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans">
-      <div className="flex items-center justify-between px-8 py-5 border-b border-gray-200 shrink-0 bg-white shadow-sm z-10">
+      <div className="flex items-center justify-between px-8 py-5 border-b border-gray-200 shrink-0 bg-white z-10">
         <div className="flex items-center gap-4">
           <button onClick={onClose} className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
             <ArrowLeftIcon className="w-4 h-4" />
@@ -169,7 +169,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
                 type="text"
                 list="category-suggestions"
                 placeholder="e.g. Getting Started"
-                className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
+                className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
                 value={category}
                 onChange={e => setCategory(e.target.value)}
               />
@@ -189,7 +189,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
                 <input
                   type="text"
                   placeholder="e.g. how-to-reset-password"
-                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
                   value={slug}
                   onChange={e => setSlug(generateSlug(e.target.value))}
                 />
@@ -200,7 +200,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
                 <input
                   type="text"
                   placeholder="Optional optimized title"
-                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors shadow-sm"
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors"
                   value={seoTitle}
                   onChange={e => setSeoTitle(e.target.value)}
                 />
@@ -214,7 +214,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
                   placeholder="Brief description for search engines"
                   rows={3}
                   maxLength={160}
-                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none shadow-sm"
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-md px-3 py-2 outline-none focus:border-black transition-colors resize-none"
                   value={seoDescription}
                   onChange={e => setSeoDescription(e.target.value)}
                 />
