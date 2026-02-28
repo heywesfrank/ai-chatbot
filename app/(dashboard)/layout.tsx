@@ -240,8 +240,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
           
           {isBuilderRoute && activeSpaceId && (
-            <div className="hidden lg:flex w-[460px] xl:w-[500px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0">
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[448px] h-[800px] max-h-[100vh] animate-in fade-in zoom-in-95 duration-500">
+            <div className="hidden lg:flex w-[480px] xl:w-[520px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0">
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[468px] h-[824px] max-h-[100vh] animate-in fade-in zoom-in-95 duration-500">
                 <iframe 
                   ref={iframeRef} 
                   src={previewUrl} 
