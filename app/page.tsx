@@ -25,7 +25,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [step, setStep] = useState<'form' | 'otp'>('form');
 
   useEffect(() => {
@@ -106,11 +106,7 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#FAFAFA] font-sans px-4 py-8">
       <div className="w-full max-w-[400px] p-8 bg-white border border-gray-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300">
         <div className="mb-8 text-center">
-          <div className="mx-auto w-10 h-10 bg-black rounded-lg mb-4 flex items-center justify-center shadow-sm">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-          </div>
+          <img src="/apoyo.png" alt="Apoyo" className="h-10 w-auto mx-auto mb-5 object-contain" />
           <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
             {step === 'otp' ? 'Check your email' : (mode === 'login' ? 'Welcome back' : 'Create an account')}
           </h2>
