@@ -56,8 +56,14 @@ create table public.help_center_articles (
   upvotes integer null default 0,
   neutral_votes integer null default 0,
   downvotes integer null default 0,
+  tags jsonb null default '[]'::jsonb,
+  related_articles jsonb null default '[]'::jsonb,
   constraint help_center_articles_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
+
+create index IF not exists idx_help_center_articles_slug on public.help_center_articles using btree (slug) TABLESPACE pg_default;
 
 create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
 
