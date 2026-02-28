@@ -1,3 +1,4 @@
+// app/widget/page.tsx
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
@@ -15,6 +16,7 @@ function WidgetWrapper() {
   const followUpQuestionsEnabledParam = searchParams.get('followUpQuestionsEnabled');
   const matchThresholdParam = searchParams.get('matchThreshold');
   const pageContextEnabledParam = searchParams.get('pageContextEnabled');
+  const tabsEnabledParam = searchParams.get('tabsEnabled');
   const routingConfigParam = searchParams.get('routingConfig');
 
   const urlOverrides = useMemo(() => {
@@ -52,9 +54,10 @@ function WidgetWrapper() {
       reasoningEffort: searchParams.get('reasoningEffort') || null,
       verbosity: searchParams.get('verbosity') || null,
       pageContextEnabled: pageContextEnabledParam !== null ? pageContextEnabledParam === 'true' : null,
+      tabsEnabled: tabsEnabledParam !== null ? tabsEnabledParam === 'true' : null,
       routingConfig: parsedRouting,
     };
-  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam, pageContextEnabledParam, routingConfigParam]);
+  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam, pageContextEnabledParam, tabsEnabledParam, routingConfigParam]);
 
   const [liveOverrides, setLiveOverrides] = useState<any>({});
   const [config, setConfig] = useState<any>(null);
@@ -90,6 +93,7 @@ function WidgetWrapper() {
           reasoningEffort: newConfig.reasoningEffort,
           verbosity: newConfig.verbosity,
           pageContextEnabled: newConfig.pageContextEnabled,
+          tabsEnabled: newConfig.tabsEnabled,
           routingConfig: newConfig.routingConfig,
         });
       }
