@@ -55,7 +55,8 @@ export async function GET(req: Request) {
       .select('url_match, delay_seconds, message')
       .eq('space_id', spaceId);
 
-    let teamMembers = [];
+    // FIX: explicitly typed as any[] to satisfy TypeScript strict mode
+    let teamMembers: any[] = [];
     if (data?.agents_online) {
       const { data: members } = await supabase.from('team_members').select('email').eq('space_id', spaceId);
       // Fetch the owner too if needed, but team_members often suffices for generic 'support staff' feel
