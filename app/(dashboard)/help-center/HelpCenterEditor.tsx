@@ -1,8 +1,9 @@
+// app/(dashboard)/help-center/HelpCenterEditor.tsx
 'use client';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
-import { ArrowLeftIcon, ExternalLinkIcon, ClearIcon } from '@/components/icons';
+import { ArrowLeftIcon, ExternalLinkIcon, ClearIcon, SparklesIcon } from '@/components/icons';
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -76,6 +77,11 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isPreview, setIsPreview] = useState(false);
+
+  // AI Feature States
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
 
   // Format date for the datetime-local input safely
   const formatForDateInput = (dateStr?: string) => {
@@ -177,6 +183,95 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, content, category, slug, seoTitle, seoDescription, status, tags, relatedArticles, visibility, scheduledAt]);
 
+  const generateSeo = async () => {
+    if (!content.trim()) return toast.error('Content is empty.');
+    setIsGeneratingSeo(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/help-center/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ action: 'seo', content: content.replace(/<[^>]*>?/gm, '').substring(0, 5000) })
+      });
+      const data = await res.json();
+      if (res.ok && data.result) {
+        if (data.result.title) setSeoTitle(data.result.title);
+        if (data.result.description) setSeoDescription(data.result.description);
+        toast.success('SEO metadata generated!');
+      } else throw new Error(data.error);
+    } catch (e) {
+      toast.error('Failed to generate SEO metadata.');
+    } finally {
+      setIsGeneratingSeo(false);
+    }
+  };
+
+  const insertTLDR = async () => {
+    if (!content.trim()) return toast.error('Content is empty.');
+    setIsGeneratingAI(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/help-center/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ action: 'tldr', content: content.replace(/<[^>]*>?/gm, '').substring(0, 5000) })
+      });
+      const data = await res.json();
+      if (res.ok && data.result) {
+        const tldrHtml = `<blockquote><strong>TL;DR:</strong> ${data.result}</blockquote><p><br></p>`;
+        setContent(tldrHtml + content);
+        toast.success('TL;DR generated!');
+      } else throw new Error(data.error);
+    } catch (e) {
+      toast.error('Failed to generate TL;DR.');
+    } finally {
+      setIsGeneratingAI(false);
+      setAiMenuOpen(false);
+    }
+  };
+
+  const applyAI = async (action: string, tone?: string) => {
+    const editor = reactQuillRef.current?.getEditor();
+    if (!editor) return;
+    const range = editor.getSelection(true);
+    if (!range || range.length === 0) {
+      toast.error('Please select some text first.');
+      setAiMenuOpen(false);
+      return;
+    }
+
+    const selectedText = editor.getText(range.index, range.length);
+    if (!selectedText.trim()) {
+      toast.error('Please select some text first.');
+      setAiMenuOpen(false);
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/help-center/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ action, selection: selectedText, tone })
+      });
+      const data = await res.json();
+      if (res.ok && data.result) {
+        editor.deleteText(range.index, range.length);
+        editor.insertText(range.index, data.result);
+        editor.setSelection(range.index, data.result.length);
+        toast.success('Text updated!');
+        setContent(editor.root.innerHTML);
+      } else throw new Error(data.error);
+    } catch (e) {
+      toast.error('Failed to process text.');
+    } finally {
+      setIsGeneratingAI(false);
+      setAiMenuOpen(false);
+    }
+  };
+
   const imageHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
@@ -266,7 +361,46 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-8 bg-white">
           <div className="max-w-3xl mx-auto w-full flex flex-col gap-6">
-            <input type="text" placeholder="Article Title" className="w-full text-4xl font-bold text-gray-900 placeholder:text-gray-300 outline-none border-none bg-transparent" value={title} onChange={handleTitleChange} />
+            <div className="flex items-center justify-between gap-4">
+              <input type="text" placeholder="Article Title" className="flex-1 text-4xl font-bold text-gray-900 placeholder:text-gray-300 outline-none border-none bg-transparent" value={title} onChange={handleTitleChange} />
+              
+              {!isPreview && (
+                <div className="relative shrink-0">
+                  <button onClick={() => setAiMenuOpen(!aiMenuOpen)} disabled={isGeneratingAI} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-md text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-50 shadow-sm">
+                    <SparklesIcon className="w-4 h-4" />
+                    {isGeneratingAI ? 'AI Working...' : 'AI Assistant'}
+                  </button>
+                  
+                  {aiMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setAiMenuOpen(false)} />
+                      <div className="absolute top-full right-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                        <button onClick={() => insertTLDR()} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+                          Generate TL;DR
+                        </button>
+                        <div className="h-px bg-gray-100 my-1" />
+                        <div className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Edit Selection</div>
+                        <button onClick={() => applyAI('improve')} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+                          ✨ Improve Writing
+                        </button>
+                        <button onClick={() => applyAI('concise')} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+                          ✂️ Make Concise
+                        </button>
+                        <button onClick={() => applyAI('expand')} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+                          📝 Expand Content
+                        </button>
+                        <button onClick={() => applyAI('tone', 'friendly')} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+                          😊 Friendly Tone
+                        </button>
+                        <button onClick={() => applyAI('tone', 'professional')} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+                          💼 Professional Tone
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             
             {isPreview ? (
               <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl leading-relaxed text-[15px] text-gray-700 min-h-[400px] p-6 border border-gray-100 rounded-lg bg-gray-50/30">
@@ -360,7 +494,13 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Meta & SEO</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Meta & SEO</h3>
+              <button onClick={generateSeo} disabled={isGeneratingSeo || !content.trim()} className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors outline-none focus:ring-2 rounded-sm px-1">
+                <SparklesIcon className="w-3 h-3" />
+                {isGeneratingSeo ? 'Generating...' : 'Auto-Generate'}
+              </button>
+            </div>
             <div className="flex flex-col gap-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">URL Slug</label>
