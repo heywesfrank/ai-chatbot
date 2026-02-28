@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       follow_up_questions_enabled: body.followUpQuestionsEnabled,
       lead_capture_enabled: body.leadCaptureEnabled,
       page_context_enabled: body.pageContextEnabled,
+      tabs_enabled: body.tabsEnabled ?? false,
       routing_config: body.routingConfig,
       language: body.language || 'Auto-detect',
       allowed_domains: body.allowedDomains || null,
