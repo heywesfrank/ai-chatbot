@@ -516,12 +516,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               const innerContent = (
                 <>
                   {block.imageUrl && (
-                    <div className="w-full aspect-[16/9] bg-white overflow-hidden shrink-0">
-                      <img src={block.imageUrl} className="w-full h-full object-cover" alt={block.title || 'Image'} />
+                    <div className="w-full aspect-[16/9] bg-white overflow-hidden shrink-0 p-3">
+                      <img src={block.imageUrl} className="w-full h-full object-cover rounded-md shadow-sm" alt={block.title || 'Image'} />
                     </div>
                   )}
                   {(block.title || block.description) && (
-                    <div className="p-4 bg-[var(--bg-secondary)] flex flex-col gap-1.5">
+                    <div className="p-4 bg-[var(--bg-secondary)] flex flex-col gap-1.5 border-t border-[var(--border-strong)]">
                       {block.title && <h3 className="font-semibold text-[var(--text-primary)] text-[15px] leading-tight">{block.title}</h3>}
                       {block.description && <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">{block.description}</p>}
                     </div>
