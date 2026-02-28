@@ -1,6 +1,6 @@
 // app/(dashboard)/pages/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBotConfig } from '../BotConfigProvider';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
@@ -33,6 +33,16 @@ function SortableBlockItem({
   // Auto-collapse if it already has content, otherwise expand for new blocks
   const [isExpanded, setIsExpanded] = useState(!(block.title || block.imageUrl || block.description));
   const { config } = useBotConfig();
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-expand the description textarea vertically based on its content
+  useEffect(() => {
+    if (isExpanded && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [block.description, isExpanded]);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const style = {
@@ -94,9 +104,9 @@ function SortableBlockItem({
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Landscape Image</label>
             {block.imageUrl ? (
-              <div className="relative w-full max-w-sm aspect-[16/9] rounded-md border border-gray-200 bg-white p-2">
-                <div className="relative w-full h-full rounded-sm overflow-hidden group/img">
-                  <img src={block.imageUrl} alt="preview" className="w-full h-full object-cover border border-gray-100" />
+              <div className="relative w-full max-w-sm aspect-[16/9] rounded-md border border-gray-200 bg-white p-4">
+                <div className="relative w-full h-full group/img">
+                  <img src={block.imageUrl} alt="preview" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                     <label className="cursor-pointer bg-white text-black px-3 py-1.5 rounded text-xs font-medium shadow-sm hover:bg-gray-100 transition-colors">
                       Replace Image
@@ -123,7 +133,18 @@ function SortableBlockItem({
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Short Description</label>
-              <textarea placeholder="e.g. Join us in San Francisco..." className="w-full p-2 border border-gray-200 rounded-md text-sm h-16 resize-none outline-none focus:border-black transition-colors" value={block.description} onChange={e => updateBlock(block.id, { description: e.target.value })} disabled={!isOwner} />
+              <textarea 
+                ref={textareaRef}
+                placeholder="e.g. Join us in San Francisco..." 
+                className="w-full p-2 border border-gray-200 rounded-md text-sm min-h-[64px] resize-none outline-none focus:border-black transition-colors overflow-hidden" 
+                value={block.description} 
+                onChange={e => {
+                  updateBlock(block.id, { description: e.target.value });
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }} 
+                disabled={!isOwner} 
+              />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Clickable Link URL</label>
