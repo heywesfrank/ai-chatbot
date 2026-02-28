@@ -37,6 +37,11 @@ create table public.bot_config (
   launcher_color text null default '#000000'::text,
   launcher_icon_color text null default '#ffffff'::text,
   tabs_enabled boolean null default false,
+  help_search_placeholder text null default 'Search articles...'::text,
+  greeting_title text null default 'Hello there.'::text,
+  greeting_body text null default 'How can we help?'::text,
+  home_tab_enabled boolean null default false,
+  home_content text null,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
