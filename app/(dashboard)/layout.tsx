@@ -7,7 +7,7 @@ import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { BotConfigProvider, useBotConfig } from './BotConfigProvider';
 import { 
   DatabaseIcon, SettingsIcon, PaletteIcon, MessageSquareIcon, 
-  CodeIcon, InboxIcon, BarChartIcon, LinkIcon, UsersIcon, CpuIcon, ZapIcon, FileTextIcon 
+  CodeIcon, InboxIcon, BarChartIcon, LinkIcon, UsersIcon, CpuIcon, ZapIcon, FileTextIcon, LayoutTemplateIcon 
 } from '@/components/icons';
 
 const navGroups = [
@@ -19,6 +19,7 @@ const navGroups = [
       { name: 'Model', path: '/model', icon: <CpuIcon className="w-[18px] h-[18px]" /> },
       { name: 'Context & Routing', path: '/context-routing', icon: <LinkIcon className="w-[18px] h-[18px]" /> },
       { name: 'Appearance', path: '/appearance', icon: <PaletteIcon className="w-[18px] h-[18px]" /> },
+      { name: 'Widget Tabs', path: '/widget-tabs', icon: <LayoutTemplateIcon className="w-[18px] h-[18px]" /> },
       { name: 'Custom FAQs', path: '/faqs', icon: <MessageSquareIcon className="w-[18px] h-[18px]" /> },
       { name: 'Triggers', path: '/triggers', icon: <ZapIcon className="w-[18px] h-[18px]" /> },
       { name: 'Embed & Install', path: '/install', icon: <CodeIcon className="w-[18px] h-[18px]" /> },
@@ -50,7 +51,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState<number>(0);
   
-  // Reference to the iframe to send postMessages
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -85,7 +85,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return () => { if (ticketsChannel) supabase.removeChannel(ticketsChannel); };
   }, [activeSpaceId]);
 
-  // Instantly push configuration changes to the iframe using postMessage
   useEffect(() => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
@@ -114,9 +113,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
-  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/faqs', '/triggers', '/install'].includes(pathname);
+  const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/widget-tabs', '/faqs', '/triggers', '/install'].includes(pathname);
   
-  // Use a static URL for the preview so it never hard-refreshes
   const previewUrl = `/widget?spaceId=${activeSpaceId}&preview=true`;
 
   return (
@@ -126,7 +124,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 bg-black/20 z-40 md:hidden transition-opacity" onClick={() => setIsMobileMenuOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-[240px] border-r border-gray-200 bg-[#FAFAFA] flex flex-col justify-between transform transition-transform duration-300 ease-in-out
         md:relative md:translate-x-0
