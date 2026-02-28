@@ -18,6 +18,7 @@ function WidgetWrapper() {
   const pageContextEnabledParam = searchParams.get('pageContextEnabled');
   const tabsEnabledParam = searchParams.get('tabsEnabled');
   const routingConfigParam = searchParams.get('routingConfig');
+  const homeTabEnabledParam = searchParams.get('homeTabEnabled');
 
   const urlOverrides = useMemo(() => {
     let parsedPrompts = null;
@@ -56,8 +57,13 @@ function WidgetWrapper() {
       pageContextEnabled: pageContextEnabledParam !== null ? pageContextEnabledParam === 'true' : null,
       tabsEnabled: tabsEnabledParam !== null ? tabsEnabledParam === 'true' : null,
       routingConfig: parsedRouting,
+      helpSearchPlaceholder: searchParams.get('helpSearchPlaceholder') || null,
+      greetingTitle: searchParams.get('greetingTitle') || null,
+      greetingBody: searchParams.get('greetingBody') || null,
+      homeTabEnabled: homeTabEnabledParam !== null ? homeTabEnabledParam === 'true' : null,
+      homeContent: searchParams.get('homeContent') || null,
     };
-  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam, pageContextEnabledParam, tabsEnabledParam, routingConfigParam]);
+  }, [searchParams, promptsParam, showPromptsParam, leadCaptureParam, removeBrandingParam, followUpQuestionsEnabledParam, matchThresholdParam, pageContextEnabledParam, tabsEnabledParam, routingConfigParam, homeTabEnabledParam]);
 
   const [liveOverrides, setLiveOverrides] = useState<any>({});
   const [config, setConfig] = useState<any>(null);
@@ -95,6 +101,11 @@ function WidgetWrapper() {
           pageContextEnabled: newConfig.pageContextEnabled,
           tabsEnabled: newConfig.tabsEnabled,
           routingConfig: newConfig.routingConfig,
+          helpSearchPlaceholder: newConfig.helpSearchPlaceholder,
+          greetingTitle: newConfig.greetingTitle,
+          greetingBody: newConfig.greetingBody,
+          homeTabEnabled: newConfig.homeTabEnabled,
+          homeContent: newConfig.homeContent,
         });
       }
     };
