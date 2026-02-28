@@ -2,6 +2,7 @@
 import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import ArticleFeedback from '../../components/ArticleFeedback';
@@ -174,6 +175,7 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
 
           <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:scroll-mt-24 prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl prose-img:shadow-sm leading-relaxed text-[15px] text-gray-700">
             <ReactMarkdown 
+              rehypePlugins={[rehypeRaw]}
               components={{
                 a: ({ node, ...props }) => <a {...props} style={{ color: brandColor }} target="_blank" rel="noopener noreferrer" />,
                 h2: ({ node, children, ...props }) => <h2 id={slugify(flattenText(children))} {...props}>{children}</h2>,
