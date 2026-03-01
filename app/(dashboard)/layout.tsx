@@ -49,6 +49,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { isLoading, activeSpaceId, config, isOwner, saveConfig, isSaving, hasUnsavedChanges, userEmail } = useBotConfig();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState<number>(0);
   
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -189,22 +190,48 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         
-        <div className="p-4 border-t border-gray-200 space-y-3 bg-[#FAFAFA] shrink-0">
-          {userEmail && (
-            <div className="flex items-center gap-3 px-2 mb-1">
-              <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0 uppercase border border-gray-300/50">
-                {userEmail.charAt(0)}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-medium text-gray-700 truncate">{userEmail}</span>
-                <span className="text-[10px] text-gray-400 capitalize">{isOwner ? 'Workspace Owner' : 'Agent'}</span>
-              </div>
-            </div>
+        <div className="p-3 border-t border-gray-200 bg-[#FAFAFA] shrink-0 relative">
+          {userEmail ? (
+            <>
+              <button 
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center justify-between w-full p-2 rounded-md hover:bg-gray-200/50 transition-colors outline-none text-left group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0 uppercase border border-gray-300/50">
+                    {userEmail.charAt(0)}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-medium text-gray-700 truncate leading-tight">{userEmail}</span>
+                    <span className="text-[10px] text-gray-400 capitalize leading-tight mt-0.5">{isOwner ? 'Workspace Owner' : 'Agent'}</span>
+                  </div>
+                </div>
+                <svg className={`w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+
+              {isProfileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
+                  <div className="absolute bottom-[calc(100%+8px)] left-3 right-3 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <button 
+                      onClick={handleSignOut} 
+                      className="flex items-center gap-2 px-3 py-2 w-full text-xs font-medium text-red-600 hover:bg-red-50 transition-colors text-left"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <button onClick={handleSignOut} className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent transition-all outline-none text-left">
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              Sign out
+            </button>
           )}
-          <button onClick={handleSignOut} className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent transition-all outline-none text-left">
-            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            Sign out
-          </button>
         </div>
       </aside>
 
