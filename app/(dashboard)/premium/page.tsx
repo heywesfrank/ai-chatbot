@@ -1,9 +1,94 @@
 // app/(dashboard)/premium/page.tsx
 'use client';
+import { useState, useEffect } from 'react';
 import { useBotConfig } from '../BotConfigProvider';
+import { supabaseClient as supabase } from '@/lib/supabase-client';
+import { toast } from 'sonner';
 
 export default function PremiumPage() {
-  const { isOwner } = useBotConfig();
+  const { config, activeSpaceId, isOwner } = useBotConfig();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const isPremium = config?.plan === 'premium';
+
+  const handleCheckout = async () => {
+    setIsProcessing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ spaceId: activeSpaceId })
+      });
+      const { url, error } = await res.json();
+      if (error) throw new Error(error);
+      if (url) window.location.href = url;
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initialize checkout');
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCustomerPortal = async () => {
+    setIsProcessing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ spaceId: activeSpaceId })
+      });
+      const { url, error } = await res.json();
+      if (error) throw new Error(error);
+      if (url) window.location.href = url;
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load customer portal');
+      setIsProcessing(false);
+    }
+  };
+
+  if (isPremium) {
+    return (
+      <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
+        <div className="max-w-[800px] mx-auto w-full p-8 pb-20 animate-in fade-in duration-300">
+          <div className="mb-8 mt-8">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-3">Billing & Subscription</h1>
+            <p className="text-gray-500 text-[15px] leading-relaxed max-w-lg">
+              Manage your premium plan, payment methods, and billing history.
+            </p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-8 sm:p-10">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">Premium Plan</span>
+              <span className="text-sm font-medium text-gray-500">Active</span>
+            </div>
+            <p className="text-sm text-gray-600 mb-10 leading-relaxed max-w-md">
+              Your workspace is currently upgraded to the Premium tier. You have access to white-labeling, custom domains, and SEO optimization.
+            </p>
+
+            <button 
+              onClick={handleCustomerPortal}
+              disabled={!isOwner || isProcessing}
+              className="w-full sm:w-auto px-6 py-3.5 bg-black text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? 'Loading...' : 'Manage Billing via Stripe'}
+            </button>
+
+            {!isOwner && (
+              <p className="text-xs text-gray-400 mt-4">Only workspace owners can manage billing settings.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
@@ -16,7 +101,7 @@ export default function PremiumPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="p-8 sm:p-10">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-8 border-b border-gray-100 gap-4">
               <div>
@@ -51,10 +136,11 @@ export default function PremiumPage() {
             </div>
 
             <button 
-              className="w-full py-3.5 bg-black text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-all shadow-sm active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!isOwner}
+              onClick={handleCheckout}
+              disabled={!isOwner || isProcessing}
+              className="w-full py-3.5 bg-black text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isOwner ? 'Subscribe Now' : 'Only workspace owners can subscribe'}
+              {isProcessing ? 'Loading...' : (isOwner ? 'Subscribe Now' : 'Only workspace owners can subscribe')}
             </button>
           </div>
           
