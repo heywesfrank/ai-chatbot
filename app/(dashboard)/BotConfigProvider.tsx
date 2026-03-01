@@ -34,6 +34,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     spaceId: '',
     workspaceName: 'My Workspace',
     timezone: 'UTC',
+    plan: 'free',
     systemPrompt: 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times. Never attempt to use HTML, inline CSS, or custom markdown to color text. Output plain text and standard markdown links only.',
     primaryColor: '#000000',
     botFontColor: '#1f2937',
@@ -67,7 +68,6 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     cannedResponses: [],
     triggers: [],
     
-    // New Page Settings
     helpSearchPlaceholder: 'Search articles...',
     greetingTitle: 'Hello there.',
     greetingBody: 'How can we help?',
@@ -125,6 +125,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           spaceId: spaceData.space_id || '',
           workspaceName: spaceData.workspace_name || prev.workspaceName,
           timezone: spaceData.timezone || prev.timezone,
+          plan: spaceData.plan || 'free',
           systemPrompt: spaceData.system_prompt || prev.systemPrompt,
           primaryColor: spaceData.primary_color || prev.primaryColor,
           botFontColor: spaceData.bot_font_color || prev.botFontColor,
@@ -169,7 +170,6 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       if (spaceData.space_id) setActiveSpaceId(spaceData.space_id);
       setIsLoading(false);
     } else {
-      // AUTO-INITIALIZE WORKSPACE FOR NEW USERS
       const newSpaceId = Math.random().toString(36).substring(2, 10);
       const newConfig = { ...defaultConfig, spaceId: newSpaceId };
       
@@ -177,7 +177,6 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       setSavedConfig(newConfig);
       setActiveSpaceId(newSpaceId);
       
-      // Save to database behind the scenes
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         try {
