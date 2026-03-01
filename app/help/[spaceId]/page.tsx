@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import HelpCenterHero from '../components/HelpCenterHero';
 
 export const revalidate = 60; 
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: { params: { spaceId: string }
 
 export default async function HelpCenterIndex({ params, searchParams }: { params: { spaceId: string }, searchParams: { q?: string } }) {
   const { data: config } = await supabase.from('bot_config')
-    .select('workspace_name, primary_color, bot_avatar, description_text, help_search_placeholder')
+    .select('workspace_name, primary_color, bot_avatar, help_search_placeholder, help_center_color, help_center_bg_image')
     .eq('space_id', params.spaceId)
     .maybeSingle();
 
@@ -44,54 +45,11 @@ export default async function HelpCenterIndex({ params, searchParams }: { params
   }, {} as Record<string, any[]>) || {};
 
   const categories = Object.keys(grouped).sort();
-  const brandColor = config.primary_color || '#000000';
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen text-gray-900 font-sans">
-      {/* Universal Nav */}
-      <nav className="px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-50">
-        <Link href={`/help/${params.spaceId}`} className="flex items-center gap-2 transition-opacity hover:opacity-80">
-          {config.bot_avatar ? (
-            <img src={config.bot_avatar} alt="Logo" className="h-6 w-6 rounded-md object-cover border border-gray-100" />
-          ) : (
-             <img src="/apoyo.png" alt="Logo" className="h-6 object-contain" />
-          )}
-          <span className="font-semibold text-gray-900 ml-1">{config.workspace_name || 'Help Center'}</span>
-        </Link>
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-          <Link href="#" className="hover:text-gray-900 transition-colors">Community</Link>
-          <Link href="#" className="hover:text-gray-900 transition-colors">Academy</Link>
-          <Link href="#" className="hover:text-gray-900 transition-colors">Developer Hub</Link>
-          <Link href="#" className="hover:text-gray-900 transition-colors flex items-center gap-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            English
-          </Link>
-        </div>
-      </nav>
+      <HelpCenterHero config={config} spaceId={params.spaceId} searchQuery={searchQuery} />
 
-      {/* Hero & Search */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto w-full px-6 py-16 text-center md:py-20 relative">
-          <h1 className="text-4xl md:text-[44px] font-bold tracking-tight text-gray-900 mb-8 leading-tight">
-            {config.description_text || `Advice and answers from the ${config.workspace_name || 'Support'} Team`}
-          </h1>
-          <form action={`/help/${params.spaceId}`} method="GET" className="relative max-w-2xl mx-auto">
-            <svg className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input 
-              type="text" 
-              name="q" 
-              defaultValue={searchQuery}
-              placeholder={config.help_search_placeholder || "Search for articles..."} 
-              className="w-full pl-14 pr-4 py-4 rounded-full border border-gray-200 shadow-[0_2px_12px_rgba(0,0,0,0.04)] focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-all text-lg bg-white placeholder:text-gray-400"
-              style={{ '--tw-ring-color': brandColor } as React.CSSProperties}
-            />
-          </form>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
       <main className="max-w-5xl mx-auto w-full px-6 py-12">
         {searchQuery ? (
           <div>
