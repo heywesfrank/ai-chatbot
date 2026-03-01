@@ -42,6 +42,9 @@ create table public.bot_config (
   greeting_body text null default 'How can we help?'::text,
   home_tab_enabled boolean null default false,
   home_content text null,
+  plan text null default 'free'::text,
+  stripe_customer_id text null,
+  stripe_subscription_id text null,
   constraint bot_config_pkey primary key (user_id),
   constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
