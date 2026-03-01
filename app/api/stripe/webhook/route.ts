@@ -13,6 +13,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
+    // Verify the webhook signature to ensure it actually came from Stripe
     event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
@@ -20,12 +21,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Handle successful checkout
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      const spaceId = session.client_reference_id;
+      
+      // This is the spaceId we passed when creating the checkout session
+      const spaceId = session.client_reference_id; 
       
       if (spaceId) {
-        // Use the Service Role Key via `supabase` instance to bypass RLS in the webhook
         await supabase
           .from('bot_config')
           .update({
@@ -35,6 +38,24 @@ export async function POST(req: Request) {
           })
           .eq('space_id', spaceId);
       }
+    }
+
+    // Handle subscription cancellation
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as Stripe.Subscription;
+      
+      await supabase
+        .from('bot_config')
+        .update({ plan: 'free' })
+        .eq('stripe_subscription_id', subscription.id);
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (err: any) {
+    console.error('Webhook Handler Error:', err);
+    return NextResponse.json({ error: 'Webhook Handler Failed' }, { status: 500 });
+  }
+}      }
     }
 
     if (event.type === 'customer.subscription.deleted') {
