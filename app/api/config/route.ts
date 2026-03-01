@@ -51,6 +51,8 @@ export async function POST(req: Request) {
       
       // Page Extensions (make sure these columns exist in DB)
       help_search_placeholder: body.helpSearchPlaceholder,
+      help_center_color: body.helpCenterColor || '#000000',
+      help_center_bg_image: body.helpCenterBgImage || null,
       greeting_title: body.greetingTitle,
       greeting_body: body.greetingBody,
       home_tab_enabled: body.homeTabEnabled,
