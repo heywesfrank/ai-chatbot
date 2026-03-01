@@ -94,6 +94,27 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [config]);
 
+  // Dynamically update the browser tab title based on the active route
+  useEffect(() => {
+    let pageName = '';
+    
+    // Find the current page name from your existing navGroups array
+    for (const group of navGroups) {
+      const item = group.items.find((i) => i.path === pathname);
+      if (item) {
+        pageName = item.name;
+        break;
+      }
+    }
+
+    // Update the browser tab title
+    if (pageName) {
+      document.title = `${pageName} | Apoyo`;
+    } else {
+      document.title = 'Apoyo';
+    }
+  }, [pathname]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.refresh();
