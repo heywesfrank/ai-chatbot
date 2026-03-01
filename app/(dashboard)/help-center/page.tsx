@@ -4,11 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { useBotConfig } from '../BotConfigProvider';
-import { FileTextIcon, PlusIcon, ClearIcon, ExternalLinkIcon, EyeIcon, SmileIcon, FrownIcon } from '@/components/icons';
+import { FileTextIcon, PlusIcon, ClearIcon, ExternalLinkIcon, EyeIcon, SmileIcon, FrownIcon, PaletteIcon } from '@/components/icons';
 import HelpCenterEditor from './HelpCenterEditor';
 
 export default function HelpCenterPage() {
-  const { activeSpaceId } = useBotConfig();
+  const { activeSpaceId, config, updateConfig, saveConfig, isSaving, isOwner, hasUnsavedChanges } = useBotConfig();
   const [articles, setArticles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -17,9 +17,11 @@ export default function HelpCenterPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [sortBy, setSortBy] = useState<'updated' | 'alpha' | 'category'>('updated');
 
-  // Editor state
+  // Editor & Settings state
   const [isEditing, setIsEditing] = useState(false);
   const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const [isUploadingBg, setIsUploadingBg] = useState(false);
 
   useEffect(() => {
     if (activeSpaceId) fetchArticles();
@@ -35,6 +37,30 @@ export default function HelpCenterPage() {
       setArticles(data.articles || []);
     }
     setIsLoading(false);
+  };
+
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setIsUploadingBg(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `help_center_bg/${config.spaceId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat_attachments')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('chat_attachments').getPublicUrl(fileName);
+      updateConfig('helpCenterBgImage', data.publicUrl);
+      toast.success('Background image updated');
+    } catch (error) {
+      toast.error('Failed to upload background');
+    } finally {
+      setIsUploadingBg(false);
+    }
   };
 
   const allCategories = useMemo(() => {
@@ -99,7 +125,7 @@ export default function HelpCenterPage() {
         article={editingArticle}
         activeSpaceId={activeSpaceId}
         allCategories={allCategories}
-        allArticles={articles} // Pass articles to the editor
+        allArticles={articles}
         onClose={() => setIsEditing(false)}
         onSuccess={fetchArticles}
       />
@@ -115,6 +141,10 @@ export default function HelpCenterPage() {
             <p className="text-gray-500 text-sm leading-relaxed">Create and manage support articles. Published articles sync seamlessly to your AI agent.</p>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => setIsAppearanceOpen(!isAppearanceOpen)} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
+              <PaletteIcon className="w-4 h-4" />
+              Customize Appearance
+            </button>
             <a href={`/help/${activeSpaceId}`} target="_blank" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
               <ExternalLinkIcon className="w-4 h-4" />
               View Portal
@@ -125,6 +155,50 @@ export default function HelpCenterPage() {
             </button>
           </div>
         </div>
+
+        {isAppearanceOpen && (
+          <div className="bg-white border border-gray-200 p-6 rounded-md mb-6 shadow-sm animate-in fade-in duration-200">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+               <h2 className="text-sm font-semibold text-gray-900">Help Center Appearance</h2>
+               <button onClick={() => setIsAppearanceOpen(false)} className="text-gray-400 hover:text-gray-900">
+                 <ClearIcon className="w-4 h-4" />
+               </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Hero Background Color</label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer shadow-sm">
+                      <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.helpCenterColor || config.primaryColor || '#000000'} onChange={(e) => updateConfig('helpCenterColor', e.target.value)} />
+                    </div>
+                    <input type="text" className="w-full max-w-[200px] p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={!isOwner} value={config.helpCenterColor || config.primaryColor || '#000000'} onChange={(e) => updateConfig('helpCenterColor', e.target.value)} />
+                  </div>
+               </div>
+               <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Hero Background Image</label>
+                  <div className="flex items-center gap-4">
+                     {config.helpCenterBgImage && (
+                        <div className="relative w-20 h-12 rounded-md border border-gray-200 overflow-hidden bg-gray-50">
+                           <img src={config.helpCenterBgImage} alt="bg" className="w-full h-full object-cover" />
+                        </div>
+                     )}
+                     <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors shadow-sm">
+                       <span>{isUploadingBg ? 'Uploading...' : 'Upload Image'}</span>
+                       <input type="file" accept="image/*" className="hidden" disabled={!isOwner || isUploadingBg} onChange={handleBgUpload} />
+                     </label>
+                     {config.helpCenterBgImage && (
+                        <button onClick={() => updateConfig('helpCenterBgImage', '')} className="text-xs text-red-500 hover:text-red-700 font-medium">Remove</button>
+                     )}
+                  </div>
+               </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+               <button onClick={saveConfig} disabled={!isOwner || isSaving || !hasUnsavedChanges} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
+                 {isSaving ? 'Saving...' : 'Save Appearance'}
+               </button>
+            </div>
+          </div>
+        )}
 
         {articles.length > 0 && (
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
