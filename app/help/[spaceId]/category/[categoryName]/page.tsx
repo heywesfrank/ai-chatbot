@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import HelpCenterHero from '../../../components/HelpCenterHero';
 
 export const revalidate = 60;
 
@@ -19,7 +20,7 @@ export default async function CategoryPage({ params }: { params: { spaceId: stri
   const decodedCategory = decodeURIComponent(params.categoryName);
   
   const { data: config } = await supabase.from('bot_config')
-    .select('workspace_name, bot_avatar, primary_color, help_search_placeholder')
+    .select('workspace_name, bot_avatar, primary_color, help_search_placeholder, help_center_color, help_center_bg_image')
     .eq('space_id', params.spaceId)
     .maybeSingle();
 
@@ -33,50 +34,11 @@ export default async function CategoryPage({ params }: { params: { spaceId: stri
     .order('created_at', { ascending: false });
 
   const articles = allArticles?.filter(a => (a.category || 'General') === decodedCategory) || [];
-  const brandColor = config.primary_color || '#000000';
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen text-gray-900 font-sans">
-      {/* Universal Nav */}
-      <nav className="px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-50">
-        <Link href={`/help/${params.spaceId}`} className="flex items-center gap-2 transition-opacity hover:opacity-80">
-          {config.bot_avatar ? (
-            <img src={config.bot_avatar} alt="Logo" className="h-6 w-6 rounded-md object-cover border border-gray-100" />
-          ) : (
-             <img src="/apoyo.png" alt="Logo" className="h-6 object-contain" />
-          )}
-          <span className="font-semibold text-gray-900 ml-1">{config.workspace_name || 'Help Center'}</span>
-        </Link>
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-          <Link href="#" className="hover:text-gray-900 transition-colors">Community</Link>
-          <Link href="#" className="hover:text-gray-900 transition-colors">Academy</Link>
-          <Link href="#" className="hover:text-gray-900 transition-colors">Developer Hub</Link>
-          <Link href="#" className="hover:text-gray-900 transition-colors flex items-center gap-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            English
-          </Link>
-        </div>
-      </nav>
+      <HelpCenterHero config={config} spaceId={params.spaceId} />
 
-      {/* Mini Search Header */}
-      <div className="bg-white border-b border-gray-200 py-10 px-6 relative">
-        <div className="max-w-3xl mx-auto relative z-10">
-          <form action={`/help/${params.spaceId}`} method="GET" className="relative">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input 
-              type="text" 
-              name="q" 
-              placeholder={config.help_search_placeholder || "Search for articles..."} 
-              className="w-full pl-12 pr-4 py-3.5 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 transition-all text-base placeholder:text-gray-400"
-              style={{ '--tw-ring-color': brandColor } as React.CSSProperties}
-            />
-          </form>
-        </div>
-      </div>
-
-      {/* Category Content */}
       <main className="max-w-[850px] mx-auto w-full px-6 py-12">
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-10 whitespace-nowrap overflow-x-auto pb-1">
           <Link href={`/help/${params.spaceId}`} className="hover:text-gray-900 transition-colors">All Collections</Link>
