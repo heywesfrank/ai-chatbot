@@ -1,4 +1,3 @@
-// app/api/stripe/webhook/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Stripe from 'stripe';
@@ -33,31 +32,14 @@ export async function POST(req: Request) {
           .from('bot_config')
           .update({
             plan: 'premium',
-            stripe_customer_id: session.customer,
-            stripe_subscription_id: session.subscription,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
           })
           .eq('space_id', spaceId);
       }
     }
 
     // Handle subscription cancellation
-    if (event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object as Stripe.Subscription;
-      
-      await supabase
-        .from('bot_config')
-        .update({ plan: 'free' })
-        .eq('stripe_subscription_id', subscription.id);
-    }
-
-    return NextResponse.json({ received: true });
-  } catch (err: any) {
-    console.error('Webhook Handler Error:', err);
-    return NextResponse.json({ error: 'Webhook Handler Failed' }, { status: 500 });
-  }
-}      }
-    }
-
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
       
