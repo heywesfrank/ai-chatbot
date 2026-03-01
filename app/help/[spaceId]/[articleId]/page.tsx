@@ -92,7 +92,10 @@ export async function generateMetadata({ params }: { params: { spaceId: string, 
 }
 
 export default async function ArticlePage({ params }: { params: { spaceId: string, articleId: string } }) {
-  const { data: config } = await supabase.from('bot_config').select('workspace_name, primary_color, bot_avatar').eq('space_id', params.spaceId).maybeSingle();
+  const { data: config } = await supabase.from('bot_config')
+    .select('workspace_name, primary_color, bot_avatar, help_search_placeholder')
+    .eq('space_id', params.spaceId)
+    .maybeSingle();
   
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.articleId);
   let query = supabase.from('help_center_articles').select('*').eq('space_id', params.spaceId);
@@ -107,7 +110,6 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
   const brandColor = config?.primary_color || '#000000';
   const headings = extractHeadings(article.content);
 
-  // Fetch Related Articles
   let relatedDocs: any[] = [];
   if (article.related_articles && article.related_articles.length > 0) {
     const { data } = await supabase.from('help_center_articles')
@@ -118,10 +120,16 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
   }
 
   return (
-    <div className="bg-white min-h-screen text-gray-900 font-sans">
+    <div className="bg-[#FAFAFA] min-h-screen text-gray-900 font-sans">
+      {/* Universal Nav */}
       <nav className="px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-50">
         <Link href={`/help/${params.spaceId}`} className="flex items-center gap-2 transition-opacity hover:opacity-80">
-          <img src="/apoyo.png" alt="Apoyo" className="h-6 object-contain" />
+          {config?.bot_avatar ? (
+            <img src={config.bot_avatar} alt="Logo" className="h-6 w-6 rounded-md object-cover border border-gray-100" />
+          ) : (
+             <img src="/apoyo.png" alt="Logo" className="h-6 object-contain" />
+          )}
+          <span className="font-semibold text-gray-900 ml-1">{config?.workspace_name || 'Help Center'}</span>
         </Link>
         <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
           <Link href="#" className="hover:text-gray-900 transition-colors">Community</Link>
@@ -134,7 +142,8 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
         </div>
       </nav>
 
-      <div className="bg-gray-50 border-b border-gray-100 py-10 px-6 relative">
+      {/* Mini Search Header */}
+      <div className="bg-white border-b border-gray-200 py-10 px-6 relative">
         <div className="max-w-3xl mx-auto relative z-10">
           <form action={`/help/${params.spaceId}`} method="GET" className="relative">
             <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,8 +152,8 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
             <input 
               type="text" 
               name="q" 
-              placeholder="Search for articles..." 
-              className="w-full pl-12 pr-4 py-3.5 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 transition-all text-base"
+              placeholder={config?.help_search_placeholder || "Search for articles..."} 
+              className="w-full pl-12 pr-4 py-3.5 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 transition-all text-base placeholder:text-gray-400"
               style={{ '--tw-ring-color': brandColor } as React.CSSProperties}
             />
           </form>
@@ -153,10 +162,11 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
 
       <main className="max-w-[1100px] mx-auto w-full px-6 py-12 flex flex-col lg:flex-row gap-16 items-start">
         <article className="flex-1 min-w-0">
+          {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 whitespace-nowrap overflow-x-auto pb-1">
             <Link href={`/help/${params.spaceId}`} className="hover:text-gray-900 transition-colors">All Collections</Link>
             <span>›</span>
-            <Link href={`/help/${params.spaceId}`} className="hover:text-gray-900 transition-colors">{article.category || 'General'}</Link>
+            <Link href={`/help/${params.spaceId}/category/${encodeURIComponent(article.category || 'General')}`} className="hover:text-gray-900 transition-colors">{article.category || 'General'}</Link>
             <span>›</span>
             <span className="text-gray-400 truncate">{article.title}</span>
           </div>
@@ -183,7 +193,7 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
              </div>
           </div>
 
-          <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:scroll-mt-24 prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl prose-img:shadow-sm leading-relaxed text-[15px] text-gray-700">
+          <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:scroll-mt-24 prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-2xl prose-img:shadow-sm leading-relaxed text-[16px] text-gray-700">
             <ReactMarkdown 
               rehypePlugins={[rehypeRaw]}
               components={{
@@ -198,9 +208,9 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
           
           {/* Tags Display */}
           {article.tags && article.tags.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap gap-2">
+            <div className="mt-10 pt-8 border-t border-gray-100 flex flex-wrap gap-2">
               {article.tags.map((tag: string) => (
-                <span key={tag} className="px-2.5 py-1 bg-gray-50 text-gray-600 border border-gray-200 text-xs rounded-md font-medium">
+                <span key={tag} className="px-3 py-1.5 bg-gray-100 text-gray-600 border border-gray-200/60 text-[13px] rounded-lg font-medium">
                   #{tag}
                 </span>
               ))}
