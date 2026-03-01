@@ -4,6 +4,7 @@ import Link from 'next/link';
 export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { config: any, spaceId: string, searchQuery?: string }) {
   const bgColor = config?.help_center_color || config?.primary_color || '#000000';
   const bgImage = config?.help_center_bg_image;
+  const workspaceName = config?.workspace_name || 'Help Center';
 
   return (
     <div 
@@ -13,7 +14,7 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
         backgroundImage: bgImage ? `url(${bgImage})` : 'none',
       }}
     >
-      {/* Optional dark overlay when using a custom background image to enhance text legibility */}
+      {/* Dark overlay when using a custom background image to enhance text legibility */}
       {bgImage && <div className="absolute inset-0 bg-black/40" />}
       
       <div className="relative z-10 flex flex-col">
@@ -21,11 +22,15 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
         <nav className="px-6 py-5 flex items-center">
           <Link href={`/help/${spaceId}`} className="flex items-center gap-2 transition-opacity hover:opacity-80">
             {config?.bot_avatar ? (
-              <img src={config.bot_avatar} alt="Logo" className="h-6 w-auto rounded-sm object-contain" />
+              <img src={config.bot_avatar} alt={workspaceName} className="h-8 w-auto rounded-sm object-contain" />
             ) : (
-              <img src="/apoyo.png" alt="Logo" className="h-6 object-contain invert brightness-0" />
+              <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center text-white font-bold text-lg shadow-sm border border-white/10">
+                {workspaceName.charAt(0).toUpperCase()}
+              </div>
             )}
-            <span className="font-semibold text-white drop-shadow-sm ml-1">{config?.workspace_name || 'Help Center'}</span>
+            <span className="font-semibold text-white drop-shadow-sm ml-1.5 text-lg tracking-tight">
+              {workspaceName}
+            </span>
           </Link>
         </nav>
 
