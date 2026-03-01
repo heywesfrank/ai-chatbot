@@ -69,6 +69,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     triggers: [],
     
     helpSearchPlaceholder: 'Search articles...',
+    helpCenterColor: '#000000',
+    helpCenterBgImage: '',
     greetingTitle: 'Hello there.',
     greetingBody: 'How can we help?',
     homeTabEnabled: false,
@@ -158,6 +160,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           triggers: spaceData.triggers || [],
           
           helpSearchPlaceholder: spaceData.help_search_placeholder || prev.helpSearchPlaceholder,
+          helpCenterColor: spaceData.help_center_color || prev.helpCenterColor,
+          helpCenterBgImage: spaceData.help_center_bg_image || prev.helpCenterBgImage,
           greetingTitle: spaceData.greeting_title || prev.greetingTitle,
           greetingBody: spaceData.greeting_body || prev.greetingBody,
           homeTabEnabled: spaceData.home_tab_enabled ?? false,
