@@ -31,6 +31,7 @@
     "rehype-raw": "^7.0.0",
     "sentiment": "^5.0.2",
     "sonner": "^1.4.41",
+    "stripe": "^15.5.0",
     "ua-parser-js": "^1.0.38",
     "xml2js": "^0.6.2"
   },
