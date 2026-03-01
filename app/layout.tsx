@@ -6,8 +6,11 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Knowledge Base Bot',
-  description: 'Minimalist RAG Chatbot',
+  title: {
+    template: '%s | Apoyo',
+    default: 'Apoyo',
+  },
+  description: 'AI Customer Support Suite',
 };
 
 export default function RootLayout({
