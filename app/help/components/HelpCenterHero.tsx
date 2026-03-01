@@ -36,9 +36,9 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
 
         {/* Search Area */}
         <div className="max-w-2xl mx-auto w-full px-6 pb-10">
-          <form action={`/help/${spaceId}`} method="GET" className="relative">
-            {/* Magnifying Glass Icon */}
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <form action={`/help/${spaceId}`} method="GET" className="relative flex items-center">
+            {/* Magnifying Glass Icon (z-10 ensures it stays on top of the input) */}
+            <svg className="absolute left-4 w-5 h-5 text-gray-500 z-10 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             
@@ -47,7 +47,7 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
               name="q" 
               defaultValue={searchQuery}
               placeholder={config?.help_search_placeholder || "Search for articles..."} 
-              className="w-full pl-12 pr-4 py-4 rounded-md bg-white/85 backdrop-blur-md focus:bg-white border border-transparent shadow-none focus:outline-none transition-all text-base placeholder:text-gray-500 text-gray-900"
+              className="w-full pl-12 pr-4 py-4 rounded-md bg-white/90 backdrop-blur-md focus:bg-white border border-transparent shadow-none focus:outline-none transition-all text-base placeholder:text-gray-500 text-gray-900 relative z-0"
             />
           </form>
         </div>
