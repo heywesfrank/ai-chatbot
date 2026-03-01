@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     if (id) {
       const { data: existing } = await supabase.from('help_center_articles').select('slug').eq('id', id).maybeSingle();
       if (existing) {
-        const oldUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${existing.slug || id}`;
+        const oldUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.heyapoyo.com'}/help/${spaceId}/${existing.slug || id}`;
         await supabase.from('knowledge_documents').delete().eq('page_url', oldUrl);
       }
       
