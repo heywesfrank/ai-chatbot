@@ -1,5 +1,5 @@
 App name: Apoyo
-App URL: https://heyapoyo.com
+App URL: https://app.heyapoyo.com
 No local builds, all files are updated through the Github browser.
 
 **Note:** This project uses the `gpt-5-nano` model via a custom `openai.responses.create` endpoint. Do not replace this with older models like `gpt-4o-mini` as it relies on specific formatting.
