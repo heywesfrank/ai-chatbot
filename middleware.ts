@@ -23,6 +23,7 @@ export async function middleware(req: NextRequest) {
     '/team',
     '/help-center',
     '/pages',
+    '/premium'
   ];
 
   const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route));
@@ -50,6 +51,7 @@ export const config = {
     '/analytics/:path*', 
     '/team/:path*',
     '/help-center/:path*',
-    '/pages/:path*'
+    '/pages/:path*',
+    '/premium/:path*'
   ],
 };
