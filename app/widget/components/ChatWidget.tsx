@@ -427,8 +427,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
       {/* Floating Chat Window */}
       <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
-        ${isMobile
-          ? (urlOverrides.preview ? 'top-0 left-0 right-0 bottom-[88px] rounded-b-[20px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] border-b border-[var(--border-strong)]' : 'inset-0 rounded-none border-none')
+        ${isMobile && !urlOverrides.preview
+          ? 'inset-0 rounded-none border-none'
           : `bottom-[104px] w-[calc(100%-48px)] max-w-[420px] h-[calc(100%-120px)] max-h-[720px] rounded-2xl border border-[var(--border-strong)] shadow-[0_4px_24px_rgba(0,0,0,0.15)] ${isLeft ? 'left-6 origin-bottom-left' : 'right-6 origin-bottom-right'}`
         }
         ${showChatWindow ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
