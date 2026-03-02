@@ -1,6 +1,6 @@
 // app/(dashboard)/layout.tsx
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -52,8 +52,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState<number>(0);
-  
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -88,12 +86,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }, [activeSpaceId]);
 
   useEffect(() => {
-    if (iframeRef.current && iframeRef.current.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        { type: 'kb-config-update', config },
-        '*'
-      );
-    }
+    // Send postMessage to any rendered preview iframe (mobile or desktop)
+    const iframes = document.querySelectorAll('.preview-iframe');
+    iframes.forEach((iframe: any) => {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          { type: 'kb-config-update', config },
+          '*'
+        );
+      }
+    });
   }, [config]);
 
   // Dynamically update the browser tab title based on the active route
@@ -281,18 +283,35 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         )}
 
         <main className="flex-1 flex overflow-hidden w-full h-full relative">
-          <div className="flex-1 overflow-y-auto w-full h-full bg-[#FAFAFA]">
-             {children}
+          <div className="flex-1 overflow-y-auto w-full h-full bg-[#FAFAFA] flex flex-col">
+             <div className="flex-1 shrink-0">
+               {children}
+             </div>
+
+             {/* Mobile Preview Widget at the Bottom */}
+             {isBuilderRoute && activeSpaceId && (
+               <div className="lg:hidden w-full border-t border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] pt-12 pb-12 flex justify-center shrink-0">
+                 <div className="w-full max-w-[380px] h-[700px] max-h-[80vh] animate-in fade-in zoom-in-95 duration-500 px-4">
+                   <div className="w-full h-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-[32px] overflow-hidden border border-gray-200 bg-white">
+                     <iframe 
+                       src={previewUrl} 
+                       className="w-full h-full border-none bg-transparent preview-iframe" 
+                       title="Widget Preview Mobile" 
+                     />
+                   </div>
+                 </div>
+               </div>
+             )}
           </div>
           
+          {/* Desktop Preview Widget on the Right */}
           {isBuilderRoute && activeSpaceId && (
-            <div className="hidden lg:flex w-[480px] xl:w-[520px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0">
+            <div className="hidden lg:flex w-[480px] xl:w-[520px] border-l border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] flex-col relative shadow-[inset_4px_0_24px_rgba(0,0,0,0.02)] z-0 shrink-0">
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[468px] h-[824px] max-h-[100vh] animate-in fade-in zoom-in-95 duration-500">
                 <iframe 
-                  ref={iframeRef} 
                   src={previewUrl} 
-                  className="w-full h-full border-none bg-transparent" 
-                  title="Widget Preview" 
+                  className="w-full h-full border-none bg-transparent preview-iframe" 
+                  title="Widget Preview Desktop" 
                 />
               </div>
             </div>
