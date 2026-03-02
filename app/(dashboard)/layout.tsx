@@ -294,7 +294,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
              {isBuilderRoute && activeSpaceId && (
                <div className="lg:hidden w-full border-t border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] pt-12 pb-12 flex justify-center shrink-0">
                  <div className="w-full max-w-[380px] h-[700px] max-h-[80vh] animate-in fade-in zoom-in-95 duration-500 px-4">
-                   <div className="w-full h-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl overflow-hidden border border-gray-200 bg-white relative">
+                   <div className="w-full h-full relative">
                      <iframe 
                        src={previewUrl} 
                        className="w-full h-full border-none bg-transparent preview-iframe" 
