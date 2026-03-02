@@ -293,7 +293,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
              {/* Mobile Preview Widget at the Bottom */}
              {isBuilderRoute && activeSpaceId && (
                <div className="lg:hidden w-full border-t border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] pt-12 pb-12 flex justify-center shrink-0">
-                 <div className="w-full max-w-[380px] h-[700px] max-h-[80vh] animate-in fade-in zoom-in-95 duration-500 px-4">
+                 <div className="w-full max-w-[460px] h-[700px] max-h-[80vh] animate-in fade-in zoom-in-95 duration-500 px-2 sm:px-4">
                    <div className="w-full h-full relative">
                      <iframe 
                        src={previewUrl} 
