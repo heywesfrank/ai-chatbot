@@ -1,6 +1,6 @@
 // app/(dashboard)/layout.tsx
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -52,6 +52,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState<number>(0);
+  
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -292,7 +294,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
              {isBuilderRoute && activeSpaceId && (
                <div className="lg:hidden w-full border-t border-gray-200 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] pt-12 pb-12 flex justify-center shrink-0">
                  <div className="w-full max-w-[380px] h-[700px] max-h-[80vh] animate-in fade-in zoom-in-95 duration-500 px-4">
-                   <div className="w-full h-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-[32px] overflow-hidden border border-gray-200 bg-white">
+                   <div className="w-full h-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl overflow-hidden border border-gray-200 bg-white relative">
                      <iframe 
                        src={previewUrl} 
                        className="w-full h-full border-none bg-transparent preview-iframe" 
