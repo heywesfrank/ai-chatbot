@@ -139,7 +139,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const workspaceDisplayName = config.workspaceName || config.headerText || 'My Workspace';
   const isBuilderRoute = ['/knowledge', '/behavior', '/model', '/context-routing', '/appearance', '/pages', '/faqs', '/triggers', '/install'].includes(pathname);
   
   const previewUrl = `/widget?spaceId=${activeSpaceId}&preview=true`;
@@ -245,7 +244,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <header className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0 shadow-sm z-30">
           <div className="flex items-center gap-2.5">
              <img src="/apoyo.png" alt="Apoyo Logo" className="h-8 w-auto object-contain" />
-             <span className="text-xs font-semibold text-gray-900 truncate max-w-[120px]">{workspaceDisplayName}</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -mr-1 text-gray-500 hover:text-gray-900 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
