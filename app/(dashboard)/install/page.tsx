@@ -1,4 +1,3 @@
-// app/(dashboard)/install/page.tsx
 'use client';
 import { useBotConfig } from '../BotConfigProvider';
 import { toast } from 'sonner';
@@ -22,13 +21,13 @@ export default function InstallPage() {
   };
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in duration-300">
-      <div className="mb-8">
+    <div className="p-4 sm:p-8 pb-20 animate-in fade-in duration-300">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Embed & Install</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Deploy your AI agent to your website or application.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+      <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md shadow-sm">
         <section>
           <label className="block text-sm font-semibold text-gray-900 mb-2">Workspace ID</label>
           <input type="text" readOnly className="w-full p-2.5 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500 outline-none font-mono" value={activeSpaceId} />
@@ -60,7 +59,7 @@ export default function InstallPage() {
             onClick={handleCopy}
           >
              {/* Hover Icon top right */}
-             <div className="absolute top-3 right-3 p-1.5 bg-white border border-gray-200 rounded text-gray-600 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:text-black">
+             <div className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 bg-white border border-gray-200 rounded text-gray-600 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:text-black">
                 {copied ? <CheckIcon className="w-4 h-4 text-green-500" /> : <CopyIcon className="w-4 h-4" />}
              </div>
              
@@ -73,7 +72,7 @@ export default function InstallPage() {
              </div>
              
              {/* Code Block */}
-             <div className="p-5 text-[11.5px] font-mono text-gray-600 leading-[1.6] break-all select-all">
+             <div className="p-4 sm:p-5 text-[11px] sm:text-[11.5px] font-mono text-gray-600 leading-[1.6] break-all select-all pt-10 sm:pt-5">
                {embedCode}
              </div>
           </div>
