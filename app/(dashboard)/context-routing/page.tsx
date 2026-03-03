@@ -1,3 +1,4 @@
+// app/(dashboard)/context-routing/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -28,18 +29,18 @@ export default function ContextAndRoutingPage() {
   };
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in duration-300">
-      <div className="mb-8">
+    <div className="p-4 sm:p-8 pb-20 animate-in fade-in duration-300">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Context & Routing</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Provide the AI with invisible background context and present pre-chat routing options to users.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
+      <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
         
         {/* Page Context Section */}
         <section>
-          <div className="flex items-center justify-between">
-            <div className="pr-4">
+          <div className="flex items-start sm:items-center justify-between gap-4">
+            <div>
               <label className="block text-sm font-semibold text-gray-900">Share Current URL</label>
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
                 When enabled, the chatbot will invisibly receive the URL of the page the user is currently viewing.
@@ -60,7 +61,7 @@ export default function ContextAndRoutingPage() {
         </section>
 
         {/* Routing Section */}
-        <section className="pt-8 border-t border-gray-100">
+        <section className="pt-6 sm:pt-8 border-t border-gray-100">
           <div className="mb-4">
             <label className="block text-sm font-semibold text-gray-900">Pre-Chat Routing Options</label>
             <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Add buttons that users must click before chatting. This sets a hidden instruction for the AI based on their choice.</p>
@@ -73,19 +74,19 @@ export default function ContextAndRoutingPage() {
               </div>
             )}
             {routes.map((route: any) => (
-              <div key={route.id} className="flex items-center justify-between p-3 bg-gray-50/50 rounded-md border border-gray-200 group">
-                <div className="flex-1 grid grid-cols-2 gap-4">
+              <div key={route.id} className="flex items-start sm:items-center justify-between p-3 bg-gray-50/50 rounded-md border border-gray-200 group">
+                <div className="flex-1 flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-4 min-w-0 pr-2">
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Button Label</span>
-                    <span className="block text-sm font-medium text-gray-900">{route.label}</span>
+                    <span className="block text-sm font-medium text-gray-900 break-words">{route.label}</span>
                   </div>
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">AI Context</span>
-                    <span className="block text-sm text-gray-600 truncate">{route.value}</span>
+                    <span className="block text-sm text-gray-600 truncate sm:break-words">{route.value}</span>
                   </div>
                 </div>
                 {isOwner && (
-                  <button onClick={() => removeRoute(route.id)} className="ml-3 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100">
+                  <button onClick={() => removeRoute(route.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0">
                     <ClearIcon className="w-4 h-4" />
                   </button>
                 )}
@@ -94,7 +95,7 @@ export default function ContextAndRoutingPage() {
           </div>
 
           {isOwner && (
-            <div className="flex flex-col sm:flex-row items-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 pt-4 border-t border-gray-100">
               <div className="flex-1 w-full">
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Button Label</label>
                 <input
@@ -118,7 +119,7 @@ export default function ContextAndRoutingPage() {
               <button 
                 onClick={addRoute}
                 disabled={!newLabel.trim() || !newValue.trim()}
-                className="w-full sm:w-auto px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[42px]"
+                className="w-full sm:w-auto px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:h-[42px]"
               >
                 Add
               </button>
