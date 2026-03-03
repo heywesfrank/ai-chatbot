@@ -156,10 +156,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
       `}>
         <div className="p-4 flex-1 overflow-y-auto no-scrollbar">
-          <div className="flex items-center justify-center mb-8 mt-2 px-2 relative gap-2">
-            <img src="/icon.png" alt="App Icon" className="h-8 w-auto object-contain" />
-            <img src="/apoyo.png" alt="Apoyo Logo" className="h-9 w-auto object-contain" />
-            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden absolute right-2 p-1 text-gray-500 hover:text-gray-900">
+          <div className="flex items-center justify-between md:justify-center mb-8 mt-2 px-2 relative gap-2">
+            {/* Desktop Logos (Hidden on Mobile) */}
+            <div className="hidden md:flex items-center gap-2">
+              <img src="/icon.png" alt="App Icon" className="h-8 w-auto object-contain" />
+              <img src="/apoyo.png" alt="Apoyo Logo" className="h-9 w-auto object-contain" />
+            </div>
+            
+            {/* Mobile Menu Title (Hidden on Desktop) */}
+            <span className="md:hidden font-semibold text-gray-900 px-2 text-sm">
+              Menu
+            </span>
+
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-1 text-gray-500 hover:text-gray-900 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -242,12 +251,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-white">
         
         <header className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0 shadow-sm z-30">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -ml-1 text-gray-500 hover:text-gray-900 transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
           <div className="flex items-center gap-2.5">
              <img src="/apoyo.png" alt="Apoyo Logo" className="h-8 w-auto object-contain" />
           </div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -mr-1 text-gray-500 hover:text-gray-900 transition-colors">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
-          </button>
         </header>
 
         {isBuilderRoute && (
