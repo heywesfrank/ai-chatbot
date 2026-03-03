@@ -227,7 +227,7 @@ export default function KnowledgeBasePage() {
   ] as const;
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in duration-300">
+    <div className="p-4 sm:p-8 pb-20 animate-in fade-in duration-300">
       <div className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Knowledge Base</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Add data sources for your bot to learn from. Upload text docs, crawl websites, or connect your tools directly.</p>
@@ -246,14 +246,14 @@ export default function KnowledgeBasePage() {
           ))}
         </div>
         
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {sourceType === 'website' && (
             <div className="flex flex-col gap-4 max-w-2xl">
               <div>
                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Website URL</label>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input type="url" placeholder="https://example.com/sitemap.xml" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
-                  <button onClick={() => handleAddSource({ type: 'website', url: inputValue })} disabled={isSyncing || !inputValue} className="px-6 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                  <button onClick={() => handleAddSource({ type: 'website', url: inputValue })} disabled={isSyncing || !inputValue} className="w-full sm:w-auto px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shrink-0">
                     {isSyncing ? 'Processing...' : 'Sync URL'}
                   </button>
                 </div>
@@ -287,7 +287,7 @@ export default function KnowledgeBasePage() {
                     <p className="text-sm text-gray-600 mb-4">Click below to authenticate with Notion. You will be prompted to select the pages you want your bot to read. All sub-pages are automatically included.</p>
                     <a 
                       href={`https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_APP_URL + '/api/notion/oauth')}&state=kb_${activeSpaceId}`}
-                      className={`inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors ${!activeSpaceId ? 'opacity-50 pointer-events-none' : ''}`}
+                      className={`w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors ${!activeSpaceId ? 'opacity-50 pointer-events-none' : ''}`}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28.047-.326 0-.14-.234-.327-.374-.467-1.772-1.82-3.87-2.752-3.87-2.752a.39.39 0 00-.327-.047l-10.77 1.819c-.186.047-.396.164-.442.234-.233.28-.466 1.4-.047 1.82.046.046.093.046.14.046zM6.136 7.61c-.512-.14-.839.233-.839.513v12.219c0 .187.14.374.326.467.234.14 2.89 1.585 2.89 1.585.14.093.28.093.42 0 .606-.327 11.563-6.108 11.563-6.108.233-.14.326-.373.326-.56V6.164c0-.327-.42-.56-.606-.513-.7.186-2.517.653-2.517.653-.186.047-.373.187-.373.373v9.231c0 .094-.047.14-.14.14a.155.155 0 01-.14-.093V6.21c0-.186-.14-.373-.326-.42-1.773-.42-9.7-2.33-9.7-2.33-.233-.047-.466.047-.653.28l-1.072 3.87z"/></svg>
                       Connect Notion Workspace
@@ -310,7 +310,7 @@ export default function KnowledgeBasePage() {
                   <input type="password" placeholder="gb_api_..." className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors bg-white" value={gitbookToken} onChange={(e) => setGitbookToken(e.target.value)} />
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'gitbook', gitbookSpaceId: inputValue, apiKey: gitbookToken })} disabled={isSyncing || !inputValue || !gitbookToken} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
+              <button onClick={() => handleAddSource({ type: 'gitbook', gitbookSpaceId: inputValue, apiKey: gitbookToken })} disabled={isSyncing || !inputValue || !gitbookToken} className="w-full sm:w-auto self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect GitBook'}
               </button>
               <p className="text-[11px] text-gray-500 leading-relaxed mt-1">You can find your Space ID in the URL of your GitBook space. Generate an API Token from your GitBook Developer Settings.</p>
@@ -346,7 +346,7 @@ export default function KnowledgeBasePage() {
                   </div>
                 </div>
               </div>
-              <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue} className="self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
+              <button onClick={() => handleAddSource({ type: 'zendesk', subdomain: inputValue, email: zendeskEmail, token: zendeskToken })} disabled={isSyncing || !inputValue} className="w-full sm:w-auto self-start px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {isSyncing ? 'Syncing...' : 'Connect Zendesk'}
               </button>
               <p className="text-[11px] text-gray-500 leading-relaxed mt-1">For a public Help Center, enter only your subdomain. If your Help Center requires a login, provide an Agent Email and API Token.</p>
@@ -356,7 +356,7 @@ export default function KnowledgeBasePage() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
           <h2 className="text-sm font-semibold text-gray-900">Active Sources</h2>
           {isFetchingSources && <div className="w-4 h-4 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>}
         </div>
@@ -372,7 +372,7 @@ export default function KnowledgeBasePage() {
             {sources.map(src => {
               const isItemSyncing = src.status === 'syncing';
               return (
-                <div key={src.id} className="p-4 sm:px-6 flex justify-between items-center hover:bg-gray-50/50 transition-colors group">
+                <div key={src.id} className="p-4 sm:px-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4 sm:gap-0 hover:bg-gray-50/50 transition-colors group">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
                       {src.type === 'website' && <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>}
@@ -393,12 +393,12 @@ export default function KnowledgeBasePage() {
                   </div>
                   
                   {isItemSyncing ? (
-                    <div className="px-3 py-1.5 flex items-center gap-2">
+                    <div className="px-3 py-1.5 flex items-center gap-2 self-start sm:self-auto">
                       <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
                       <span className="text-xs text-gray-400 font-medium">Syncing</span>
                     </div>
                   ) : (
-                    <button onClick={() => removeSource(src.id)} className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100">
+                    <button onClick={() => removeSource(src.id)} className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 self-start sm:self-auto">
                       Remove
                     </button>
                   )}
