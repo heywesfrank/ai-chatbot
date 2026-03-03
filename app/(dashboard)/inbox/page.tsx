@@ -220,10 +220,10 @@ export default function InboxDashboard() {
     const newVal = !agentsOnline;
     setAgentsOnline(newVal); // Optimistic UI update
     
-    const { error } = await supabase
-      .from('bot_config')
-      .update({ agents_online: newVal })
-      .eq('space_id', spaceId);
+    const { error } = await supabase.rpc('set_agents_online', {
+      p_space_id: spaceId,
+      p_online: newVal
+    });
 
     if (error) {
       console.error("Failed to update status:", error);
@@ -244,10 +244,10 @@ export default function InboxDashboard() {
     setCannedResponses(newArr);
     setNewCannedInput('');
     
-    const { error } = await supabase
-      .from('bot_config')
-      .update({ canned_responses: newArr })
-      .eq('space_id', spaceId);
+    const { error } = await supabase.rpc('set_canned_responses', {
+      p_space_id: spaceId,
+      p_responses: newArr
+    });
 
     if (error) {
       toast.error("Failed to save canned response.");
@@ -263,10 +263,10 @@ export default function InboxDashboard() {
     
     setCannedResponses(newArr);
     
-    const { error } = await supabase
-      .from('bot_config')
-      .update({ canned_responses: newArr })
-      .eq('space_id', spaceId);
+    const { error } = await supabase.rpc('set_canned_responses', {
+      p_space_id: spaceId,
+      p_responses: newArr
+    });
 
     if (error) {
       toast.error("Failed to remove canned response.");
