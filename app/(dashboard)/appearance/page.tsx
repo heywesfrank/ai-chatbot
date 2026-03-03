@@ -55,18 +55,18 @@ export default function AppearancePage() {
   };
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in duration-300">
-      <div className="mb-8">
+    <div className="p-4 sm:p-8 pb-20 animate-in fade-in duration-300">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Appearance</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Customize the look and feel of your chatbot widget to match your brand.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md shadow-sm">
+      <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md shadow-sm">
 
         {/* Brand & Widget Colors */}
         <div>
           <h2 className="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Global & Launcher</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
             <ColorPicker label="Theme (Header & Buttons)" value={config.primaryColor} onChange={(v) => updateConfig('primaryColor', v)} disabled={!isOwner} />
             <ColorPicker label="Chat Bubble (Launcher BG)" value={config.launcherColor} onChange={(v) => updateConfig('launcherColor', v)} disabled={!isOwner} />
             <ColorPicker label="Chat Icon (Launcher Icon)" value={config.launcherIconColor} onChange={(v) => updateConfig('launcherIconColor', v)} disabled={!isOwner} />
@@ -76,7 +76,7 @@ export default function AppearancePage() {
         {/* Message Bubble Colors */}
         <div>
           <h2 className="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Message Bubbles</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
             <ColorPicker label="User Bubble" value={config.userBubbleColor} onChange={(v) => updateConfig('userBubbleColor', v)} disabled={!isOwner} />
             <ColorPicker label="User Text" value={config.userFontColor} onChange={(v) => updateConfig('userFontColor', v)} disabled={!isOwner} />
             <ColorPicker label="Agent Bubble" value={config.agentBubbleColor} onChange={(v) => updateConfig('agentBubbleColor', v)} disabled={!isOwner} />
@@ -107,7 +107,7 @@ export default function AppearancePage() {
 
         <section className="pt-2 border-t border-gray-100">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar</label>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
              <div className="relative shrink-0 w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
                {config.botAvatar ? (
                  <img src={config.botAvatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -137,7 +137,7 @@ export default function AppearancePage() {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-4 sm:pt-6 border-t border-gray-100">
           <section>
             <label className="block text-sm font-semibold text-gray-900 mb-2">Theme</label>
             <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" disabled={!isOwner} value={config.theme} onChange={(e) => updateConfig('theme', e.target.value)}>
@@ -155,8 +155,8 @@ export default function AppearancePage() {
           </section>
         </div>
 
-        <section className="pt-6 border-t border-gray-100 mt-6 relative">
-          <div className="flex items-center justify-between opacity-50 grayscale select-none cursor-not-allowed">
+        <section className="pt-4 sm:pt-6 border-t border-gray-100 mt-4 sm:mt-6 relative">
+          <div className="flex items-start sm:items-center justify-between gap-4 opacity-50 grayscale select-none cursor-not-allowed">
             <div>
               <div className="flex items-center gap-2">
                 <label className="block text-sm font-semibold text-gray-900">Remove Branding</label>
@@ -164,7 +164,7 @@ export default function AppearancePage() {
               </div>
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Hide the "Powered by Apoyo" watermark at the bottom of the widget.</p>
             </div>
-            <label className="relative inline-flex items-center cursor-not-allowed">
+            <label className="relative inline-flex items-center cursor-not-allowed shrink-0">
               <input type="checkbox" className="sr-only peer" disabled={true} checked={false} />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
             </label>
