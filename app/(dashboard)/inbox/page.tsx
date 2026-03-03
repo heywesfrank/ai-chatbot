@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
+import { ZapIcon, ClearIcon, SparklesIcon } from '@/components/icons';
 
 export default function InboxDashboard() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -20,6 +21,7 @@ export default function InboxDashboard() {
   const [agentsOnline, setAgentsOnline] = useState(false);
   const [cannedResponses, setCannedResponses] = useState<string[]>([]);
   const [newCannedInput, setNewCannedInput] = useState('');
+  const [isCannedMenuOpen, setIsCannedMenuOpen] = useState(false);
   const [spaceId, setSpaceId] = useState<string | null>(null);
 
   // Agent Co-Pilot States
@@ -101,6 +103,7 @@ export default function InboxDashboard() {
     setSuggestedReply('');
     setIsGeneratingDraft(false);
     lastDraftedMessageId.current = null;
+    setIsCannedMenuOpen(false);
 
     const { data } = await supabase
       .from('live_messages')
@@ -380,46 +383,6 @@ export default function InboxDashboard() {
             ))
           )}
         </div>
-
-        <div className="p-5 border-t border-gray-100 bg-[#FAFAFA] flex flex-col shrink-0 max-h-[40%]">
-          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Canned Responses</h2>
-          <div className="flex gap-2 mb-3 shrink-0">
-            <input 
-              type="text" 
-              value={newCannedInput}
-              onChange={(e) => setNewCannedInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddCanned()}
-              placeholder="Add a quick reply..."
-              className="flex-1 p-2 border border-gray-200 rounded-md text-xs outline-none focus:border-black transition-colors bg-white shadow-sm"
-            />
-            <button 
-              onClick={handleAddCanned}
-              disabled={!newCannedInput.trim()}
-              className="px-3 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm"
-            >
-              Add
-            </button>
-          </div>
-          <div className="flex flex-col gap-1.5 overflow-y-auto no-scrollbar pb-2">
-            {cannedResponses.map((canned, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => setInput(canned)}
-                className="flex items-center justify-between p-2 bg-white border border-gray-100 rounded-md text-[11px] text-gray-700 shadow-sm group cursor-pointer hover:border-gray-300 transition-colors"
-                title="Click to use response"
-              >
-                <span className="truncate flex-1 pr-2">{canned}</span>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleRemoveCanned(canned); }} 
-                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 outline-none p-1"
-                  title="Remove response"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Main Chat Area - Hide on mobile if no active session */}
@@ -481,7 +444,7 @@ export default function InboxDashboard() {
                   <div className="space-y-3 mt-3">
                     {parsedHistory.map((m: any, i: number) => (
                       <div key={i} className="leading-relaxed">
-                        <strong className={m.role === 'user' ? 'text-gray-800' : 'text-blue-600'}>{m.role === 'user' ? 'User' : 'Bot'}:</strong> {m.content}
+                        <strong className={m.role === 'user' ? 'text-gray-800' : 'text-gray-600'}>{m.role === 'user' ? 'User' : 'Bot'}:</strong> {m.content}
                       </div>
                     ))}
                   </div>
@@ -491,8 +454,8 @@ export default function InboxDashboard() {
               <div className="space-y-4">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col max-w-[85%] sm:max-w-[80%] ${msg.role === 'agent' || msg.role === 'note' ? 'self-end items-end' : 'self-start items-start'}`}>
-                    <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : msg.role === 'note' ? 'bg-yellow-100 text-yellow-900 border border-yellow-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
-                      {msg.role === 'note' && <span className="block text-[10px] font-bold uppercase tracking-wider text-yellow-700 mb-1">Internal Note</span>}
+                    <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : msg.role === 'note' ? 'bg-gray-50 text-gray-800 border border-dashed border-gray-300' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                      {msg.role === 'note' && <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Internal Note</span>}
                       {msg.content}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 mx-1 text-[10px] text-gray-400">
@@ -516,47 +479,99 @@ export default function InboxDashboard() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col gap-2 shrink-0">
+            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col gap-2 shrink-0 relative">
               
+              {/* Popover Menu for Canned Responses */}
+              {isCannedMenuOpen && activeSession.status === 'open' && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsCannedMenuOpen(false)} />
+                  <div className="absolute bottom-full left-4 mb-2 w-80 bg-white border border-gray-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-lg flex flex-col z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
+                      <h3 className="text-xs font-semibold text-gray-900">Quick Replies</h3>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto p-1.5 space-y-1">
+                      {cannedResponses.length === 0 ? (
+                        <p className="text-[11px] text-gray-500 p-4 text-center">No quick replies saved.</p>
+                      ) : (
+                        cannedResponses.map((canned, idx) => (
+                          <div key={idx} className="group flex items-center justify-between p-2 hover:bg-gray-100 rounded-md cursor-pointer transition-colors" onClick={() => { setInput(canned); setIsCannedMenuOpen(false); }}>
+                            <span className="text-xs text-gray-700 pr-2 flex-1">{canned}</span>
+                            <button onClick={(e) => { e.stopPropagation(); handleRemoveCanned(canned); }} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 outline-none p-1.5 shrink-0 hover:bg-white rounded"><ClearIcon className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-gray-100 bg-white shrink-0 flex gap-2">
+                      <input 
+                        type="text" 
+                        value={newCannedInput}
+                        onChange={(e) => setNewCannedInput(e.target.value)}
+                        onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddCanned(); } }}
+                        placeholder="Save new reply..."
+                        className="flex-1 p-2 border border-gray-200 rounded-md text-xs outline-none focus:border-black transition-colors bg-gray-50 focus:bg-white"
+                      />
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); handleAddCanned(); }}
+                        disabled={!newCannedInput.trim()}
+                        className="px-3 bg-black text-white text-xs font-medium rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* Agent Co-Pilot Draft UI Box */}
               {(suggestedReply || isGeneratingDraft) && activeSession.status === 'open' && (
-                <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-sm text-xs text-indigo-900 relative shadow-sm animate-in fade-in zoom-in-95 duration-200 mb-1">
-                  <div className="flex justify-between items-center mb-1.5 border-b border-indigo-100 pb-1.5">
-                     <span className="font-semibold flex items-center gap-1.5">
-                       <svg className="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                       AI Co-Pilot Suggestion
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-sm text-xs text-gray-900 relative shadow-sm animate-in fade-in zoom-in-95 duration-200 mb-1">
+                  <div className="flex justify-between items-center mb-1.5 border-b border-gray-200 pb-1.5">
+                     <span className="font-semibold flex items-center gap-1.5 text-gray-700">
+                       <SparklesIcon className="w-3.5 h-3.5" />
+                       AI Suggestion
                      </span>
                      <div className="flex items-center gap-3">
                        {suggestedReply && !isGeneratingDraft && (
-                         <button onClick={() => { setInput(suggestedReply); setSuggestedReply(''); }} className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 bg-white px-2 py-1 rounded border border-indigo-200 shadow-sm transition-colors focus:outline-none">
+                         <button onClick={() => { setInput(suggestedReply); setSuggestedReply(''); }} className="text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:text-black bg-white px-2 py-1 rounded border border-gray-200 shadow-sm transition-colors focus:outline-none">
                            Use Draft
                          </button>
                        )}
-                       <button onClick={() => setSuggestedReply('')} className="text-indigo-400 hover:text-indigo-600 transition-colors outline-none" title="Dismiss Draft">
-                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                       <button onClick={() => setSuggestedReply('')} className="text-gray-400 hover:text-gray-700 transition-colors outline-none" title="Dismiss Draft">
+                         <ClearIcon className="w-3.5 h-3.5" />
                        </button>
                      </div>
                   </div>
-                  <div className="leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto pr-2 no-scrollbar">
+                  <div className="leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto pr-2 no-scrollbar text-gray-600">
                     {suggestedReply || (
-                      <span className="flex items-center gap-1.5 text-indigo-500 italic">
-                         Drafting <span className="flex space-x-0.5 mt-0.5"><span className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse" /><span className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse delay-75" /><span className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse delay-150" /></span>
+                      <span className="flex items-center gap-1.5 italic text-gray-500">
+                         Drafting <span className="flex space-x-0.5 mt-0.5"><span className="w-1 h-1 bg-gray-400 rounded-full animate-pulse" /><span className="w-1 h-1 bg-gray-400 rounded-full animate-pulse delay-75" /><span className="w-1 h-1 bg-gray-400 rounded-full animate-pulse delay-150" /></span>
                       </span>
                     )}
                   </div>
                 </div>
               )}
 
-              <form onSubmit={handleSend} className="flex flex-col gap-2">
+              <form onSubmit={handleSend} className="flex flex-col gap-2 relative">
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCannedMenuOpen(!isCannedMenuOpen)}
+                    disabled={activeSession.status === 'closed'}
+                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none flex items-center justify-center shrink-0"
+                    title="Quick Replies"
+                  >
+                    <ZapIcon className="w-4 h-4" />
+                  </button>
+
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); handleGenerateDraft(messages); }}
                     disabled={isGeneratingDraft || messages.length === 0 || activeSession.status === 'closed'}
-                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 flex items-center justify-center shrink-0"
+                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 hover:border-gray-400 focus:border-black focus:ring-1 focus:ring-black transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none flex items-center justify-center shrink-0"
                     title="Generate AI Draft"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                    <SparklesIcon className="w-4 h-4" />
                   </button>
 
                   <input 
@@ -570,7 +585,7 @@ export default function InboxDashboard() {
                   <button 
                     type="submit"
                     disabled={!input.trim() || activeSession.status === 'closed'}
-                    className={`px-5 py-2.5 text-sm font-medium rounded-sm disabled:opacity-50 transition-colors shadow-sm ${isNote ? 'bg-yellow-500 text-yellow-950 hover:bg-yellow-400' : 'bg-black text-white hover:bg-gray-800'}`}
+                    className={`px-5 py-2.5 text-sm font-medium rounded-sm disabled:opacity-50 transition-colors shadow-sm ${isNote ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-black text-white hover:bg-gray-900'}`}
                   >
                     {isNote ? 'Add Note' : 'Send'}
                   </button>
@@ -584,7 +599,7 @@ export default function InboxDashboard() {
                       onChange={(e) => setIsNote(e.target.checked)}
                       disabled={activeSession.status === 'closed'}
                     />
-                    <span className="text-[11px] text-gray-600 font-medium">Internal Note (Hidden from user)</span>
+                    <span className="text-[11px] text-gray-500 font-medium">Internal Note (Hidden from user)</span>
                   </label>
                 </div>
               </form>
