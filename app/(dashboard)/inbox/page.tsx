@@ -65,7 +65,9 @@ export default function InboxDashboard() {
             
           if (rawSessions) setSessions(rawSessions);
 
-          channel = supabase.channel('dashboard_sessions')
+          // Scope the channel specifically to this space to avoid cross-contamination / WebSocket drops
+          const channelName = `dashboard_sessions_${configData.space_id}`;
+          channel = supabase.channel(channelName)
             .on('postgres_changes', { 
               event: 'INSERT', 
               schema: 'public', 
@@ -74,7 +76,11 @@ export default function InboxDashboard() {
             }, payload => {
               setSessions(prev => [payload.new, ...prev]);
             })
-            .subscribe();
+            .subscribe((status, err) => {
+              if (status === 'CHANNEL_ERROR') {
+                console.error('Realtime Dashboard Subscription Error:', err);
+              }
+            });
         }
       }
       setIsLoading(false);
@@ -83,7 +89,9 @@ export default function InboxDashboard() {
     fetchSessions();
 
     return () => { 
-      if (channel) supabase.removeChannel(channel); 
+      if (channel) {
+        supabase.removeChannel(channel); 
+      }
     };
   }, []);
 
@@ -130,13 +138,15 @@ export default function InboxDashboard() {
           typingTimeoutRef.current = setTimeout(() => setIsUserTyping(false), 3000);
         }
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') channelRef.current = channel;
+        if (status === 'CHANNEL_ERROR') console.error('Realtime Session Error:', err);
       });
 
     return () => { 
       supabase.removeChannel(channel); 
       channelRef.current = null;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, [activeSession]);
 
@@ -287,10 +297,12 @@ export default function InboxDashboard() {
   }
 
   return (
-    <div className="flex h-full w-full bg-[#FAFAFA] text-gray-900 font-sans">
-      <div className="w-[320px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
+    <div className="flex h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-hidden">
+      
+      {/* Mobile view logic: Hide sidebar if activeSession is set */}
+      <div className={`border-r border-gray-200 bg-white flex-col flex-shrink-0 w-full md:w-[320px] h-full ${activeSession ? 'hidden md:flex' : 'flex'}`}>
         
-        <div className="p-5 border-b border-gray-100 bg-[#FAFAFA]">
+        <div className="p-5 border-b border-gray-100 bg-[#FAFAFA] shrink-0">
           <div className="flex items-center justify-between mb-1.5">
             <h1 className="text-sm font-semibold tracking-tight text-gray-900">Agent Status</h1>
             <button 
@@ -305,7 +317,7 @@ export default function InboxDashboard() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="px-5 py-3 border-b border-gray-50 bg-white">
+          <div className="px-5 py-3 border-b border-gray-50 bg-white sticky top-0 z-10">
             <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Inquiries</h2>
           </div>
           {sessions.length === 0 ? (
@@ -329,7 +341,7 @@ export default function InboxDashboard() {
           )}
         </div>
 
-        <div className="p-5 border-t border-gray-100 bg-[#FAFAFA] flex flex-col max-h-[40%]">
+        <div className="p-5 border-t border-gray-100 bg-[#FAFAFA] flex flex-col shrink-0 max-h-[40%]">
           <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Canned Responses</h2>
           <div className="flex gap-2 mb-3 shrink-0">
             <input 
@@ -370,7 +382,8 @@ export default function InboxDashboard() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col bg-white">
+      {/* Main Chat Area - Hide on mobile if no active session */}
+      <div className={`flex-1 flex-col bg-white h-full ${!activeSession ? 'hidden md:flex' : 'flex'}`}>
         {!activeSession ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 bg-[#FAFAFA]">
             <svg className="w-10 h-10 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -378,29 +391,38 @@ export default function InboxDashboard() {
           </div>
         ) : (
           <>
-            <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-[#FAFAFA]/50">
-              <div>
-                <h2 className="text-sm font-semibold">{activeSession.email}</h2>
-                <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5 mb-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${activeSession.status === 'open' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                  {activeSession.status === 'open' ? 'Requires Attention' : 'Resolved'}
-                </p>
-                {activeSession.metadata && Object.keys(activeSession.metadata).length > 0 && (
-                  <div className="flex flex-wrap gap-4 text-[11px] text-gray-500 bg-white p-2.5 rounded-sm border border-gray-200 shadow-sm mt-1">
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                      {activeSession.metadata.browser} / {activeSession.metadata.os}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      {activeSession.metadata.location}
-                    </span>
-                    <span className="flex items-center gap-1 max-w-[200px] truncate" title={activeSession.metadata.url}>
-                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                      <a href={activeSession.metadata.url} target="_blank" rel="noreferrer" className="hover:underline truncate">{activeSession.metadata.url}</a>
-                    </span>
-                  </div>
-                )}
+            <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-[#FAFAFA]/50 shrink-0">
+              <div className="flex items-start">
+                <button 
+                  onClick={() => setActiveSession(null)} 
+                  className="md:hidden mr-3 p-1.5 text-gray-500 hover:text-gray-900 transition-colors bg-white border border-gray-200 rounded-md shadow-sm"
+                  aria-label="Back to inbox"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div>
+                  <h2 className="text-sm font-semibold">{activeSession.email}</h2>
+                  <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5 mb-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeSession.status === 'open' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    {activeSession.status === 'open' ? 'Requires Attention' : 'Resolved'}
+                  </p>
+                  {activeSession.metadata && Object.keys(activeSession.metadata).length > 0 && (
+                    <div className="flex flex-wrap gap-4 text-[11px] text-gray-500 bg-white p-2.5 rounded-sm border border-gray-200 shadow-sm mt-1">
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        {activeSession.metadata.browser} / {activeSession.metadata.os}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        {activeSession.metadata.location}
+                      </span>
+                      <span className="flex items-center gap-1 max-w-[150px] sm:max-w-[200px] truncate" title={activeSession.metadata.url}>
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                        <a href={activeSession.metadata.url} target="_blank" rel="noreferrer" className="hover:underline truncate">{activeSession.metadata.url}</a>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               {activeSession.status === 'open' && (
                 <button 
@@ -412,7 +434,7 @@ export default function InboxDashboard() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col relative">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col relative">
               {parsedHistory.length > 0 && (
                 <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 mb-6 text-xs text-gray-500">
                   <h3 className="font-semibold mb-2 text-gray-700 border-b border-gray-200 pb-2">Previous AI Context</h3>
@@ -428,7 +450,7 @@ export default function InboxDashboard() {
 
               <div className="space-y-4">
                 {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex flex-col max-w-[80%] ${msg.role === 'agent' || msg.role === 'note' ? 'self-end items-end' : 'self-start items-start'}`}>
+                  <div key={idx} className={`flex flex-col max-w-[85%] sm:max-w-[80%] ${msg.role === 'agent' || msg.role === 'note' ? 'self-end items-end' : 'self-start items-start'}`}>
                     <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : msg.role === 'note' ? 'bg-yellow-100 text-yellow-900 border border-yellow-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                       {msg.role === 'note' && <span className="block text-[10px] font-bold uppercase tracking-wider text-yellow-700 mb-1">Internal Note</span>}
                       {msg.content}
@@ -454,7 +476,7 @@ export default function InboxDashboard() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col gap-2">
+            <div className="p-4 border-t border-gray-200 bg-[#FAFAFA] flex flex-col gap-2 shrink-0">
               
               {/* Agent Co-Pilot Draft UI Box */}
               {(suggestedReply || isGeneratingDraft) && activeSession.status === 'open' && (
