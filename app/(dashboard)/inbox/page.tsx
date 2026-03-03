@@ -66,7 +66,7 @@ export default function InboxDashboard() {
             
           if (rawSessions) setSessions(rawSessions);
 
-          // Scope the channel specifically to this space to avoid cross-contamination / WebSocket drops
+          // Scope the channel uniquely to prevent WebSocket collision errors during hot-reloads
           const channelName = `dashboard_sessions_${configData.space_id}`;
           channel = supabase.channel(channelName)
             .on('postgres_changes', { 
@@ -212,39 +212,71 @@ export default function InboxDashboard() {
   }, [messages, activeSession]);
 
   const toggleAgentStatus = async () => {
+    if (!spaceId) {
+      toast.error("Workspace ID missing.");
+      return;
+    }
+
     const newVal = !agentsOnline;
-    setAgentsOnline(newVal); // Optimistic update UI immediately
-    if (spaceId) {
-      const { error } = await supabase.from('bot_config').update({ agents_online: newVal }).eq('space_id', spaceId);
-      if (error) {
-        console.error("Failed to update status:", error);
-        toast.error("Failed to save status. Check permissions.");
-        setAgentsOnline(!newVal); // Revert on fail
-      } else {
-        toast.success(`Agents are now ${newVal ? 'Online' : 'Offline'}`);
-      }
+    setAgentsOnline(newVal); // Optimistic UI update
+    
+    // Explicitly select() to ensure the row was actually updated and not blocked by Row Level Security
+    const { data, error } = await supabase
+      .from('bot_config')
+      .update({ agents_online: newVal })
+      .eq('space_id', spaceId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("Failed to update status:", error);
+      toast.error(`Failed to save status: ${error.message}`);
+      setAgentsOnline(!newVal); // Revert
+    } else if (!data) {
+      toast.error("Failed to save status. You may not have Owner permissions to modify the config.");
+      setAgentsOnline(!newVal); // Revert
+    } else {
+      toast.success(`Agents are now ${newVal ? 'Online' : 'Offline'}`);
     }
   };
 
   const handleAddCanned = async () => {
     const val = newCannedInput.trim();
-    if (val && !cannedResponses.includes(val)) {
-      const newArr = [...cannedResponses, val];
-      setCannedResponses(newArr);
-      setNewCannedInput('');
-      if (spaceId) {
-        const { error } = await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
-        if (error) toast.error("Failed to save canned response.");
-      }
+    if (!val || cannedResponses.includes(val) || !spaceId) return;
+
+    const newArr = [...cannedResponses, val];
+    setCannedResponses(newArr);
+    setNewCannedInput('');
+    
+    const { data, error } = await supabase
+      .from('bot_config')
+      .update({ canned_responses: newArr })
+      .eq('space_id', spaceId)
+      .select()
+      .maybeSingle();
+
+    if (error || !data) {
+      toast.error("Failed to save canned response. Check permissions.");
+      setCannedResponses(cannedResponses); // Revert
     }
   };
 
   const handleRemoveCanned = async (text: string) => {
+    if (!spaceId) return;
+    
     const newArr = cannedResponses.filter(c => c !== text);
     setCannedResponses(newArr);
-    if (spaceId) {
-      const { error } = await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
-      if (error) toast.error("Failed to remove canned response.");
+    
+    const { data, error } = await supabase
+      .from('bot_config')
+      .update({ canned_responses: newArr })
+      .eq('space_id', spaceId)
+      .select()
+      .maybeSingle();
+
+    if (error || !data) {
+      toast.error("Failed to remove canned response. Check permissions.");
+      setCannedResponses(cannedResponses); // Revert
     }
   };
 
