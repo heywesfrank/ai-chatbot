@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
+import { toast } from 'sonner';
 
 export default function InboxDashboard() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -212,9 +213,16 @@ export default function InboxDashboard() {
 
   const toggleAgentStatus = async () => {
     const newVal = !agentsOnline;
-    setAgentsOnline(newVal);
+    setAgentsOnline(newVal); // Optimistic update UI immediately
     if (spaceId) {
-      await supabase.from('bot_config').update({ agents_online: newVal }).eq('space_id', spaceId);
+      const { error } = await supabase.from('bot_config').update({ agents_online: newVal }).eq('space_id', spaceId);
+      if (error) {
+        console.error("Failed to update status:", error);
+        toast.error("Failed to save status. Check permissions.");
+        setAgentsOnline(!newVal); // Revert on fail
+      } else {
+        toast.success(`Agents are now ${newVal ? 'Online' : 'Offline'}`);
+      }
     }
   };
 
@@ -224,14 +232,20 @@ export default function InboxDashboard() {
       const newArr = [...cannedResponses, val];
       setCannedResponses(newArr);
       setNewCannedInput('');
-      if (spaceId) await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
+      if (spaceId) {
+        const { error } = await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
+        if (error) toast.error("Failed to save canned response.");
+      }
     }
   };
 
   const handleRemoveCanned = async (text: string) => {
     const newArr = cannedResponses.filter(c => c !== text);
     setCannedResponses(newArr);
-    if (spaceId) await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
+    if (spaceId) {
+      const { error } = await supabase.from('bot_config').update({ canned_responses: newArr }).eq('space_id', spaceId);
+      if (error) toast.error("Failed to remove canned response.");
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
