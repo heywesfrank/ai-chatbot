@@ -64,10 +64,10 @@ function ImageUpload({ label, url, onUpload, disabled, onRemove }: any) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start sm:items-center justify-between gap-2">
         <label className="block text-xs font-medium text-gray-700">{label}</label>
         {url && onRemove && (
-          <button onClick={onRemove} disabled={disabled} className="text-[10px] text-red-500 hover:underline">Remove</button>
+          <button onClick={onRemove} disabled={disabled} className="text-[10px] text-red-500 hover:underline shrink-0">Remove</button>
         )}
       </div>
       {url ? (
@@ -135,30 +135,30 @@ function SortableBlockItem({ block, updateBlock, removeBlock, isOwner }: any) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`flex flex-col p-4 bg-white border border-gray-200 rounded-lg relative group ${isDragging ? 'opacity-50' : ''}`}>
+    <div ref={setNodeRef} style={style} className={`flex flex-col p-3 sm:p-4 bg-white border border-gray-200 rounded-lg relative group ${isDragging ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-2">
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 outline-none p-1 -ml-1">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 outline-none p-1 -ml-1 shrink-0">
           <GripVerticalIcon className="w-5 h-5" />
         </div>
         
-        <button onClick={() => setIsExpanded(!isExpanded)} className="flex-1 text-left font-medium text-sm text-gray-700 hover:text-black transition-colors flex items-center gap-2 outline-none">
-          <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-          {block.title || 'Untitled Block'}
+        <button onClick={() => setIsExpanded(!isExpanded)} className="flex-1 text-left font-medium text-sm text-gray-700 hover:text-black transition-colors flex items-center gap-2 outline-none break-words min-w-0">
+          <ChevronDownIcon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+          <span className="truncate">{block.title || 'Untitled Block'}</span>
         </button>
         
         {isOwner && (
-          <button onClick={() => removeBlock(block.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors outline-none" title="Delete block">
+          <button onClick={() => removeBlock(block.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors outline-none shrink-0" title="Delete block">
             <ClearIcon className="w-4 h-4" />
           </button>
         )}
       </div>
       
       {isExpanded && (
-        <div className="flex flex-col gap-4 mt-4 pl-8 pr-2 pb-2 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-gray-100 pt-4">
+        <div className="flex flex-col gap-4 mt-3 sm:mt-4 pl-4 sm:pl-8 pr-1 sm:pr-2 pb-2 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-gray-100 pt-3 sm:pt-4">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Landscape Image</label>
             {block.imageUrl ? (
-              <div className="relative w-full max-w-sm aspect-[16/9] rounded-md border border-gray-200 bg-white p-4">
+              <div className="relative w-full max-w-sm aspect-[16/9] rounded-md border border-gray-200 bg-white p-3 sm:p-4">
                 <div className="relative w-full h-full group/img">
                   <img src={block.imageUrl} alt="preview" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
@@ -276,24 +276,24 @@ export default function WidgetPagesConfig() {
   };
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in duration-300">
-      <div className="mb-8">
+    <div className="p-4 sm:p-8 pb-20 animate-in fade-in duration-300">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Widget Pages & Layout</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Customize the multi-page experience including Home, Messages, and Help tabs.</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         
         {/* Core Tabs Toggle */}
-        <section className="bg-white border border-gray-200 p-6 rounded-md">
-          <div className="flex items-center justify-between">
-            <div className="pr-4">
+        <section className="bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
+          <div className="flex items-start sm:items-center justify-between gap-4">
+            <div className="pr-0 sm:pr-4">
               <label className="block text-sm font-semibold text-gray-900">Enable Tabbed Layout</label>
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
                 Transforms your widget into a full-featured application with a bottom navigation bar.
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1 sm:mt-0">
               <input 
                 type="checkbox" 
                 className="sr-only peer"
@@ -309,13 +309,13 @@ export default function WidgetPagesConfig() {
         {config.tabsEnabled && (
           <>
             {/* Header / Top Settings */}
-            <section className="bg-white border border-gray-200 p-6 rounded-md space-y-6">
+            <section className="bg-white border border-gray-200 p-4 sm:p-6 rounded-md space-y-6">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-1">Header & Greeting</h2>
                 <p className="text-[11px] text-gray-500">Design the top banner displayed when users open the widget.</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 pt-4 border-t border-gray-100">
                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Greeting Title</label>
                    <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors mb-4" value={config.greetingTitle || ''} disabled={!isOwner} onChange={(e) => updateConfig('greetingTitle', e.target.value)} placeholder="e.g. Hello there." />
@@ -328,20 +328,20 @@ export default function WidgetPagesConfig() {
                  </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 pt-6 border-t border-gray-100">
                  <ImageUpload label="Company Logo (Optional)" url={homeConfig.logoUrl} onUpload={(url: string) => updateHomeConfig({ logoUrl: url })} onRemove={() => updateHomeConfig({ logoUrl: '' })} disabled={!isOwner} />
                  <ImageUpload label="Header Background Image (Optional)" url={homeConfig.bgUrl} onUpload={(url: string) => updateHomeConfig({ bgUrl: url })} onRemove={() => updateHomeConfig({ bgUrl: '' })} disabled={!isOwner} />
               </div>
             </section>
 
             {/* Home Tab Builder */}
-            <section className="bg-white border border-gray-200 p-6 rounded-md">
-              <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-4">
+            <section className="bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
+              <div className="flex items-start sm:items-center justify-between gap-4 mb-4 border-b border-gray-100 pb-4">
                 <div>
                   <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Home Tab Blocks</h2>
                   <p className="text-[11px] text-gray-500 mt-0.5">Build a customizable landing page with images and links.</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1 sm:mt-0">
                   <input 
                     type="checkbox" 
                     className="sr-only peer"
@@ -354,7 +354,7 @@ export default function WidgetPagesConfig() {
               </div>
 
               {config.homeTabEnabled && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col gap-4">
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 flex flex-col gap-4">
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={homeConfig.blocks.map((b: any) => b.id)} strategy={verticalListSortingStrategy}>
                       {homeConfig.blocks.map((block: any) => (
@@ -372,9 +372,9 @@ export default function WidgetPagesConfig() {
                   <button
                     onClick={addBlock}
                     disabled={!isOwner}
-                    className="w-full py-3.5 bg-white border border-dashed border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full py-3 sm:py-3.5 bg-white border border-dashed border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <PlusIcon className="w-4 h-4" />
+                    <PlusIcon className="w-4 h-4 shrink-0" />
                     Add Content Block
                   </button>
                 </div>
@@ -382,7 +382,7 @@ export default function WidgetPagesConfig() {
             </section>
 
             {/* Help Center Settings */}
-            <section className="bg-white border border-gray-200 p-6 rounded-md">
+            <section className="bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
               <h2 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">Help Center Tab</h2>
               <div className="pt-4 border-t border-gray-100">
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Search Input Placeholder</label>
