@@ -220,20 +220,14 @@ export default function InboxDashboard() {
     const newVal = !agentsOnline;
     setAgentsOnline(newVal); // Optimistic UI update
     
-    // Explicitly select() to ensure the row was actually updated and not blocked by Row Level Security
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('bot_config')
       .update({ agents_online: newVal })
-      .eq('space_id', spaceId)
-      .select()
-      .maybeSingle();
+      .eq('space_id', spaceId);
 
     if (error) {
       console.error("Failed to update status:", error);
       toast.error(`Failed to save status: ${error.message}`);
-      setAgentsOnline(!newVal); // Revert
-    } else if (!data) {
-      toast.error("Failed to save status. You may not have Owner permissions to modify the config.");
       setAgentsOnline(!newVal); // Revert
     } else {
       toast.success(`Agents are now ${newVal ? 'Online' : 'Offline'}`);
@@ -244,39 +238,39 @@ export default function InboxDashboard() {
     const val = newCannedInput.trim();
     if (!val || cannedResponses.includes(val) || !spaceId) return;
 
+    const previousArr = [...cannedResponses];
     const newArr = [...cannedResponses, val];
+    
     setCannedResponses(newArr);
     setNewCannedInput('');
     
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('bot_config')
       .update({ canned_responses: newArr })
-      .eq('space_id', spaceId)
-      .select()
-      .maybeSingle();
+      .eq('space_id', spaceId);
 
-    if (error || !data) {
-      toast.error("Failed to save canned response. Check permissions.");
-      setCannedResponses(cannedResponses); // Revert
+    if (error) {
+      toast.error("Failed to save canned response.");
+      setCannedResponses(previousArr); // Revert
     }
   };
 
   const handleRemoveCanned = async (text: string) => {
     if (!spaceId) return;
     
+    const previousArr = [...cannedResponses];
     const newArr = cannedResponses.filter(c => c !== text);
+    
     setCannedResponses(newArr);
     
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('bot_config')
       .update({ canned_responses: newArr })
-      .eq('space_id', spaceId)
-      .select()
-      .maybeSingle();
+      .eq('space_id', spaceId);
 
-    if (error || !data) {
-      toast.error("Failed to remove canned response. Check permissions.");
-      setCannedResponses(cannedResponses); // Revert
+    if (error) {
+      toast.error("Failed to remove canned response.");
+      setCannedResponses(previousArr); // Revert
     }
   };
 
