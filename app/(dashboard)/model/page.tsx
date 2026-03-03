@@ -6,13 +6,13 @@ export default function ModelPage() {
   const { config, updateConfig, isOwner } = useBotConfig();
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in duration-300">
-      <div className="mb-8">
+    <div className="p-4 sm:p-8 pb-20 animate-in fade-in duration-300">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">AI Model Settings</h1>
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Fine-tune the intelligence, strictness, and verbosity of your AI agent.</p>
       </div>
 
-      <div className="space-y-8 bg-white border border-gray-200 p-6 rounded-md">
+      <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
         
         <section>
           <div className="flex justify-between mb-2">
@@ -23,7 +23,7 @@ export default function ModelPage() {
           <p className="text-[11px] text-gray-500 mt-2 font-medium">Controls how strictly the AI matches user queries to your knowledge base. Lower values pull more documents (broader), higher values pull fewer (stricter).</p>
         </section>
 
-        <section className="border-t border-gray-100 pt-8">
+        <section className="border-t border-gray-100 pt-6 sm:pt-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Reasoning Effort (GPT-5)</label>
           <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" value={config.reasoningEffort} disabled={!isOwner} onChange={(e) => updateConfig('reasoningEffort', e.target.value)}>
             <option value="low">Low (Faster)</option>
@@ -33,7 +33,7 @@ export default function ModelPage() {
           <p className="text-[11px] text-gray-500 mt-1.5 font-medium">Adjusts the cognitive effort the model spends before answering complex user queries.</p>
         </section>
 
-        <section className="border-t border-gray-100 pt-8">
+        <section className="border-t border-gray-100 pt-6 sm:pt-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Verbosity</label>
           <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" value={config.verbosity} disabled={!isOwner} onChange={(e) => updateConfig('verbosity', e.target.value)}>
             <option value="low">Low (Concise)</option>
