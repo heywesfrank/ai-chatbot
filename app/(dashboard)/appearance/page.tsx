@@ -10,7 +10,7 @@ function ColorPicker({ label, value, onChange, disabled }: { label: string, valu
     <section>
       <label className="block text-sm font-semibold text-gray-900 mb-2">{label}</label>
       <div className="flex items-center gap-3">
-        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer shadow-sm">
+        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
           <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
         </div>
         <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
@@ -61,7 +61,7 @@ export default function AppearancePage() {
         <p className="text-sm text-gray-500 mt-1 leading-relaxed">Customize the look and feel of your chatbot widget to match your brand.</p>
       </div>
 
-      <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md shadow-sm">
+      <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
 
         {/* Brand & Widget Colors */}
         <div>
@@ -154,22 +154,6 @@ export default function AppearancePage() {
             </select>
           </section>
         </div>
-
-        <section className="pt-4 sm:pt-6 border-t border-gray-100 mt-4 sm:mt-6 relative">
-          <div className="flex items-start sm:items-center justify-between gap-4 opacity-50 grayscale select-none cursor-not-allowed">
-            <div>
-              <div className="flex items-center gap-2">
-                <label className="block text-sm font-semibold text-gray-900">Remove Branding</label>
-                <span className="bg-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide">Pro</span>
-              </div>
-              <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Hide the "Powered by Apoyo" watermark at the bottom of the widget.</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-not-allowed shrink-0">
-              <input type="checkbox" className="sr-only peer" disabled={true} checked={false} />
-              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
-            </label>
-          </div>
-        </section>
 
       </div>
     </div>
