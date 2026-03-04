@@ -64,6 +64,16 @@ export async function POST(req: Request) {
     const { id, spaceId, title, content, category, slug, seo_title, seo_description, status, tags, relatedArticles } = await req.json();
     if (!spaceId || !title || !content) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
+    // Enforce Ownership Verification (IDOR Fix)
+    let hasAccess = false;
+    const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+    if (config?.space_id === spaceId) hasAccess = true;
+    else if (user.email) {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+      if (member?.space_id === spaceId) hasAccess = true;
+    }
+    if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const payload = { 
       space_id: spaceId, 
       title, 
@@ -81,13 +91,13 @@ export async function POST(req: Request) {
     let articleRes;
     
     if (id) {
-      const { data: existing } = await supabase.from('help_center_articles').select('slug').eq('id', id).maybeSingle();
+      const { data: existing } = await supabase.from('help_center_articles').select('slug').eq('id', id).eq('space_id', spaceId).maybeSingle();
       if (existing) {
         const oldUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.heyapoyo.com'}/help/${spaceId}/${existing.slug || id}`;
-        await supabase.from('knowledge_documents').delete().eq('page_url', oldUrl);
+        await supabase.from('knowledge_documents').delete().eq('page_url', oldUrl).eq('space_id', spaceId);
       }
       
-      articleRes = await supabase.from('help_center_articles').update(payload).eq('id', id).select().single();
+      articleRes = await supabase.from('help_center_articles').update(payload).eq('id', id).eq('space_id', spaceId).select().single();
     } else {
       articleRes = await supabase.from('help_center_articles').insert(payload).select().single();
     }
@@ -97,7 +107,7 @@ export async function POST(req: Request) {
 
     const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article.slug || article.id}`;
     
-    await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
+    await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl).eq('space_id', spaceId);
 
     if (article.status === 'published') {
       const fullText = `Title: ${article.title}\nCategory: ${article.category}\n\n${article.content}`;
@@ -138,11 +148,23 @@ export async function DELETE(req: Request) {
     const spaceId = url.searchParams.get('spaceId');
     if (!id || !spaceId) return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
 
-    const { data: article } = await supabase.from('help_center_articles').select('slug').eq('id', id).single();
+    // Enforce Ownership Verification (IDOR Fix)
+    let hasAccess = false;
+    const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+    if (config?.space_id === spaceId) hasAccess = true;
+    else if (user.email) {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+      if (member?.space_id === spaceId) hasAccess = true;
+    }
+    if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const { data: article } = await supabase.from('help_center_articles').select('slug').eq('id', id).eq('space_id', spaceId).maybeSingle();
+    if (!article) return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404 });
+
     const articleUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://heyapoyo.com'}/help/${spaceId}/${article?.slug || id}`;
 
-    await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl);
-    await supabase.from('help_center_articles').delete().eq('id', id);
+    await supabase.from('knowledge_documents').delete().eq('page_url', articleUrl).eq('space_id', spaceId);
+    await supabase.from('help_center_articles').delete().eq('id', id).eq('space_id', spaceId);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
