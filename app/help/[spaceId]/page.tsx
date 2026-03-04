@@ -50,16 +50,16 @@ export default async function HelpCenterIndex({ params, searchParams }: { params
     <div className="bg-[#FAFAFA] min-h-screen text-gray-900 font-sans">
       <HelpCenterHero config={config} spaceId={params.spaceId} searchQuery={searchQuery} />
 
-      <main className="max-w-5xl mx-auto w-full px-6 py-12">
+      <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
         {searchQuery ? (
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-6">Search results for "{searchQuery}"</h2>
             {searchResults.length === 0 ? (
               <p className="text-gray-500 text-sm">No articles found matching your query.</p>
             ) : (
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 {searchResults.map(article => (
-                  <Link key={article.id} href={`/help/${params.spaceId}/${article.slug || article.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-gray-100 hover:bg-gray-50 transition-colors group last:border-0 gap-4">
+                  <Link key={article.id} href={`/help/${params.spaceId}/${article.slug || article.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 hover:bg-gray-50 transition-colors group last:border-0 gap-4">
                     <div className="flex flex-col">
                       <span className="text-[17px] font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-1">{article.title}</span>
                       <span className="text-[15px] text-gray-500 line-clamp-1">{article.content.replace(/<[^>]*>?/gm, '').substring(0, 150)}...</span>
@@ -77,9 +77,9 @@ export default async function HelpCenterIndex({ params, searchParams }: { params
                 No articles have been published yet.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {categories.map(category => (
-                  <Link key={category} href={`/help/${params.spaceId}/category/${encodeURIComponent(category)}`} className="flex items-start gap-4 p-6 border border-gray-200 rounded-2xl bg-white hover:border-gray-300 hover:shadow-md transition-all group">
+                  <Link key={category} href={`/help/${params.spaceId}/category/${encodeURIComponent(category)}`} className="flex items-start gap-4 p-4 sm:p-6 border border-gray-200 rounded-2xl bg-white hover:border-gray-300 transition-all group">
                     <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100 group-hover:bg-white transition-colors text-gray-500 group-hover:text-gray-900">
                       <svg className="w-6 h-6 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
