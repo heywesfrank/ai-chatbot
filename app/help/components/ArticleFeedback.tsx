@@ -35,8 +35,8 @@ export default function ArticleFeedback({ articleId }: { articleId: string }) {
   };
 
   return (
-    <div className="mt-16 p-8 bg-[#F9FAFB] rounded-xl flex flex-col items-center justify-center transition-all border border-gray-100/50">
-      <span className="text-[15px] font-medium text-gray-700 mb-5">Did this answer your question?</span>
+    <div className="mt-10 sm:mt-16 p-6 sm:p-8 bg-[#F9FAFB] rounded-xl flex flex-col items-center justify-center transition-all border border-gray-100/50">
+      <span className="text-[15px] font-medium text-gray-700 mb-5 text-center">Did this answer your question?</span>
       
       {status === 'submitted' ? (
         <div className="flex items-center gap-2 text-sm text-green-600 font-medium animate-in fade-in zoom-in duration-300">
