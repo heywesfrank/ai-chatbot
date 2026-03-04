@@ -125,13 +125,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Space ID, Type, and Data Source ID are required.' }, { status: 400 });
     }
 
+    // Enforce Ownership Verification (IDOR Fix)
+    let hasAccess = false;
+    const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+    if (config?.space_id === spaceId) hasAccess = true;
+    else if (user.email) {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+      if (member?.space_id === spaceId) hasAccess = true;
+    }
+    if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     // Set status to syncing explicitly (in case it wasn't already)
-    await supabase.from('data_sources').update({ status: 'syncing' }).eq('id', dataSourceId);
+    await supabase.from('data_sources').update({ status: 'syncing' }).eq('id', dataSourceId).eq('space_id', spaceId);
 
     console.log(`[INGEST] Starting ingestion for Space ID: ${spaceId} | Type: ${type} | Source ID: ${dataSourceId}`);
     
     // --- 0. CLEANUP EXISTING DATA ---
-    await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceId);
+    await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceId).eq('space_id', spaceId);
 
     let extractedParagraphs: { content: string, url: string }[] = [];
 
@@ -171,7 +181,7 @@ export async function POST(req: Request) {
       let pageIds: string[] = body.pageId ? [body.pageId] : [];
 
       if (!notionToken && dataSourceId) {
-         const { data: ds } = await supabase.from('data_sources').select('credentials').eq('id', dataSourceId).single();
+         const { data: ds } = await supabase.from('data_sources').select('credentials').eq('id', dataSourceId).eq('space_id', spaceId).single();
          if (ds?.credentials?.access_token) {
             notionToken = ds.credentials.access_token;
          }
@@ -380,7 +390,7 @@ export async function POST(req: Request) {
     }
 
     // --- 7. SUCCESS: UPDATE STATUS TO 'active' ---
-    await supabase.from('data_sources').update({ status: 'active' }).eq('id', dataSourceId);
+    await supabase.from('data_sources').update({ status: 'active' }).eq('id', dataSourceId).eq('space_id', spaceId);
 
     console.log(`[INGEST] Ingestion fully completed successfully.`);
     return NextResponse.json({ success: true, count: allDocumentsToInsert.length });
@@ -390,8 +400,11 @@ export async function POST(req: Request) {
     
     // --- ERROR: ROLLBACK DATA SOURCE ---
     if (dataSourceIdRef) {
-      await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceIdRef);
-      await supabase.from('data_sources').delete().eq('id', dataSourceIdRef);
+      const body = await req.json().catch(() => ({}));
+      if (body.spaceId) {
+        await supabase.from('knowledge_documents').delete().eq('data_source_id', dataSourceIdRef).eq('space_id', body.spaceId);
+        await supabase.from('data_sources').delete().eq('id', dataSourceIdRef).eq('space_id', body.spaceId);
+      }
     }
 
     return NextResponse.json({ error: error.message || 'Unknown internal server error' }, { status: 500 });
