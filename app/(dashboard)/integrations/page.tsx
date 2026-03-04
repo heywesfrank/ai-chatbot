@@ -55,40 +55,40 @@ export default function IntegrationsPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
-      <div className="max-w-[1200px] mx-auto w-full p-8 pb-20">
-        <div className="mb-8">
+      <div className="max-w-[1200px] mx-auto w-full p-4 sm:p-8 pb-20">
+        <div className="mb-6 sm:mb-8">
           <h1 className="text-xl font-medium mb-1 tracking-tight">Integrations</h1>
           <p className="text-gray-500 text-sm leading-relaxed">Connect third-party services to your workspace.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Slack Card */}
-          <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm flex flex-col justify-between">
+          <div className="bg-white border border-gray-200 rounded-sm p-4 sm:p-6 flex flex-col justify-between">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 mb-1">Slack</h2>
-              <p className="text-xs text-gray-500 mb-6 leading-relaxed">Route user tickets directly to a Slack channel and reply to them from within Slack.</p>
+              <p className="text-xs text-gray-500 mb-4 sm:mb-6 leading-relaxed">Route user tickets directly to a Slack channel and reply to them from within Slack.</p>
             </div>
             {slackConfig ? (
-              <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-md">
+              <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-md mt-2">
                 <span className="text-sm font-medium text-green-800">Connected</span>
                 <button onClick={handleDisconnectSlack} className="text-xs text-red-600 font-medium hover:text-red-800 transition-colors">Disconnect</button>
               </div>
             ) : (
-              <a href={`https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,incoming-webhook,channels:history,groups:history&state=${activeSpaceId}`} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 transition-colors shadow-sm">
+              <a href={`https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,incoming-webhook,channels:history,groups:history&state=${activeSpaceId}`} className="mt-2 inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 transition-colors">
                  Connect Slack
               </a>
             )}
           </div>
 
           {/* Webhook Card */}
-          <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm flex flex-col justify-between">
+          <div className="bg-white border border-gray-200 rounded-sm p-4 sm:p-6 flex flex-col justify-between">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 mb-1">Lead Capture Webhook</h2>
-              <p className="text-xs text-gray-500 mb-6 leading-relaxed">Send captured leads directly to Zapier, Make.com, or your own CRM.</p>
+              <p className="text-xs text-gray-500 mb-4 sm:mb-6 leading-relaxed">Send captured leads directly to Zapier, Make.com, or your own CRM.</p>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 mt-2">
               <input type="url" placeholder="https://hooks.zapier.com/..." className="w-full p-2.5 border border-gray-200 rounded-sm text-sm outline-none focus:border-black transition-colors" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} />
-              <button onClick={handleSaveWebhook} disabled={!webhookUrl} className="self-end px-5 py-2.5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 disabled:opacity-50 transition-colors shadow-sm">Save Webhook</button>
+              <button onClick={handleSaveWebhook} disabled={!webhookUrl} className="w-full sm:w-auto sm:self-end px-5 py-2.5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 disabled:opacity-50 transition-colors">Save Webhook</button>
             </div>
           </div>
         </div>
