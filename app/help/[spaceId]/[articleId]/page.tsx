@@ -124,9 +124,9 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
     <div className="bg-[#FAFAFA] min-h-screen text-gray-900 font-sans">
       <HelpCenterHero config={config} spaceId={params.spaceId} />
 
-      <main className="max-w-[1100px] mx-auto w-full px-6 py-12 flex flex-col lg:flex-row gap-16 items-start">
-        <article className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 whitespace-nowrap overflow-x-auto pb-1">
+      <main className="max-w-[1100px] mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
+        <article className="flex-1 min-w-0 w-full">
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6 sm:mb-8 whitespace-nowrap overflow-x-auto pb-1">
             <Link href={`/help/${params.spaceId}`} className="hover:text-gray-900 transition-colors">All Collections</Link>
             <span>›</span>
             <Link href={`/help/${params.spaceId}/category/${encodeURIComponent(article.category || 'General')}`} className="hover:text-gray-900 transition-colors">{article.category || 'General'}</Link>
@@ -156,7 +156,7 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
              </div>
           </div>
 
-          <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:scroll-mt-24 prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-2xl prose-img:shadow-sm leading-relaxed text-[16px] text-gray-700">
+          <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:scroll-mt-24 prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-2xl leading-relaxed text-[16px] text-gray-700">
             <ReactMarkdown 
               rehypePlugins={[rehypeRaw]}
               components={{
@@ -182,14 +182,14 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
           <ArticleFeedback articleId={article.id} />
 
           {relatedDocs.length > 0 && (
-            <div className="mt-16 pt-8 border-t border-gray-100">
+            <div className="mt-12 sm:mt-16 pt-8 border-t border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 mb-5">Related Articles</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {relatedDocs.map((doc: any) => (
                   <Link 
                     key={doc.id} 
                     href={`/help/${params.spaceId}/${doc.slug || doc.id}`} 
-                    className="block p-5 border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all bg-white group"
+                    className="block p-4 sm:p-5 border border-gray-200 rounded-xl hover:border-gray-300 transition-all bg-white group"
                   >
                     <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5">{doc.title}</h4>
                     <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
