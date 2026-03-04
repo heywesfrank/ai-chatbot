@@ -350,10 +350,10 @@ export default function InboxDashboard() {
             <h1 className="text-sm font-semibold tracking-tight text-gray-900">Agent Status</h1>
             <button 
               onClick={toggleAgentStatus}
-              className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none shadow-inner ${agentsOnline ? 'bg-green-500' : 'bg-gray-300'}`}
+              className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none ${agentsOnline ? 'bg-green-500' : 'bg-gray-300'}`}
               title={`Status: ${agentsOnline ? 'Online' : 'Offline'}`}
             >
-              <span className={`${agentsOnline ? 'translate-x-4' : 'translate-x-1'} inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform shadow-sm`} />
+              <span className={`${agentsOnline ? 'translate-x-4' : 'translate-x-1'} inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform`} />
             </button>
           </div>
           <p className="text-[11px] text-gray-500 leading-snug">Toggle whether agents are currently online to chat. When offline, users are routed to email.</p>
@@ -398,7 +398,7 @@ export default function InboxDashboard() {
               <div className="flex items-start">
                 <button 
                   onClick={() => setActiveSession(null)} 
-                  className="md:hidden mr-3 p-1.5 text-gray-500 hover:text-gray-900 transition-colors bg-white border border-gray-200 rounded-md shadow-sm"
+                  className="md:hidden mr-3 p-1.5 text-gray-500 hover:text-gray-900 transition-colors bg-white border border-gray-200 rounded-md"
                   aria-label="Back to inbox"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -410,7 +410,7 @@ export default function InboxDashboard() {
                     {activeSession.status === 'open' ? 'Requires Attention' : 'Resolved'}
                   </p>
                   {activeSession.metadata && Object.keys(activeSession.metadata).length > 0 && (
-                    <div className="flex flex-wrap gap-4 text-[11px] text-gray-500 bg-white p-2.5 rounded-sm border border-gray-200 shadow-sm mt-1">
+                    <div className="flex flex-wrap gap-4 text-[11px] text-gray-500 bg-white p-2.5 rounded-sm border border-gray-200 mt-1">
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                         {activeSession.metadata.browser} / {activeSession.metadata.os}
@@ -430,7 +430,7 @@ export default function InboxDashboard() {
               {activeSession.status === 'open' && (
                 <button 
                   onClick={handleResolve}
-                  className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition-colors shadow-sm shrink-0"
+                  className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition-colors shrink-0"
                 >
                   Mark as Resolved
                 </button>
@@ -454,7 +454,7 @@ export default function InboxDashboard() {
               <div className="space-y-4">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col max-w-[85%] sm:max-w-[80%] ${msg.role === 'agent' || msg.role === 'note' ? 'self-end items-end' : 'self-start items-start'}`}>
-                    <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words shadow-sm ${msg.role === 'agent' ? 'bg-black text-white' : msg.role === 'note' ? 'bg-gray-50 text-gray-800 border border-dashed border-gray-300' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                    <div className={`px-4 py-2.5 rounded-sm text-[13px] leading-relaxed break-words ${msg.role === 'agent' ? 'bg-black text-white' : msg.role === 'note' ? 'bg-gray-50 text-gray-800 border border-dashed border-gray-300' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                       {msg.role === 'note' && <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Internal Note</span>}
                       {msg.content}
                     </div>
@@ -525,7 +525,7 @@ export default function InboxDashboard() {
 
               {/* Agent Co-Pilot Draft UI Box */}
               {(suggestedReply || isGeneratingDraft) && activeSession.status === 'open' && (
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-sm text-xs text-gray-900 relative shadow-sm animate-in fade-in zoom-in-95 duration-200 mb-1">
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-sm text-xs text-gray-900 relative animate-in fade-in zoom-in-95 duration-200 mb-1">
                   <div className="flex justify-between items-center mb-1.5 border-b border-gray-200 pb-1.5">
                      <span className="font-semibold flex items-center gap-1.5 text-gray-700">
                        <SparklesIcon className="w-3.5 h-3.5" />
@@ -533,7 +533,7 @@ export default function InboxDashboard() {
                      </span>
                      <div className="flex items-center gap-3">
                        {suggestedReply && !isGeneratingDraft && (
-                         <button onClick={() => { setInput(suggestedReply); setSuggestedReply(''); }} className="text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:text-black bg-white px-2 py-1 rounded border border-gray-200 shadow-sm transition-colors focus:outline-none">
+                         <button onClick={() => { setInput(suggestedReply); setSuggestedReply(''); }} className="text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:text-black bg-white px-2 py-1 rounded border border-gray-200 transition-colors focus:outline-none">
                            Use Draft
                          </button>
                        )}
@@ -558,7 +558,7 @@ export default function InboxDashboard() {
                     type="button"
                     onClick={() => setIsCannedMenuOpen(!isCannedMenuOpen)}
                     disabled={activeSession.status === 'closed'}
-                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none flex items-center justify-center shrink-0"
+                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed outline-none flex items-center justify-center shrink-0"
                     title="Quick Replies"
                   >
                     <ZapIcon className="w-4 h-4" />
@@ -568,7 +568,7 @@ export default function InboxDashboard() {
                     type="button"
                     onClick={(e) => { e.preventDefault(); handleGenerateDraft(messages); }}
                     disabled={isGeneratingDraft || messages.length === 0 || activeSession.status === 'closed'}
-                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 hover:border-gray-400 focus:border-black focus:ring-1 focus:ring-black transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none flex items-center justify-center shrink-0"
+                    className="px-3 py-2.5 bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 hover:border-gray-400 focus:border-black focus:ring-1 focus:ring-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed outline-none flex items-center justify-center shrink-0"
                     title="Generate AI Draft"
                   >
                     <SparklesIcon className="w-4 h-4" />
@@ -577,7 +577,7 @@ export default function InboxDashboard() {
                   <input 
                     type="text" 
                     placeholder={activeSession.status === 'open' ? (isNote ? "Type an internal note..." : "Type a message...") : "Ticket is resolved."}
-                    className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
+                    className="flex-1 p-2.5 border border-gray-300 rounded-sm focus:outline-none focus:border-black transition-colors text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     value={input}
                     onChange={handleInputChange}
                     disabled={activeSession.status === 'closed'}
@@ -585,7 +585,7 @@ export default function InboxDashboard() {
                   <button 
                     type="submit"
                     disabled={!input.trim() || activeSession.status === 'closed'}
-                    className={`px-5 py-2.5 text-sm font-medium rounded-sm disabled:opacity-50 transition-colors shadow-sm ${isNote ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-black text-white hover:bg-gray-900'}`}
+                    className={`px-5 py-2.5 text-sm font-medium rounded-sm disabled:opacity-50 transition-colors ${isNote ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-black text-white hover:bg-gray-900'}`}
                   >
                     {isNote ? 'Add Note' : 'Send'}
                   </button>
