@@ -134,22 +134,22 @@ export default function HelpCenterPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAFAFA] text-gray-900 font-sans overflow-y-auto">
-      <div className="max-w-[1200px] mx-auto w-full p-8 pb-20">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="max-w-[1200px] mx-auto w-full p-4 sm:p-8 pb-20">
+        <div className="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div>
             <h1 className="text-xl font-medium mb-1 tracking-tight">Help Center</h1>
             <p className="text-gray-500 text-sm leading-relaxed">Create and manage support articles. Published articles sync seamlessly to your AI agent.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsAppearanceOpen(!isAppearanceOpen)} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
+            <button onClick={() => setIsAppearanceOpen(!isAppearanceOpen)} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
               <PaletteIcon className="w-4 h-4" />
               Customize Appearance
             </button>
-            <a href={`/help/${activeSpaceId}`} target="_blank" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
+            <a href={`/help/${activeSpaceId}`} target="_blank" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
               <ExternalLinkIcon className="w-4 h-4" />
               View Portal
             </a>
-            <button onClick={() => openEditor()} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">
+            <button onClick={() => openEditor()} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors">
               <PlusIcon className="w-4 h-4" />
               New Article
             </button>
@@ -157,7 +157,7 @@ export default function HelpCenterPage() {
         </div>
 
         {isAppearanceOpen && (
-          <div className="bg-white border border-gray-200 p-6 rounded-md mb-6 shadow-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-gray-200 p-4 sm:p-6 rounded-md mb-6 shadow-sm animate-in fade-in duration-200">
             <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
                <h2 className="text-sm font-semibold text-gray-900">Help Center Appearance</h2>
                <button onClick={() => setIsAppearanceOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -193,7 +193,7 @@ export default function HelpCenterPage() {
                </div>
             </div>
             <div className="mt-6 flex justify-end">
-               <button onClick={saveConfig} disabled={!isOwner || isSaving || !hasUnsavedChanges} className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
+               <button onClick={saveConfig} disabled={!isOwner || isSaving || !hasUnsavedChanges} className="w-full sm:w-auto px-5 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50">
                  {isSaving ? 'Saving...' : 'Save Appearance'}
                </button>
             </div>
@@ -233,7 +233,7 @@ export default function HelpCenterPage() {
 
         <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
           {articles.length === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="p-8 sm:p-12 text-center flex flex-col items-center justify-center">
               <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 mb-4">
                 <FileTextIcon className="w-6 h-6 text-gray-400" />
               </div>
@@ -248,14 +248,14 @@ export default function HelpCenterPage() {
           ) : (
             <div className="divide-y divide-gray-100">
               {displayedArticles.map((article) => (
-                <div key={article.id} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => openEditor(article)}>
-                  <div className="flex items-center gap-4 min-w-0 pr-4">
+                <div key={article.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50/50 transition-colors group cursor-pointer gap-4 sm:gap-0" onClick={() => openEditor(article)}>
+                  <div className="flex items-start sm:items-center gap-4 min-w-0 pr-0 sm:pr-4">
                     <div className="w-10 h-10 rounded-md bg-indigo-50/50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
                       <FileTextIcon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex flex-col justify-center">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-sm font-semibold text-gray-900 truncate">{article.title}</h4>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-900 truncate max-w-full">{article.title}</h4>
                         {article.status === 'draft' && (
                           <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wide shrink-0">Draft</span>
                         )}
@@ -275,8 +275,8 @@ export default function HelpCenterPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="hidden md:flex items-center gap-4 mr-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+                    <div className="flex items-center gap-4 sm:mr-2">
                       <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium" title="Views">
                         <EyeIcon className="w-3.5 h-3.5 text-gray-400" /> {article.views || 0}
                       </span>
@@ -288,12 +288,12 @@ export default function HelpCenterPage() {
                       </span>
                     </div>
                     <span className="w-px h-3 bg-gray-200 hidden md:block"></span>
-                    <span className="text-[11px] text-gray-400 font-medium hidden sm:block">
+                    <span className="text-[11px] text-gray-400 font-medium sm:block">
                       {new Date(article.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(article.id); }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100 outline-none"
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all opacity-100 sm:opacity-0 group-hover:opacity-100 outline-none ml-auto sm:ml-0"
                       title="Delete article"
                     >
                       <ClearIcon className="w-4 h-4" />
