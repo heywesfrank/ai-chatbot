@@ -8,7 +8,7 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
 
   return (
     <div 
-      className="relative border-b border-gray-200 bg-cover bg-center flex flex-col justify-between min-h-[280px]"
+      className="relative border-b border-gray-200 bg-cover bg-center flex flex-col justify-between min-h-[240px] sm:min-h-[280px]"
       style={{
         backgroundColor: bgImage ? 'transparent' : bgColor,
         backgroundImage: bgImage ? `url(${bgImage})` : 'none',
@@ -19,12 +19,12 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
       
       <div className="relative z-10 flex flex-col h-full flex-1">
         {/* Top Navigation / Logo Area - ONLY LOGO */}
-        <nav className="px-6 py-6 flex items-center">
+        <nav className="px-4 sm:px-6 py-4 sm:py-6 flex items-center">
           <Link href={`/help/${spaceId}`} className="flex items-center transition-opacity hover:opacity-80">
             {config?.bot_avatar ? (
               <img src={config.bot_avatar} alt={workspaceName} className="h-8 w-auto rounded-sm object-contain" />
             ) : (
-              <div className="w-9 h-9 rounded-md bg-white/20 flex items-center justify-center text-white font-bold text-lg shadow-sm border border-white/10">
+              <div className="w-9 h-9 rounded-md bg-white/20 flex items-center justify-center text-white font-bold text-lg border border-white/10">
                 {workspaceName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -35,7 +35,7 @@ export default function HelpCenterHero({ config, spaceId, searchQuery = '' }: { 
         <div className="flex-1" />
 
         {/* Search Area */}
-        <div className="max-w-2xl mx-auto w-full px-6 pb-10">
+        <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pb-8 sm:pb-10">
           <form action={`/help/${spaceId}`} method="GET" className="relative flex items-center">
             {/* Magnifying Glass Icon (z-10 ensures it stays on top of the input) */}
             <svg className="absolute left-4 w-5 h-5 text-gray-500 z-10 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
