@@ -32,6 +32,16 @@ export async function POST(req: Request) {
 
   const body = await req.json();
 
+  // Enforce Ownership Verification (IDOR Fix)
+  let hasAccess = false;
+  const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+  if (config?.space_id === body.spaceId) hasAccess = true;
+  else if (user.email) {
+    const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+    if (member?.space_id === body.spaceId) hasAccess = true;
+  }
+  if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   // Prevent Duplicate sources
   const { count } = await supabase
     .from('data_sources')
@@ -48,7 +58,7 @@ export async function POST(req: Request) {
     type: body.type,
     source_uri: body.sourceUri,
     credentials: body.credentials,
-    status: 'active' // <--- Added this to match the Notion workflow
+    status: 'active'
   }).select('id').single();
 
   if (error) {
@@ -68,11 +78,24 @@ export async function DELETE(req: Request) {
   const id = url.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  // 1. Manually delete chunks to be safe (if ON DELETE CASCADE isn't supported/enabled)
-  await supabase.from('knowledge_documents').delete().eq('data_source_id', id);
+  const { data: source } = await supabase.from('data_sources').select('space_id').eq('id', id).maybeSingle();
+  if (!source) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Enforce Ownership Verification (IDOR Fix)
+  let hasAccess = false;
+  const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+  if (config?.space_id === source.space_id) hasAccess = true;
+  else if (user.email) {
+    const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+    if (member?.space_id === source.space_id) hasAccess = true;
+  }
+  if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // 1. Manually delete chunks to be safe
+  await supabase.from('knowledge_documents').delete().eq('data_source_id', id).eq('space_id', source.space_id);
 
   // 2. Delete the actual source
-  const { error } = await supabase.from('data_sources').delete().eq('id', id);
+  const { error } = await supabase.from('data_sources').delete().eq('id', id).eq('space_id', source.space_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
