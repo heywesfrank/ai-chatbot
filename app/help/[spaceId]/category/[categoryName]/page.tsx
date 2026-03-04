@@ -39,15 +39,15 @@ export default async function CategoryPage({ params }: { params: { spaceId: stri
     <div className="bg-[#FAFAFA] min-h-screen text-gray-900 font-sans">
       <HelpCenterHero config={config} spaceId={params.spaceId} />
 
-      <main className="max-w-[850px] mx-auto w-full px-6 py-12">
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-10 whitespace-nowrap overflow-x-auto pb-1">
+      <main className="max-w-[850px] mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 sm:mb-10 whitespace-nowrap overflow-x-auto pb-1">
           <Link href={`/help/${params.spaceId}`} className="hover:text-gray-900 transition-colors">All Collections</Link>
           <span>›</span>
           <span className="text-gray-400 truncate">{decodedCategory}</span>
         </div>
 
-        <div className="flex items-center gap-5 mb-10">
-          <div className="w-16 h-16 rounded-2xl bg-gray-900 flex items-center justify-center shrink-0 shadow-sm text-white">
+        <div className="flex items-center gap-4 sm:gap-5 mb-8 sm:mb-10">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-900 flex items-center justify-center shrink-0 text-white">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
             </svg>
@@ -61,9 +61,9 @@ export default async function CategoryPage({ params }: { params: { spaceId: stri
         {articles.length === 0 ? (
            <p className="text-gray-500 text-sm">No articles in this collection.</p>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             {articles.map(article => (
-              <Link key={article.id} href={`/help/${params.spaceId}/${article.slug || article.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-gray-100 hover:bg-gray-50 transition-colors group last:border-0 gap-4">
+              <Link key={article.id} href={`/help/${params.spaceId}/${article.slug || article.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 border-b border-gray-100 hover:bg-gray-50 transition-colors group last:border-0 gap-4">
                 <div className="flex flex-col">
                   <span className="text-[17px] font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-1">{article.title}</span>
                   <span className="text-[15px] text-gray-500 line-clamp-1">{article.content.replace(/<[^>]*>?/gm, '').substring(0, 150)}...</span>
