@@ -120,10 +120,10 @@ export default function AuthPage() {
         {step === 'form' ? (
           <div className="animate-in fade-in zoom-in-95 duration-200">
             <div className="flex gap-3 mb-6">
-              <button type="button" onClick={() => handleOAuth('github')} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
+              <button type="button" onClick={() => handleOAuth('github')} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 <GithubIcon /> GitHub
               </button>
-              <button type="button" onClick={() => handleOAuth('discord')} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5865F2] border border-[#5865F2] rounded-lg text-sm font-medium text-white hover:bg-[#4752C4] transition-colors shadow-sm">
+              <button type="button" onClick={() => handleOAuth('discord')} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5865F2] border border-[#5865F2] rounded-lg text-sm font-medium text-white hover:bg-[#4752C4] transition-colors">
                 <DiscordIcon /> Discord
               </button>
             </div>
