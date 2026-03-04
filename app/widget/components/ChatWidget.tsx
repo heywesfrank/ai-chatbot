@@ -429,7 +429,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       <div className={`pointer-events-auto absolute flex flex-col bg-[var(--bg-primary)] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
         ${isMobile && !urlOverrides.preview
           ? 'inset-0 rounded-none border-none'
-          : `${isMobile ? 'bottom-[76px]' : 'bottom-[104px]'} ${isMobile ? 'w-[calc(100%-24px)]' : 'w-[calc(100%-48px)]'} max-w-[420px] ${isMobile ? 'h-[calc(100%-84px)]' : 'h-[calc(100%-120px)]'} max-h-[800px] rounded-2xl border border-[var(--border-strong)] shadow-[0_4px_24px_rgba(0,0,0,0.15)] ${isLeft ? (isMobile ? 'left-3 origin-bottom-left' : 'left-6 origin-bottom-left') : (isMobile ? 'right-3 origin-bottom-right' : 'right-6 origin-bottom-right')}`
+          : `${isMobile ? 'bottom-[96px]' : 'bottom-[104px]'} ${isMobile ? 'w-[calc(100%-32px)]' : 'w-[calc(100%-48px)]'} max-w-[420px] ${isMobile ? 'h-[calc(100%-112px)]' : 'h-[calc(100%-120px)]'} max-h-[750px] rounded-2xl border border-[var(--border-strong)] shadow-[0_4px_24px_rgba(0,0,0,0.15)] ${isLeft ? (isMobile ? 'left-4 origin-bottom-left' : 'left-6 origin-bottom-left') : (isMobile ? 'right-4 origin-bottom-right' : 'right-6 origin-bottom-right')}`
         }
         ${showChatWindow ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-8 pointer-events-none'}
       `}>
@@ -500,7 +500,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
       {/* Floating Launcher Button */}
       {(!isMobile || !showChatWindow || urlOverrides.preview) && (
-        <div className={`pointer-events-auto absolute ${isMobile ? 'bottom-2' : 'bottom-6'} ${isLeft ? (isMobile ? 'left-3' : 'left-6') : (isMobile ? 'right-3' : 'right-6')} w-16 h-16 z-30`}>
+        <div className={`pointer-events-auto absolute ${isMobile ? 'bottom-4' : 'bottom-6'} ${isLeft ? (isMobile ? 'left-4' : 'left-6') : (isMobile ? 'right-4' : 'right-6')} w-16 h-16 z-30`}>
           <button 
             onClick={() => { if(!urlOverrides.preview) { setIsOpen(!isOpen); setUnreadCount(0); } }}
             className={`w-full h-full rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 relative ${urlOverrides.preview ? 'cursor-default hover:scale-100 active:scale-100' : ''}`}
