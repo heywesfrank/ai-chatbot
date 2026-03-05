@@ -191,7 +191,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
       const res = await fetch('/api/help-center/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ action: 'seo', content: content.replace(/<[^>]*>?/gm, '').substring(0, 5000) })
+        body: JSON.stringify({ spaceId: activeSpaceId, action: 'seo', content: content.replace(/<[^>]*>?/gm, '').substring(0, 5000) })
       });
       const data = await res.json();
       if (res.ok && data.result) {
@@ -214,7 +214,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
       const res = await fetch('/api/help-center/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ action: 'tldr', content: content.replace(/<[^>]*>?/gm, '').substring(0, 5000) })
+        body: JSON.stringify({ spaceId: activeSpaceId, action: 'tldr', content: content.replace(/<[^>]*>?/gm, '').substring(0, 5000) })
       });
       const data = await res.json();
       if (res.ok && data.result) {
@@ -254,7 +254,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
       const res = await fetch('/api/help-center/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ action, selection: selectedText, tone })
+        body: JSON.stringify({ action, spaceId: activeSpaceId, selection: selectedText, tone })
       });
       const data = await res.json();
       if (res.ok && data.result) {
