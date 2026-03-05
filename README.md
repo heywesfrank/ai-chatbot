@@ -264,7 +264,7 @@ create policy "Allow public uploads" on storage.objects for insert with check ( 
 create policy "Allow public viewing" on storage.objects for select using ( bucket_id = 'chat_attachments' );
 
 
-***RLS POLICIES***
+**RLS POLICIES**
 [
   {
     "Table": "bot_config",
@@ -388,7 +388,7 @@ create policy "Allow public viewing" on storage.objects for select using ( bucke
   }
 ]
 
-***Storage Buckets***
+**Storage Buckets**
 [
   {
     "Bucket ID": "article_images",
