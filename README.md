@@ -294,33 +294,24 @@ insert into storage.buckets (id, name, public) values
 ('knowledge_files', 'knowledge_files', false)
 on conflict (id) do nothing;
 
-create policy "Allow public uploads" on storage.objects for insert with check ( bucket_id in ('chat_attachments', 'article_images', 'bot_avatars') );
+-- Only allow authenticated dashboard users to upload bot avatars and article images
+create policy "Auth Uploads" on storage.objects for insert to authenticated with check ( bucket_id in ('article_images', 'bot_avatars') );
+
+-- For chat_attachments (which public users need), restrict specific MIME types:
+create policy "Public Chat Uploads" on storage.objects for insert with check (
+  bucket_id = 'chat_attachments' AND 
+  (storage.extension(name) = 'png' OR storage.extension(name) = 'jpg' OR storage.extension(name) = 'pdf')
+);
+
 create policy "Allow public viewing" on storage.objects for select using ( bucket_id in ('chat_attachments', 'article_images', 'bot_avatars') );
 
 -- 5. Row Level Security (RLS) Policies
+-- Ensure RLS is enabled by default on all tables so anonymous queries are rejected
 alter table public.bot_config enable row level security;
-create policy "Allow authenticated read bot_config" on public.bot_config for select using (auth.role() = 'authenticated');
-create policy "Users can view their own config" on public.bot_config for select using (auth.uid() = user_id);
-
-alter table public.live_messages enable row level security;
-create policy "Allow public insert to live_messages" on public.live_messages for insert with check (true);
-create policy "Allow read live_messages" on public.live_messages for select using (auth.role() in ('anon', 'authenticated'));
-
-alter table public.live_sessions enable row level security;
-create policy "Allow public insert to live_sessions" on public.live_sessions for insert with check (true);
-create policy "Allow public select to live_sessions" on public.live_sessions for select using (true);
-create policy "Allow auth update to live_sessions" on public.live_sessions for update using (auth.role() = 'authenticated');
-
 alter table public.profiles enable row level security;
-create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
-create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
-create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
-
 alter table public.team_members enable row level security;
-create policy "Allow authenticated read team_members" on public.team_members for select using (auth.role() = 'authenticated');
-
--- Secure sensitive tables (Deny all public/anon access by default)
--- Next.js API routes use the Service Role Key to safely bypass these RLS policies.
+alter table public.live_messages enable row level security;
+alter table public.live_sessions enable row level security;
 alter table public.workspace_integrations enable row level security;
 alter table public.data_sources enable row level security;
 alter table public.leads enable row level security;
@@ -332,3 +323,18 @@ alter table public.faqs enable row level security;
 alter table public.proactive_triggers enable row level security;
 alter table public.chat_feedback enable row level security;
 alter table public.bot_messages enable row level security;
+
+-- Explicit Access Policies
+create policy "Allow authenticated read bot_config" on public.bot_config for select using (auth.role() = 'authenticated');
+create policy "Users can view their own config" on public.bot_config for select using (auth.uid() = user_id);
+
+create policy "Allow public insert to live_messages" on public.live_messages for insert with check (true);
+
+create policy "Allow public insert to live_sessions" on public.live_sessions for insert with check (true);
+create policy "Allow auth update to live_sessions" on public.live_sessions for update using (auth.role() = 'authenticated');
+
+create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
+create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
+create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
+
+create policy "Allow authenticated read team_members" on public.team_members for select using (auth.role() = 'authenticated');
