@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import DOMPurify from 'isomorphic-dompurify';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import ArticleFeedback from '../../components/ArticleFeedback';
@@ -165,7 +166,7 @@ export default async function ArticlePage({ params }: { params: { spaceId: strin
                 h3: ({ node, children, ...props }) => <h3 id={slugify(flattenText(children))} {...props}>{children}</h3>,
               }}
             >
-              {article.content}
+              {DOMPurify.sanitize(article.content)}
             </ReactMarkdown>
           </div>
           
