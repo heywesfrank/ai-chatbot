@@ -45,9 +45,12 @@ export default function GreetingHeader({
           {agentsOnline && teamMembers?.length > 0 && (
             <div className="flex flex-row-reverse -space-x-reverse -space-x-2">
               {teamMembers.slice(0, 3).map((m: any, i: number) => {
-                const initial = (m.name ? m.name.charAt(0) : m.email.charAt(0)).toUpperCase();
+                const initial = m.initial || (m.name ? m.name.charAt(0).toUpperCase() : 'A');
+                // Use the database ID to generate a consistent color hash, completely avoiding emails
+                const hashString = m.id || m.name || `agent-${i}`;
+                
                 return (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-[var(--bg-primary)] flex items-center justify-center text-[11px] font-bold text-white shadow-sm" style={{ backgroundColor: getAvatarColor(m.name || m.email), zIndex: i }}>
+                  <div key={i} className="w-8 h-8 rounded-full border-2 border-[var(--bg-primary)] flex items-center justify-center text-[11px] font-bold text-white shadow-sm" style={{ backgroundColor: getAvatarColor(hashString), zIndex: i }}>
                     {initial}
                   </div>
                 );
