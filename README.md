@@ -262,3 +262,161 @@ insert into storage.buckets (id, name, public) values ('chat_attachments', 'chat
 -- Allow public uploads to this bucket (for widget users)
 create policy "Allow public uploads" on storage.objects for insert with check ( bucket_id = 'chat_attachments' );
 create policy "Allow public viewing" on storage.objects for select using ( bucket_id = 'chat_attachments' );
+
+
+***RLS POLICIES***
+[
+  {
+    "Table": "bot_config",
+    "Policy Name": "Allow authenticated read bot_config",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "(auth.role() = 'authenticated'::text)",
+    "With Check Expression": null
+  },
+  {
+    "Table": "bot_config",
+    "Policy Name": "Allow dashboard users to read config",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "(auth.role() = 'authenticated'::text)",
+    "With Check Expression": null
+  },
+  {
+    "Table": "bot_config",
+    "Policy Name": "Users can view their own config",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "(auth.uid() = user_id)",
+    "With Check Expression": null
+  },
+  {
+    "Table": "live_messages",
+    "Policy Name": "Allow public insert to live_messages",
+    "Action": "INSERT",
+    "Roles": "{public}",
+    "Using Expression": null,
+    "With Check Expression": "true"
+  },
+  {
+    "Table": "live_messages",
+    "Policy Name": "Allow anonymous users to read live messages",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "((auth.role() = 'anon'::text) OR (auth.role() = 'authenticated'::text))",
+    "With Check Expression": null
+  },
+  {
+    "Table": "live_messages",
+    "Policy Name": "Allow public select to live_messages",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "true",
+    "With Check Expression": null
+  },
+  {
+    "Table": "live_messages",
+    "Policy Name": "Allow read live_messages",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "(auth.role() = ANY (ARRAY['anon'::text, 'authenticated'::text]))",
+    "With Check Expression": null
+  },
+  {
+    "Table": "live_sessions",
+    "Policy Name": "Allow public insert to live_sessions",
+    "Action": "INSERT",
+    "Roles": "{public}",
+    "Using Expression": null,
+    "With Check Expression": "true"
+  },
+  {
+    "Table": "live_sessions",
+    "Policy Name": "Allow authenticated read live_sessions",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "(auth.role() = 'authenticated'::text)",
+    "With Check Expression": null
+  },
+  {
+    "Table": "live_sessions",
+    "Policy Name": "Allow public select to live_sessions",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "true",
+    "With Check Expression": null
+  },
+  {
+    "Table": "live_sessions",
+    "Policy Name": "Allow auth update to live_sessions",
+    "Action": "UPDATE",
+    "Roles": "{public}",
+    "Using Expression": "(auth.role() = 'authenticated'::text)",
+    "With Check Expression": null
+  },
+  {
+    "Table": "profiles",
+    "Policy Name": "Users can insert their own profile.",
+    "Action": "INSERT",
+    "Roles": "{public}",
+    "Using Expression": null,
+    "With Check Expression": "(auth.uid() = id)"
+  },
+  {
+    "Table": "profiles",
+    "Policy Name": "Public profiles are viewable by everyone.",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "true",
+    "With Check Expression": null
+  },
+  {
+    "Table": "profiles",
+    "Policy Name": "Users can update own profile.",
+    "Action": "UPDATE",
+    "Roles": "{public}",
+    "Using Expression": "(auth.uid() = id)",
+    "With Check Expression": null
+  },
+  {
+    "Table": "team_members",
+    "Policy Name": "Allow authenticated read team_members",
+    "Action": "SELECT",
+    "Roles": "{public}",
+    "Using Expression": "(auth.role() = 'authenticated'::text)",
+    "With Check Expression": null
+  }
+]
+
+***Storage Buckets***
+[
+  {
+    "Bucket ID": "article_images",
+    "Bucket Name": "article_images",
+    "Is Public": true,
+    "Created At": "2026-02-27 16:17:59.552833+00",
+    "Updated At": "2026-02-27 16:17:59.552833+00"
+  },
+  {
+    "Bucket ID": "bot_avatars",
+    "Bucket Name": "bot_avatars",
+    "Is Public": true,
+    "Created At": "2026-02-25 06:37:15.234517+00",
+    "Updated At": "2026-02-25 06:37:15.234517+00"
+  },
+  {
+    "Bucket ID": "chat_attachments",
+    "Bucket Name": "chat_attachments",
+    "Is Public": true,
+    "Created At": "2026-02-23 02:02:52.544861+00",
+    "Updated At": "2026-02-23 02:02:52.544861+00"
+  },
+  {
+    "Bucket ID": "knowledge_files",
+    "Bucket Name": "knowledge_files",
+    "Is Public": false,
+    "Created At": "2026-02-23 14:39:57.885459+00",
+    "Updated At": "2026-02-23 14:39:57.885459+00"
+  }
+]
+
