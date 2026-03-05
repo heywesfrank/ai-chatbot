@@ -27,6 +27,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
+    // Authenticate and Authorize 'agent' or 'note' messages
+    if (role === 'agent' || role === 'note') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+
+      // Fetch the session to determine the associated space_id
+      const { data: sessionInfo, error: sessionInfoError } = await supabase
+        .from('live_sessions')
+        .select('space_id')
+        .eq('id', sessionId)
+        .single();
+        
+      if (sessionInfoError || !sessionInfo) {
+         return NextResponse.json({ error: 'Session not found' }, { status: 404, headers: corsHeaders });
+      }
+
+      const spaceId = sessionInfo.space_id;
+      let hasAccess = false;
+      
+      // Verify Ownership or Agent status
+      const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+      if (config?.space_id === spaceId) {
+         hasAccess = true;
+      } else if (user.email) {
+         const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+         if (member?.space_id === spaceId) hasAccess = true;
+      }
+      
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders });
+      }
+    }
+
     let sentimentScore = null;
     if (role === 'user') {
       sentimentScore = sentiment.analyze(content).score;
