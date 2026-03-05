@@ -84,18 +84,22 @@ export async function POST(req: Request) {
         .single();
         
       if (session && session.slack_thread_ts) {
-        const { data: config } = await supabase
-          .from('bot_config')
-          .select('slack_bot_token, slack_channel_id')
+        const { data: slackIntegration } = await supabase
+          .from('workspace_integrations')
+          .select('config')
           .eq('space_id', session.space_id)
-          .single();
+          .eq('provider', 'slack')
+          .maybeSingle();
           
-        if (config?.slack_bot_token) {
+        const slackToken = slackIntegration?.config?.slack_bot_token;
+        const channelId = slackIntegration?.config?.slack_channel_id;
+          
+        if (slackToken && channelId) {
           await fetch('https://slack.com/api/chat.postMessage', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.slack_bot_token}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${slackToken}` },
             body: JSON.stringify({
-              channel: config.slack_channel_id,
+              channel: channelId,
               text: role === 'note' ? `*_Internal Note:_*\n${content}` : content,
               thread_ts: session.slack_thread_ts
             })
