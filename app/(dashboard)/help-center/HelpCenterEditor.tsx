@@ -1,4 +1,3 @@
-// app/(dashboard)/help-center/HelpCenterEditor.tsx
 'use client';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabaseClient as supabase } from '@/lib/supabase-client';
@@ -7,6 +6,7 @@ import { ArrowLeftIcon, ExternalLinkIcon, ClearIcon, SparklesIcon } from '@/comp
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import DOMPurify from 'isomorphic-dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import 'react-quill/dist/quill.snow.css';
@@ -406,7 +406,7 @@ export default function HelpCenterEditor({ article, activeSpaceId, allCategories
               <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:rounded-xl leading-relaxed text-[15px] text-gray-700 min-h-[400px] p-6 border border-gray-100 rounded-lg bg-gray-50/30">
                 {content ? (
                   <ReactMarkdown rehypePlugins={[rehypeRaw]} components={{ a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />, h2: ({ node, children, ...props }) => <h2 id={generateSlug(flattenText(children))} {...props}>{children}</h2>, h3: ({ node, children, ...props }) => <h3 id={generateSlug(flattenText(children))} {...props}>{children}</h3> }}>
-                    {content}
+                    {DOMPurify.sanitize(content)}
                   </ReactMarkdown>
                 ) : <span className="text-gray-400 italic">No content to preview yet.</span>}
               </div>
