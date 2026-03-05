@@ -57,15 +57,21 @@ export async function GET(req: Request) {
 
     let teamMembers: any[] = [];
     if (data?.agents_online) {
-      const { data: members } = await supabase.from('team_members').select('email').eq('space_id', spaceId);
-      teamMembers = members || [];
+      const { data: members } = await supabase.from('team_members').select('id').eq('space_id', spaceId);
+      
+      // Map members to hide PII (email addresses) from the public API
+      teamMembers = (members || []).map((m) => ({
+        name: 'Agent',
+        email: m.id.toString() // Provide the ID instead of the email to keep the avatar color hashing functional
+      }));
       
       // Fetch the owner and add them as a primary agent if they have a profile
       if (data.user_id) {
-        const { data: ownerProfile } = await supabase.from('profiles').select('first_name, email').eq('id', data.user_id).maybeSingle();
-        if (ownerProfile) {
-          teamMembers.unshift({ email: ownerProfile.email, name: ownerProfile.first_name });
-        }
+        const { data: ownerProfile } = await supabase.from('profiles').select('first_name').eq('id', data.user_id).maybeSingle();
+        teamMembers.unshift({ 
+          name: ownerProfile?.first_name || 'Support',
+          email: data.user_id.toString() // Prevent PII leak while allowing frontend color generation
+        });
       }
     }
 
