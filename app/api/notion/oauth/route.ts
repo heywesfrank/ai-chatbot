@@ -1,24 +1,32 @@
 // app/api/notion/oauth/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
-  // Remove the 'kb_' prefix we added on the frontend to bypass Notion validation
-  const spaceId = state ? state.replace(/^kb_/, '') : null;
-
   if (error) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/knowledge?error=${error}`);
   }
 
-  if (!code || !spaceId) {
+  if (!code || !state) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/knowledge?error=missing_params`);
+  }
+
+  // Split out the spaceId and CSRF nonce
+  const [prefixedSpaceId, nonce] = state.split('::');
+  const spaceId = prefixedSpaceId ? prefixedSpaceId.replace(/^kb_/, '') : null;
+  const storedNonce = req.cookies.get('notion_oauth_state')?.value;
+
+  // Validate CSRF state
+  if (!nonce || !storedNonce || nonce !== storedNonce) {
+    console.error('CSRF validation failed for Notion OAuth');
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/knowledge?error=csrf_failed`);
   }
 
   try {
@@ -70,7 +78,11 @@ export async function GET(req: Request) {
     }
 
     // 3. Redirect back to Knowledge page with the new ID to trigger client-side sync
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/knowledge?new_source_id=${sourceData.id}`);
+    const redirectResponse = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/knowledge?new_source_id=${sourceData.id}`);
+    
+    // Clean up CSRF cookie
+    redirectResponse.cookies.delete('notion_oauth_state');
+    return redirectResponse;
 
   } catch (err) {
     console.error('Notion OAuth Route Exception:', err);
