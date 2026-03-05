@@ -19,6 +19,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Enforce Ownership Verification (IDOR Fix)
+    let hasAccess = false;
+    const { data: configCheck } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+    if (configCheck?.space_id === spaceId) hasAccess = true;
+    else if (user.email) {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+      if (member?.space_id === spaceId) hasAccess = true;
+    }
+    if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const { data: configData } = await supabase
       .from('bot_config')
       .select('match_threshold')
