@@ -1,12 +1,21 @@
-App name: Apoyo
+# Apoyo
+
 App URL: https://app.heyapoyo.com
 No local builds, all files are updated through the Github browser.
 
 **Note:** This project uses the `gpt-5-nano` model via a custom `openai.responses.create` endpoint. Do not replace this with older models like `gpt-4o-mini` as it relies on specific formatting.
 
-**Supabase Tables, Buckets, and Functions**
+---
+
+## Supabase Initialization
+
+Run the following complete SQL script in your Supabase SQL Editor. It includes all necessary extensions, tables, storage buckets, functions, and Row Level Security (RLS) policies required for the app to function.
 
 ```sql
+-- 1. Enable Vector Extension (Required for embeddings)
+create extension if not exists vector;
+
+-- 2. Create Tables
 create table public.bot_config (
   space_id text not null,
   system_prompt text not null default 'You are a helpful, knowledgeable, and professional customer support assistant. Your primary goal is to assist users by providing accurate and concise answers based on the provided documentation. Maintain a friendly and empathetic tone at all times.'::text,
@@ -89,7 +98,6 @@ create table public.help_center_articles (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_help_center_articles_space_id on public.help_center_articles using btree (space_id) TABLESPACE pg_default;
-
 create index IF not exists idx_help_center_articles_slug on public.help_center_articles using btree (slug) TABLESPACE pg_default;
 
 create table public.proactive_triggers (
@@ -132,7 +140,7 @@ create table public.knowledge_documents (
   id bigserial not null,
   page_url text not null,
   content text not null,
-  embedding public.vector null,
+  embedding public.vector(1536) null,
   space_id text null,
   source_type text null default 'gitbook'::text,
   data_source_id uuid null,
@@ -162,7 +170,6 @@ create table public.team_members (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_team_members_space_id on public.team_members using btree (space_id) TABLESPACE pg_default;
-
 create index IF not exists idx_team_members_email on public.team_members using btree (email) TABLESPACE pg_default;
 
 create table public.space_insights (
@@ -180,6 +187,15 @@ create table public.chat_feedback (
   prompt text not null,
   response text not null,
   rating text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+) TABLESPACE pg_default;
+
+create table public.bot_messages (
+  id bigserial primary key,
+  space_id text not null,
+  role text not null,
+  content text not null,
+  sentiment_score numeric null,
   created_at timestamp with time zone default timezone('utc'::text, now())
 ) TABLESPACE pg_default;
 
@@ -201,17 +217,6 @@ create table public.tickets (
   constraint tickets_pkey primary key (id)
 ) TABLESPACE pg_default;
 
-create table public.live_messages (
-  id uuid not null default gen_random_uuid (),
-  session_id uuid not null,
-  role text not null,
-  content text not null,
-  created_at timestamp with time zone null default timezone ('utc'::text, now()),
-  sentiment_score numeric null,
-  constraint live_messages_pkey primary key (id),
-  constraint live_messages_session_id_fkey foreign KEY (session_id) references live_sessions (id) on delete CASCADE
-) TABLESPACE pg_default;
-
 create table public.live_sessions (
   id uuid not null default gen_random_uuid (),
   space_id text not null,
@@ -225,7 +230,18 @@ create table public.live_sessions (
   constraint live_sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
 
--- Similarity Search Function
+create table public.live_messages (
+  id uuid not null default gen_random_uuid (),
+  session_id uuid not null,
+  role text not null,
+  content text not null,
+  created_at timestamp with time zone null default timezone ('utc'::text, now()),
+  sentiment_score numeric null,
+  constraint live_messages_pkey primary key (id),
+  constraint live_messages_session_id_fkey foreign KEY (session_id) references live_sessions (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+-- 3. Stored Procedures / Functions
 create or replace function match_documents (
   query_embedding vector(1536),
   match_threshold float,
@@ -254,167 +270,51 @@ as $$
   limit match_count;
 $$;
 
--- Create a public bucket for attachments
-insert into storage.buckets (id, name, public) values ('chat_attachments', 'chat_attachments', true);
+create or replace function set_agents_online(p_space_id text, p_online boolean)
+returns void
+language sql
+security definer
+as $$
+  update public.bot_config set agents_online = p_online where space_id = p_space_id;
+$$;
 
--- Allow public uploads to this bucket (for widget users)
-create policy "Allow public uploads" on storage.objects for insert with check ( bucket_id = 'chat_attachments' );
-create policy "Allow public viewing" on storage.objects for select using ( bucket_id = 'chat_attachments' );
+create or replace function set_canned_responses(p_space_id text, p_responses jsonb)
+returns void
+language sql
+security definer
+as $$
+  update public.bot_config set canned_responses = p_responses where space_id = p_space_id;
+$$;
 
+-- 4. Storage Buckets & Policies
+insert into storage.buckets (id, name, public) values 
+('chat_attachments', 'chat_attachments', true),
+('article_images', 'article_images', true),
+('bot_avatars', 'bot_avatars', true),
+('knowledge_files', 'knowledge_files', false)
+on conflict (id) do nothing;
 
-**RLS POLICIES**
-[
-  {
-    "Table": "bot_config",
-    "Policy Name": "Allow authenticated read bot_config",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "(auth.role() = 'authenticated'::text)",
-    "With Check Expression": null
-  },
-  {
-    "Table": "bot_config",
-    "Policy Name": "Allow dashboard users to read config",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "(auth.role() = 'authenticated'::text)",
-    "With Check Expression": null
-  },
-  {
-    "Table": "bot_config",
-    "Policy Name": "Users can view their own config",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "(auth.uid() = user_id)",
-    "With Check Expression": null
-  },
-  {
-    "Table": "live_messages",
-    "Policy Name": "Allow public insert to live_messages",
-    "Action": "INSERT",
-    "Roles": "{public}",
-    "Using Expression": null,
-    "With Check Expression": "true"
-  },
-  {
-    "Table": "live_messages",
-    "Policy Name": "Allow anonymous users to read live messages",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "((auth.role() = 'anon'::text) OR (auth.role() = 'authenticated'::text))",
-    "With Check Expression": null
-  },
-  {
-    "Table": "live_messages",
-    "Policy Name": "Allow public select to live_messages",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "true",
-    "With Check Expression": null
-  },
-  {
-    "Table": "live_messages",
-    "Policy Name": "Allow read live_messages",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "(auth.role() = ANY (ARRAY['anon'::text, 'authenticated'::text]))",
-    "With Check Expression": null
-  },
-  {
-    "Table": "live_sessions",
-    "Policy Name": "Allow public insert to live_sessions",
-    "Action": "INSERT",
-    "Roles": "{public}",
-    "Using Expression": null,
-    "With Check Expression": "true"
-  },
-  {
-    "Table": "live_sessions",
-    "Policy Name": "Allow authenticated read live_sessions",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "(auth.role() = 'authenticated'::text)",
-    "With Check Expression": null
-  },
-  {
-    "Table": "live_sessions",
-    "Policy Name": "Allow public select to live_sessions",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "true",
-    "With Check Expression": null
-  },
-  {
-    "Table": "live_sessions",
-    "Policy Name": "Allow auth update to live_sessions",
-    "Action": "UPDATE",
-    "Roles": "{public}",
-    "Using Expression": "(auth.role() = 'authenticated'::text)",
-    "With Check Expression": null
-  },
-  {
-    "Table": "profiles",
-    "Policy Name": "Users can insert their own profile.",
-    "Action": "INSERT",
-    "Roles": "{public}",
-    "Using Expression": null,
-    "With Check Expression": "(auth.uid() = id)"
-  },
-  {
-    "Table": "profiles",
-    "Policy Name": "Public profiles are viewable by everyone.",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "true",
-    "With Check Expression": null
-  },
-  {
-    "Table": "profiles",
-    "Policy Name": "Users can update own profile.",
-    "Action": "UPDATE",
-    "Roles": "{public}",
-    "Using Expression": "(auth.uid() = id)",
-    "With Check Expression": null
-  },
-  {
-    "Table": "team_members",
-    "Policy Name": "Allow authenticated read team_members",
-    "Action": "SELECT",
-    "Roles": "{public}",
-    "Using Expression": "(auth.role() = 'authenticated'::text)",
-    "With Check Expression": null
-  }
-]
+create policy "Allow public uploads" on storage.objects for insert with check ( bucket_id in ('chat_attachments', 'article_images', 'bot_avatars') );
+create policy "Allow public viewing" on storage.objects for select using ( bucket_id in ('chat_attachments', 'article_images', 'bot_avatars') );
 
-**Storage Buckets**
-[
-  {
-    "Bucket ID": "article_images",
-    "Bucket Name": "article_images",
-    "Is Public": true,
-    "Created At": "2026-02-27 16:17:59.552833+00",
-    "Updated At": "2026-02-27 16:17:59.552833+00"
-  },
-  {
-    "Bucket ID": "bot_avatars",
-    "Bucket Name": "bot_avatars",
-    "Is Public": true,
-    "Created At": "2026-02-25 06:37:15.234517+00",
-    "Updated At": "2026-02-25 06:37:15.234517+00"
-  },
-  {
-    "Bucket ID": "chat_attachments",
-    "Bucket Name": "chat_attachments",
-    "Is Public": true,
-    "Created At": "2026-02-23 02:02:52.544861+00",
-    "Updated At": "2026-02-23 02:02:52.544861+00"
-  },
-  {
-    "Bucket ID": "knowledge_files",
-    "Bucket Name": "knowledge_files",
-    "Is Public": false,
-    "Created At": "2026-02-23 14:39:57.885459+00",
-    "Updated At": "2026-02-23 14:39:57.885459+00"
-  }
-]
+-- 5. Row Level Security (RLS) Policies
+alter table public.bot_config enable row level security;
+create policy "Allow authenticated read bot_config" on public.bot_config for select using (auth.role() = 'authenticated');
+create policy "Users can view their own config" on public.bot_config for select using (auth.uid() = user_id);
 
+alter table public.live_messages enable row level security;
+create policy "Allow public insert to live_messages" on public.live_messages for insert with check (true);
+create policy "Allow read live_messages" on public.live_messages for select using (auth.role() in ('anon', 'authenticated'));
+
+alter table public.live_sessions enable row level security;
+create policy "Allow public insert to live_sessions" on public.live_sessions for insert with check (true);
+create policy "Allow public select to live_sessions" on public.live_sessions for select using (true);
+create policy "Allow auth update to live_sessions" on public.live_sessions for update using (auth.role() = 'authenticated');
+
+alter table public.profiles enable row level security;
+create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
+create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
+create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
+
+alter table public.team_members enable row level security;
+create policy "Allow authenticated read team_members" on public.team_members for select using (auth.role() = 'authenticated');
