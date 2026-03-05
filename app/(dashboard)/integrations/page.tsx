@@ -74,7 +74,7 @@ export default function IntegrationsPage() {
                 <button onClick={handleDisconnectSlack} className="text-xs text-red-600 font-medium hover:text-red-800 transition-colors">Disconnect</button>
               </div>
             ) : (
-              <a href={`https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,incoming-webhook,channels:history,groups:history&state=${activeSpaceId}`} className="mt-2 inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 transition-colors">
+              <a href={`/api/slack/authorize?spaceId=${activeSpaceId}`} className="mt-2 inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-black text-white text-sm font-medium rounded-sm hover:bg-gray-800 transition-colors">
                  Connect Slack
               </a>
             )}
