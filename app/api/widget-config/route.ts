@@ -57,20 +57,30 @@ export async function GET(req: Request) {
 
     let teamMembers: any[] = [];
     if (data?.agents_online) {
-      const { data: members } = await supabase.from('team_members').select('id').eq('space_id', spaceId);
+      const { data: members } = await supabase.from('team_members').select('id, email').eq('space_id', spaceId);
       
-      // Map members to hide PII (email addresses) from the public API
+      // Map members to explicitly extract initials server-side and hide PII
       teamMembers = (members || []).map((m) => ({
+        id: m.id.toString(),
         name: 'Agent',
-        email: m.id.toString() // Provide the ID instead of the email to keep the avatar color hashing functional
+        initial: m.email ? m.email.charAt(0).toUpperCase() : 'A'
       }));
       
-      // Fetch the owner and add them as a primary agent if they have a profile
+      // Fetch the owner and add them as a primary agent
       if (data.user_id) {
-        const { data: ownerProfile } = await supabase.from('profiles').select('first_name').eq('id', data.user_id).maybeSingle();
+        const { data: ownerProfile } = await supabase.from('profiles').select('first_name, email').eq('id', data.user_id).maybeSingle();
+        
+        let ownerInitial = 'S';
+        if (ownerProfile?.first_name) {
+          ownerInitial = ownerProfile.first_name.charAt(0).toUpperCase();
+        } else if (ownerProfile?.email) {
+          ownerInitial = ownerProfile.email.charAt(0).toUpperCase();
+        }
+
         teamMembers.unshift({ 
+          id: data.user_id.toString(),
           name: ownerProfile?.first_name || 'Support',
-          email: data.user_id.toString() // Prevent PII leak while allowing frontend color generation
+          initial: ownerInitial
         });
       }
     }
