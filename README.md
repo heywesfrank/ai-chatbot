@@ -334,7 +334,7 @@ create policy "Allow public insert to live_sessions" on public.live_sessions for
 create policy "Allow auth update to live_sessions" on public.live_sessions for update using (auth.role() = 'authenticated');
 
 create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
-create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
+create policy "Users can view own profile." on public.profiles for select using (auth.uid() = id);
 create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
 
 create policy "Allow authenticated read team_members" on public.team_members for select using (auth.role() = 'authenticated');
