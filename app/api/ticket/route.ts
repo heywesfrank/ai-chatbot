@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Sentiment from 'sentiment';
 import { UAParser } from 'ua-parser-js';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 const sentiment = new Sentiment();
 
@@ -26,6 +28,28 @@ export async function POST(req: Request) {
 
     if (!spaceId || !email || !prompt) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
+    }
+
+    // IP Rate Limiting to prevent Ticket Spam / Quota Exhaustion
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      try {
+        const redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        const ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(3, '1 m'), // Max 3 tickets per minute per IP
+        });
+        const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous';
+        const { success } = await ratelimit.limit(`rl_ticket_${spaceId}_${ip}`);
+        
+        if (!success) {
+          return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429, headers: corsHeaders });
+        }
+      } catch (err) {
+        console.error("Rate limiting failure:", err);
+      }
     }
 
     // Capture Metadata
