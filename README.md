@@ -318,3 +318,17 @@ create policy "Users can update own profile." on public.profiles for update usin
 
 alter table public.team_members enable row level security;
 create policy "Allow authenticated read team_members" on public.team_members for select using (auth.role() = 'authenticated');
+
+-- Secure sensitive tables (Deny all public/anon access by default)
+-- Next.js API routes use the Service Role Key to safely bypass these RLS policies.
+alter table public.workspace_integrations enable row level security;
+alter table public.data_sources enable row level security;
+alter table public.leads enable row level security;
+alter table public.tickets enable row level security;
+alter table public.knowledge_documents enable row level security;
+alter table public.space_insights enable row level security;
+alter table public.help_center_articles enable row level security;
+alter table public.faqs enable row level security;
+alter table public.proactive_triggers enable row level security;
+alter table public.chat_feedback enable row level security;
+alter table public.bot_messages enable row level security;
