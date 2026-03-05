@@ -325,16 +325,42 @@ alter table public.chat_feedback enable row level security;
 alter table public.bot_messages enable row level security;
 
 -- Explicit Access Policies
-create policy "Allow authenticated read bot_config" on public.bot_config for select using (auth.role() = 'authenticated');
 create policy "Users can view their own config" on public.bot_config for select using (auth.uid() = user_id);
+create policy "Agents can view assigned config" on public.bot_config for select using (
+  exists (
+    select 1 from public.team_members
+    where team_members.space_id = bot_config.space_id
+    and team_members.email = (auth.jwt() ->> 'email')
+  )
+);
 
 create policy "Allow public insert to live_messages" on public.live_messages for insert with check (true);
 
 create policy "Allow public insert to live_sessions" on public.live_sessions for insert with check (true);
-create policy "Allow auth update to live_sessions" on public.live_sessions for update using (auth.role() = 'authenticated');
+create policy "Allow owners and agents to update live_sessions" on public.live_sessions for update using (
+  exists (
+    select 1 from public.bot_config
+    where bot_config.space_id = live_sessions.space_id
+    and bot_config.user_id = auth.uid()
+  )
+  or
+  exists (
+    select 1 from public.team_members
+    where team_members.space_id = live_sessions.space_id
+    and team_members.email = (auth.jwt() ->> 'email')
+  )
+);
 
 create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
 create policy "Users can view own profile." on public.profiles for select using (auth.uid() = id);
 create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
 
-create policy "Allow authenticated read team_members" on public.team_members for select using (auth.role() = 'authenticated');
+create policy "Users can view team members of their spaces" on public.team_members for select using (
+  exists (
+    select 1 from public.bot_config
+    where bot_config.space_id = team_members.space_id
+    and bot_config.user_id = auth.uid()
+  )
+  or
+  team_members.email = (auth.jwt() ->> 'email')
+);
