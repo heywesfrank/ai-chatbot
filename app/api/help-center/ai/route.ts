@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 export const runtime = 'edge';
 
@@ -13,7 +15,46 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser(authHeader?.replace('Bearer ', '') || '');
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { action, content, selection, tone } = await req.json();
+    const { action, content, selection, tone, spaceId } = await req.json();
+
+    if (!spaceId) {
+      return NextResponse.json({ error: 'Space ID is required.' }, { status: 400 });
+    }
+
+    // IDOR Protection: Verify the user has access to this spaceId
+    let hasAccess = false;
+    const { data: config } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+    if (config?.space_id === spaceId) {
+      hasAccess = true;
+    } else if (user.email) {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+      if (member?.space_id === spaceId) hasAccess = true;
+    }
+    
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Rate limiting to prevent OpenAI budget draining
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      try {
+        const redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        const ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(15, '1 m'), // 15 AI generations per minute per user
+        });
+        const { success } = await ratelimit.limit(`rl_ai_editor_${user.id}`);
+        
+        if (!success) {
+          return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 });
+        }
+      } catch (err) {
+        console.error("Rate limiting failure:", err);
+      }
+    }
 
     let instructions = '';
     let inputContent = '';
