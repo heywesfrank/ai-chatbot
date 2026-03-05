@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import DOMPurify from 'isomorphic-dompurify';
 import { ChevronDownIcon } from '@/components/icons';
 
 export default function HelpTab({ spaceId, primaryColor, searchPlaceholder }: any) {
@@ -32,7 +33,7 @@ export default function HelpTab({ spaceId, primaryColor, searchPlaceholder }: an
         <div className="flex-1 overflow-y-auto p-5 pb-6">
           <h1 className="text-xl font-bold text-[var(--text-primary)] mb-5">{selectedArticle.title}</h1>
           <div className="prose prose-sm max-w-none text-[var(--text-primary)] prose-a:text-[var(--primary-color)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-img:rounded-xl leading-relaxed whitespace-pre-wrap">
-            <ReactMarkdown rehypePlugins={[rehypeRaw]}>{selectedArticle.content}</ReactMarkdown>
+            <ReactMarkdown rehypePlugins={[rehypeRaw]}>{DOMPurify.sanitize(selectedArticle.content)}</ReactMarkdown>
           </div>
         </div>
       </div>
