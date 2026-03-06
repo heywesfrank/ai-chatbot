@@ -29,6 +29,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
+    // Payload Size and Type Validation
+    if (
+      typeof content !== 'string' || content.length > 3000 ||
+      typeof sessionId !== 'string' || sessionId.length > 50
+    ) {
+      return NextResponse.json({ error: 'Payload validation failed or message too long.' }, { status: 400, headers: corsHeaders });
+    }
+
     // 1. Validate that the session actually exists and fetch its details
     const { data: sessionInfo, error: sessionInfoError } = await supabase
       .from('live_sessions')
