@@ -49,8 +49,13 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const userBubbleColor = urlOverrides.userBubbleColor || config?.userBubbleColor || config?.user_bubble_color || primaryColor;
   const launcherColor = urlOverrides.launcherColor || config?.launcherColor || config?.launcher_color || primaryColor;
   const launcherIconColor = urlOverrides.launcherIconColor || config?.launcherIconColor || config?.launcher_icon_color || userFontColor;
-  const launcherIconImage = urlOverrides.launcherIconImage || config?.launcherIconImage || config?.launcher_icon_image || '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)';
   
+  let launcherIconImage = urlOverrides.launcherIconImage || config?.launcherIconImage || config?.launcher_icon_image || 'https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png';
+  if (typeof launcherIconImage === 'string' && launcherIconImage.startsWith('[')) {
+    const match = launcherIconImage.match(/\((.*?)\)/);
+    if (match) launcherIconImage = match[1];
+  }
+
   // Use ?? for text so users can intentionally leave them blank!
   const headerText = urlOverrides.header || (config?.headerText ?? config?.header_text ?? 'Documentation Bot');
   const descriptionText = urlOverrides.description || (config?.descriptionText ?? config?.description_text ?? '');
@@ -512,7 +517,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
           <div className="py-2.5 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-primary)] flex justify-center items-center shrink-0 z-20 pb-3">
             Powered by 
             <a 
-              href={urlOverrides.preview ? '/premium' : '[https://app.heyapoyo.com](https://app.heyapoyo.com)'} 
+              href={urlOverrides.preview ? '/premium' : 'https://app.heyapoyo.com'} 
               target={urlOverrides.preview ? '_parent' : '_blank'} 
               rel="noopener noreferrer" 
               className="flex items-center hover:opacity-100 transition-opacity opacity-80"
