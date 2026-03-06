@@ -41,7 +41,7 @@ export async function POST(req: Request) {
           redis,
           limiter: Ratelimit.slidingWindow(3, '1 m'), // Max 3 tickets per minute per IP
         });
-        const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous';
+        const ip = req.headers.get('x-real-ip') || req.headers.get('x-vercel-forwarded-for') || 'anonymous';
         const { success } = await ratelimit.limit(`rl_ticket_${spaceId}_${ip}`);
         
         if (!success) {
