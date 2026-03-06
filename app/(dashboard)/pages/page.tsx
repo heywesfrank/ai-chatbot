@@ -29,9 +29,9 @@ function SimpleColorPicker({ label, value, onChange, disabled }: { label: string
       <label className="block text-xs font-medium text-gray-700 mb-1.5">{label}</label>
       <div className="flex items-center gap-2">
         <div className="relative w-8 h-8 rounded border border-gray-200 overflow-hidden shrink-0">
-          <input type="color" className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer" disabled={disabled} value={value || '#000000'} onChange={(e) => onChange(e.target.value)} />
+          <input type="color" className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer" disabled={disabled} value={value ?? '#000000'} onChange={(e) => onChange(e.target.value)} />
         </div>
-        <input type="text" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono max-w-[100px]" disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value)} />
+        <input type="text" className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono max-w-[100px]" disabled={disabled} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
       </div>
     </div>
   );
@@ -182,7 +182,7 @@ function SortableBlockItem({ block, updateBlock, removeBlock, isOwner }: any) {
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Card Title</label>
-              <input type="text" placeholder="e.g. Pioneer Summit 2026" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.title || ''} onChange={e => updateBlock(block.id, { title: e.target.value })} disabled={!isOwner} />
+              <input type="text" placeholder="e.g. Pioneer Summit 2026" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.title ?? ''} onChange={e => updateBlock(block.id, { title: e.target.value })} disabled={!isOwner} />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Short Description</label>
@@ -190,7 +190,7 @@ function SortableBlockItem({ block, updateBlock, removeBlock, isOwner }: any) {
                 ref={textareaRef}
                 placeholder="e.g. Join us in San Francisco..." 
                 className="w-full p-2 border border-gray-200 rounded-md text-sm min-h-[64px] resize-none outline-none focus:border-black transition-colors overflow-hidden" 
-                value={block.description || ''} 
+                value={block.description ?? ''} 
                 onChange={e => {
                   updateBlock(block.id, { description: e.target.value });
                   e.target.style.height = 'auto';
@@ -201,7 +201,7 @@ function SortableBlockItem({ block, updateBlock, removeBlock, isOwner }: any) {
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Clickable Link URL</label>
-              <input type="text" placeholder="e.g. yourwebsite.com/event" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.linkUrl || ''} onChange={e => updateBlock(block.id, { linkUrl: e.target.value })} disabled={!isOwner} />
+              <input type="text" placeholder="e.g. yourwebsite.com/event" className="w-full p-2 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={block.linkUrl ?? ''} onChange={e => updateBlock(block.id, { linkUrl: e.target.value })} disabled={!isOwner} />
             </div>
           </div>
         </div>
@@ -229,11 +229,11 @@ export default function WidgetPagesConfig() {
           setHomeConfig((prev: any) => ({ ...prev, blocks: parsed }));
         } else {
           setHomeConfig({
-            logoUrl: parsed.logoUrl || '',
-            bgUrl: parsed.bgUrl || '',
-            titleColor: parsed.titleColor || '#ffffff',
-            bodyColor: parsed.bodyColor || '#e5e7eb',
-            blocks: parsed.blocks || []
+            logoUrl: parsed.logoUrl ?? '',
+            bgUrl: parsed.bgUrl ?? '',
+            titleColor: parsed.titleColor ?? '#ffffff',
+            bodyColor: parsed.bodyColor ?? '#e5e7eb',
+            blocks: parsed.blocks ?? []
           });
         }
       }
@@ -297,7 +297,7 @@ export default function WidgetPagesConfig() {
               <input 
                 type="checkbox" 
                 className="sr-only peer"
-                checked={config.tabsEnabled}
+                checked={config.tabsEnabled ?? false}
                 onChange={(e) => updateConfig('tabsEnabled', e.target.checked)}
                 disabled={!isOwner}
               />
@@ -306,7 +306,7 @@ export default function WidgetPagesConfig() {
           </div>
         </section>
 
-        {config.tabsEnabled && (
+        {(config.tabsEnabled ?? false) && (
           <>
             {/* Header / Top Settings */}
             <section className="bg-white border border-gray-200 p-4 sm:p-6 rounded-md space-y-6">
@@ -318,12 +318,12 @@ export default function WidgetPagesConfig() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 pt-4 border-t border-gray-100">
                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Greeting Title</label>
-                   <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors mb-4" value={config.greetingTitle || ''} disabled={!isOwner} onChange={(e) => updateConfig('greetingTitle', e.target.value)} placeholder="e.g. Hello there." />
+                   <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors mb-4" value={config.greetingTitle ?? ''} disabled={!isOwner} onChange={(e) => updateConfig('greetingTitle', e.target.value)} placeholder="e.g. Hello there." />
                    <SimpleColorPicker label="Title Text Color" value={homeConfig.titleColor} onChange={(v) => updateHomeConfig({ titleColor: v })} disabled={!isOwner} />
                  </div>
                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Greeting Body</label>
-                   <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors mb-4" value={config.greetingBody || ''} disabled={!isOwner} onChange={(e) => updateConfig('greetingBody', e.target.value)} placeholder="e.g. How can we help you today?" />
+                   <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors mb-4" value={config.greetingBody ?? ''} disabled={!isOwner} onChange={(e) => updateConfig('greetingBody', e.target.value)} placeholder="e.g. How can we help you today?" />
                    <SimpleColorPicker label="Body Text Color" value={homeConfig.bodyColor} onChange={(v) => updateHomeConfig({ bodyColor: v })} disabled={!isOwner} />
                  </div>
               </div>
@@ -345,7 +345,7 @@ export default function WidgetPagesConfig() {
                   <input 
                     type="checkbox" 
                     className="sr-only peer"
-                    checked={config.homeTabEnabled}
+                    checked={config.homeTabEnabled ?? false}
                     onChange={(e) => updateConfig('homeTabEnabled', e.target.checked)}
                     disabled={!isOwner}
                   />
@@ -353,7 +353,7 @@ export default function WidgetPagesConfig() {
                 </label>
               </div>
 
-              {config.homeTabEnabled && (
+              {(config.homeTabEnabled ?? false) && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 flex flex-col gap-4">
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={homeConfig.blocks.map((b: any) => b.id)} strategy={verticalListSortingStrategy}>
@@ -386,7 +386,7 @@ export default function WidgetPagesConfig() {
               <h2 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">Help Center Tab</h2>
               <div className="pt-4 border-t border-gray-100">
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Search Input Placeholder</label>
-                <input type="text" className="w-full max-w-sm p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.helpSearchPlaceholder || ''} disabled={!isOwner} onChange={(e) => updateConfig('helpSearchPlaceholder', e.target.value)} placeholder="e.g. Search for articles..." />
+                <input type="text" className="w-full max-w-sm p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" value={config.helpSearchPlaceholder ?? ''} disabled={!isOwner} onChange={(e) => updateConfig('helpSearchPlaceholder', e.target.value)} placeholder="e.g. Search for articles..." />
               </div>
             </section>
           </>
