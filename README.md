@@ -187,7 +187,8 @@ create table public.chat_feedback (
   prompt text not null,
   response text not null,
   rating text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now())
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint chat_feedback_space_id_message_id_key unique (space_id, message_id)
 ) TABLESPACE pg_default;
 
 create table public.bot_messages (
