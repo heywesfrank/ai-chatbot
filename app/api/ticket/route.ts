@@ -30,6 +30,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
+    // Payload Size and Type Validation (Mitigates Insufficient Payload Size Limits)
+    if (
+      typeof email !== 'string' || email.length > 255 ||
+      typeof prompt !== 'string' || prompt.length > 2000 ||
+      typeof spaceId !== 'string' || spaceId.length > 50 ||
+      (url && (typeof url !== 'string' || url.length > 2048))
+    ) {
+      return NextResponse.json({ error: 'Payload validation failed or data exceeds allowed length.' }, { status: 400, headers: corsHeaders });
+    }
+
     // IP Rate Limiting to prevent Ticket Spam / Quota Exhaustion
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
       try {
