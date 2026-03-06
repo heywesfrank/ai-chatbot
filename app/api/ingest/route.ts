@@ -168,7 +168,7 @@ export async function POST(req: Request) {
           redis,
           limiter: Ratelimit.slidingWindow(5, '1 m'),
         });
-        const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous';
+        const ip = req.headers.get('x-real-ip') || req.headers.get('x-vercel-forwarded-for') || 'anonymous';
         const { success } = await ratelimit.limit(`rl_ingest_${ip}`);
         
         if (!success) {
