@@ -4,6 +4,37 @@ import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(req: Request) {
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    let spaceData = null;
+    let isOwner = true;
+
+    const { data } = await supabase.from('bot_config').select('*').eq('user_id', user.id).maybeSingle();
+    if (data) {
+      spaceData = data;
+    } else if (user.email) {
+      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', user.email).maybeSingle();
+      if (member) {
+        const { data: teamData } = await supabase.from('bot_config').select('*').eq('space_id', member.space_id).maybeSingle();
+        if (teamData) {
+          spaceData = teamData;
+          isOwner = false;
+        }
+      }
+    }
+
+    return NextResponse.json({ config: spaceData, isOwner });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('Authorization');
@@ -17,6 +48,12 @@ export async function POST(req: Request) {
 
     const { data: existing } = await supabase.from('bot_config').select('user_id').eq('space_id', body.spaceId).maybeSingle();
     if (existing && existing.user_id !== user.id) return NextResponse.json({ error: 'Forbidden. Space ID already claimed.' }, { status: 403 });
+
+    // Protect against client-side hydration race conditions overwriting an existing workspace
+    const { data: userExisting } = await supabase.from('bot_config').select('space_id').eq('user_id', user.id).maybeSingle();
+    if (userExisting && userExisting.space_id !== body.spaceId) {
+      return NextResponse.json({ error: 'Workspace already exists. Cannot overwrite with a newly generated spaceId.' }, { status: 400 });
+    }
 
     const updatePayload = {
       space_id: body.spaceId,
@@ -65,7 +102,6 @@ export async function POST(req: Request) {
 
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
     if (error) {
-      // Gracefully catch unique constraint violations to prevent 500s or DoS behavior
       if (error.code === '23505') {
         return NextResponse.json({ error: 'Space ID is already in use by another workspace. Please generate a new one.' }, { status: 409 });
       }
