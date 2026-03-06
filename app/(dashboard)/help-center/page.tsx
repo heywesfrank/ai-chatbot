@@ -169,9 +169,9 @@ export default function HelpCenterPage() {
                   <label className="block text-xs font-semibold text-gray-700 mb-2">Hero Background Color</label>
                   <div className="flex items-center gap-3">
                     <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer shadow-sm">
-                      <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.helpCenterColor || config.primaryColor || '#000000'} onChange={(e) => updateConfig('helpCenterColor', e.target.value)} />
+                      <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={!isOwner} value={config.helpCenterColor ?? config.primaryColor ?? '#000000'} onChange={(e) => updateConfig('helpCenterColor', e.target.value)} />
                     </div>
-                    <input type="text" className="w-full max-w-[200px] p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={!isOwner} value={config.helpCenterColor || config.primaryColor || '#000000'} onChange={(e) => updateConfig('helpCenterColor', e.target.value)} />
+                    <input type="text" className="w-full max-w-[200px] p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={!isOwner} value={config.helpCenterColor ?? config.primaryColor ?? '#000000'} onChange={(e) => updateConfig('helpCenterColor', e.target.value)} />
                   </div>
                </div>
                <div>
