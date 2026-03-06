@@ -64,13 +64,13 @@ export default function PremiumPage() {
             </p>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-10 shadow-sm">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-10">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-5 sm:mb-6">
               <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wider">Premium Plan</span>
               <span className="text-xs sm:text-sm font-medium text-gray-500">Active</span>
             </div>
             <p className="text-xs sm:text-sm text-gray-600 mb-8 sm:mb-10 leading-relaxed max-w-md">
-              Your workspace is currently upgraded to the Premium tier. You have access to white-labeling, custom domains, and SEO optimization.
+              Your workspace is currently upgraded to the Premium tier. You have access to white-labeling, custom domains, SEO optimization, and advanced analytics.
             </p>
 
             <button 
@@ -101,7 +101,7 @@ export default function PremiumPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="p-5 sm:p-10">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 pb-6 sm:pb-8 border-b border-gray-100 gap-4">
               <div>
@@ -131,6 +131,16 @@ export default function PremiumPage() {
                 <div>
                   <h3 className="text-sm sm:text-[15px] font-semibold text-gray-900 mb-1">Custom Domain & SEO</h3>
                   <p className="text-xs sm:text-[13px] text-gray-500 leading-relaxed">Connect your own domain (e.g., <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700">help.yourwebsite.com</code>). Our help center pages are automatically SEO-optimized out of the box to help you capture organic search traffic directly to your support articles.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-[15px] font-semibold text-gray-900 mb-1">Advanced Analytics</h3>
+                  <p className="text-xs sm:text-[13px] text-gray-500 leading-relaxed">Gain deep insights into your bot's performance, track customer interactions, view sentiment analysis, and discover knowledge gaps directly from your dashboard.</p>
                 </div>
               </div>
             </div>
