@@ -287,15 +287,36 @@ as $$
 $$;
 
 -- 4. Storage Buckets & Policies
-insert into storage.buckets (id, name, public) values 
-('chat_attachments', 'chat_attachments', true),
-('article_images', 'article_images', true),
-('bot_avatars', 'bot_avatars', true),
-('knowledge_files', 'knowledge_files', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit) values 
+('chat_attachments', 'chat_attachments', true, 2097152),
+('article_images', 'article_images', true, 5242880),
+('bot_avatars', 'bot_avatars', true, 2097152),
+('knowledge_files', 'knowledge_files', false, 10485760)
+on conflict (id) do update set file_size_limit = EXCLUDED.file_size_limit;
 
--- Only allow authenticated dashboard users to upload bot avatars and article images
-create policy "Auth Uploads" on storage.objects for insert to authenticated with check ( bucket_id in ('article_images', 'bot_avatars') );
+-- Restrict bot_avatars so users can strictly only upload to their own user ID folder
+create policy "Bot Avatar Uploads" on storage.objects for insert to authenticated with check ( 
+  bucket_id = 'bot_avatars' AND 
+  (string_to_array(name, '/'))[1] = auth.uid()::text
+);
+
+-- Restrict article_images to workspaces the user has access to
+create policy "Article Image Uploads" on storage.objects for insert to authenticated with check ( 
+  bucket_id = 'article_images' AND 
+  (
+    exists (
+      select 1 from public.bot_config
+      where bot_config.space_id = (string_to_array(name, '/'))[1]
+      and bot_config.user_id = auth.uid()
+    )
+    or
+    exists (
+      select 1 from public.team_members
+      where team_members.space_id = (string_to_array(name, '/'))[1]
+      and team_members.email = (auth.jwt() ->> 'email')
+    )
+  )
+);
 
 -- For chat_attachments (which public users need), restrict specific MIME types:
 create policy "Public Chat Uploads" on storage.objects for insert with check (
