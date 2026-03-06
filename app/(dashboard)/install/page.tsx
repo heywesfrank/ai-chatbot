@@ -1,3 +1,4 @@
+// app/(dashboard)/install/page.tsx
 'use client';
 import { useBotConfig } from '../BotConfigProvider';
 import { toast } from 'sonner';
@@ -9,7 +10,7 @@ export default function InstallPage() {
   const [copied, setCopied] = useState(false);
 
   // Minified, single-line embed code
-  const embedCode = `<script>!function(){var p="${config.position}",t="${config.theme}",i=document.createElement("iframe");i.src="https://app.heyapoyo.com/widget?spaceId=${activeSpaceId}&position="+p+"&theme="+t+"&parentUrl="+encodeURIComponent(window.location.href),i.setAttribute("allowtransparency","true"),i.style.cssText="position:fixed;bottom:0;"+("left"===p?"left:0;":"right:0;")+"width:120px;height:120px;border:none;z-index:999999;background:transparent;color-scheme:normal;",document.head.appendChild(document.createElement("meta")).setAttribute("name","viewport"),document.body.appendChild(i),window.addEventListener("message",function(e){if(e.data&&"kb-widget-resize"===e.data.type){var t=window.innerWidth<=430;e.data.isOpen?(i.style.width=t?"100%":"468px",i.style.height=t?"100%":"824px"):setTimeout(function(){i.style.width="120px",i.style.height="120px"},300)}})}();</script>`;
+  const embedCode = `<script>!function(){var p="${config.position ?? 'right'}",t="${config.theme ?? 'auto'}",i=document.createElement("iframe");i.src="https://app.heyapoyo.com/widget?spaceId=${activeSpaceId}&position="+p+"&theme="+t+"&parentUrl="+encodeURIComponent(window.location.href),i.setAttribute("allowtransparency","true"),i.style.cssText="position:fixed;bottom:0;"+("left"===p?"left:0;":"right:0;")+"width:120px;height:120px;border:none;z-index:999999;background:transparent;color-scheme:normal;",document.head.appendChild(document.createElement("meta")).setAttribute("name","viewport"),document.body.appendChild(i),window.addEventListener("message",function(e){if(e.data&&"kb-widget-resize"===e.data.type){var t=window.innerWidth<=430;e.data.isOpen?(i.style.width=t?"100%":"468px",i.style.height=t?"100%":"824px"):setTimeout(function(){i.style.width="120px",i.style.height="120px"},300)}})}();</script>`;
 
   const handleCopy = () => {
     if (navigator.clipboard) {
@@ -40,7 +41,7 @@ export default function InstallPage() {
             placeholder="example.com, myapp.io" 
             className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" 
             disabled={!isOwner} 
-            value={config.allowedDomains || ''} 
+            value={config.allowedDomains ?? ''} 
             onChange={(e) => updateConfig('allowedDomains', e.target.value)} 
           />
           <p className="text-[11px] text-gray-500 mt-1.5 font-medium">
@@ -58,12 +59,10 @@ export default function InstallPage() {
             className="relative group cursor-pointer border border-gray-200 rounded-md bg-gray-50 hover:border-gray-300 transition-all overflow-hidden"
             onClick={handleCopy}
           >
-             {/* Hover Icon top right */}
              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 bg-white border border-gray-200 rounded text-gray-600 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:text-black">
                 {copied ? <CheckIcon className="w-4 h-4 text-green-500" /> : <CopyIcon className="w-4 h-4" />}
              </div>
              
-             {/* Blur overlay with text */}
              <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
                <span className="bg-black text-white text-xs font-medium px-4 py-2 rounded-md shadow-md flex items-center gap-2">
                  {copied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
@@ -71,7 +70,6 @@ export default function InstallPage() {
                </span>
              </div>
              
-             {/* Code Block */}
              <div className="p-4 sm:p-5 text-[11px] sm:text-[11.5px] font-mono text-gray-600 leading-[1.6] break-all select-all pt-10 sm:pt-5">
                {embedCode}
              </div>
