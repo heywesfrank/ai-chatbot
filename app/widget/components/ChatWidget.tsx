@@ -49,6 +49,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const userBubbleColor = urlOverrides.userBubbleColor || config?.userBubbleColor || config?.user_bubble_color || primaryColor;
   const launcherColor = urlOverrides.launcherColor || config?.launcherColor || config?.launcher_color || primaryColor;
   const launcherIconColor = urlOverrides.launcherIconColor || config?.launcherIconColor || config?.launcher_icon_color || userFontColor;
+  const launcherIconImage = urlOverrides.launcherIconImage || config?.launcherIconImage || config?.launcher_icon_image || '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)';
   
   // Use ?? for text so users can intentionally leave them blank!
   const headerText = urlOverrides.header || (config?.headerText ?? config?.header_text ?? 'Documentation Bot');
@@ -511,7 +512,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
           <div className="py-2.5 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-primary)] flex justify-center items-center shrink-0 z-20 pb-3">
             Powered by 
             <a 
-              href={urlOverrides.preview ? '/premium' : 'https://app.heyapoyo.com'} 
+              href={urlOverrides.preview ? '/premium' : '[https://app.heyapoyo.com](https://app.heyapoyo.com)'} 
               target={urlOverrides.preview ? '_parent' : '_blank'} 
               rel="noopener noreferrer" 
               className="flex items-center hover:opacity-100 transition-opacity opacity-80"
@@ -541,7 +542,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
               <ChevronDownIcon className="w-6 h-6" />
             </div>
             <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isLauncherMorphOpen ? 'rotate-90 opacity-0 scale-50' : 'rotate-0 opacity-100 scale-100'}`}>
-              <ChatBubbleIcon className="w-7 h-7" />
+              {launcherIconImage ? (
+                 <img src={launcherIconImage} alt="Chat Launcher" className="w-8 h-8 object-contain pointer-events-none" />
+              ) : (
+                 <ChatBubbleIcon className="w-7 h-7" />
+              )}
             </div>
           </button>
         </div>
