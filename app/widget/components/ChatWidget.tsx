@@ -120,7 +120,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   useEffect(() => {
     if (tabsEnabled && conversations.length === 0 && savedMessages.length > 1) {
-      const legacyConv = { id: Date.now().toString(), updatedAt: Date.now(), messages: savedMessages, liveSessionId, liveMessages };
+      const legacyConv = { id: crypto.randomUUID(), updatedAt: Date.now(), messages: savedMessages, liveSessionId, liveMessages };
       setConversations([legacyConv]);
       setActiveConvId(legacyConv.id);
     }
@@ -236,7 +236,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   }, [liveSessionId, setLiveMessages]);
 
   const startNewConversation = () => {
-    const newId = Date.now().toString();
+    const newId = crypto.randomUUID();
     setActiveConvId(newId);
     setMessages([initMsg]);
     setLiveSessionId(null);
@@ -322,8 +322,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         const timestamp = new Date().toISOString();
         const notification = agentsOnline ? 'Connecting you to an agent...' : 'Ticket created! We will reply to your email soon.';
         setLiveMessages([
-          { id: Date.now().toString(), role: 'system', content: notification, created_at: timestamp },
-          { id: (Date.now() + 1).toString(), role: 'user', content: prompt, created_at: timestamp }
+          { id: crypto.randomUUID(), role: 'system', content: notification, created_at: timestamp },
+          { id: crypto.randomUUID(), role: 'user', content: prompt, created_at: timestamp }
         ]);
       }
       setEscalatingId(null);
@@ -351,7 +351,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
       const isImage = file.type.startsWith('image/');
       const content = isImage ? `![${file.name}](${fileUrl})` : `[📎 ${file.name}](${fileUrl})`;
 
-      const tempId = Date.now().toString();
+      const tempId = crypto.randomUUID();
       const timestamp = new Date().toISOString();
       setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content, created_at: timestamp }]);
 
@@ -369,11 +369,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
-    if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString());
+    if (!activeConvId && tabsEnabled) setActiveConvId(crypto.randomUUID());
 
     if (liveSessionId) {
       const userMsg = input.trim();
-      const tempId = Date.now().toString();
+      const tempId = crypto.randomUUID();
       const timestamp = new Date().toISOString();
       
       setLiveMessages(prev => [...prev, { id: tempId, role: 'user', content: userMsg, created_at: timestamp }]);
@@ -399,18 +399,18 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   const handleRoutingSelection = (option: any) => {
-    if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString());
+    if (!activeConvId && tabsEnabled) setActiveConvId(crypto.randomUUID());
     setRoutingContext(option.value);
     append({ role: 'user', content: option.label });
   };
 
   const handlePromptClick = (text: string) => {
-    if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString());
+    if (!activeConvId && tabsEnabled) setActiveConvId(crypto.randomUUID());
     append({ role: 'user', content: text });
   };
 
   const handleFollowUpClick = (text: string) => {
-    if (!activeConvId && tabsEnabled) setActiveConvId(Date.now().toString());
+    if (!activeConvId && tabsEnabled) setActiveConvId(crypto.randomUUID());
     append({ role: 'user', content: text });
   };
 
