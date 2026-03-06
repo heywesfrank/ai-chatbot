@@ -150,6 +150,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           tabsEnabled: spaceData.tabs_enabled ?? false,
           routingConfig: spaceData.routing_config || [],
           language: spaceData.language || 'Auto-detect',
+          theme: spaceData.theme || 'auto',
+          position: spaceData.position || 'right',
           temperature: spaceData.temperature ?? prev.temperature,
           matchThreshold: spaceData.match_threshold ?? prev.matchThreshold,
           reasoningEffort: spaceData.reasoning_effort || prev.reasoningEffort,
