@@ -502,7 +502,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         {!removeBranding && (
           <div className="py-2.5 text-center text-[10px] text-[var(--text-secondary)] bg-[var(--bg-primary)] flex justify-center items-center shrink-0 z-20 pb-3">
             Powered by 
-            <a href="https://app.heyapoyo.com" target="_blank" rel="noopener noreferrer" className="flex items-center hover:opacity-100 transition-opacity opacity-80">
+            <a 
+              href={urlOverrides.preview ? '/premium' : 'https://app.heyapoyo.com'} 
+              target={urlOverrides.preview ? '_parent' : '_blank'} 
+              rel="noopener noreferrer" 
+              className="flex items-center hover:opacity-100 transition-opacity opacity-80"
+            >
               <img src="/apoyo.png" alt="Apoyo" className="h-[18px] ml-1.5" />
             </a>
           </div>
