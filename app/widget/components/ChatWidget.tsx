@@ -333,13 +333,21 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const handleFileUpload = async (file: File) => {
     if (!liveSessionId) return;
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${liveSessionId}/${Date.now()}.${fileExt}`;
-      const { error } = await supabase.storage.from('chat_attachments').upload(fileName, file);
-      if (error) throw error;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sessionId', liveSessionId);
 
-      const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName);
-      const fileUrl = publicUrlData.publicUrl;
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error || 'Failed to upload file');
+      }
+
+      const { fileUrl } = await uploadRes.json();
       const isImage = file.type.startsWith('image/');
       const content = isImage ? `![${file.name}](${fileUrl})` : `[📎 ${file.name}](${fileUrl})`;
 
@@ -352,7 +360,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: liveSessionId, role: 'user', content })
       });
-    } catch (e) { console.error('File upload failed', e); }
+    } catch (e: any) { 
+      console.error('File upload failed', e); 
+      alert(e.message || 'File upload failed'); 
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
