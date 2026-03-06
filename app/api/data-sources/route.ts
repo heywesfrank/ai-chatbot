@@ -21,7 +21,14 @@ export async function GET(req: Request) {
   if (!spaceId) return NextResponse.json({ sources: [] });
 
   const { data } = await supabase.from('data_sources').select('*').eq('space_id', spaceId).order('created_at', { ascending: false });
-  return NextResponse.json({ sources: data || [] });
+  
+  // SECURE: Strip out the `credentials` column so raw tokens are not leaked to the frontend.
+  const safeSources = (data || []).map(src => {
+    const { credentials, ...rest } = src;
+    return rest;
+  });
+
+  return NextResponse.json({ sources: safeSources });
 }
 
 export async function POST(req: Request) {
