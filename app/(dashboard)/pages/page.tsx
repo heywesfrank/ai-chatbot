@@ -249,7 +249,7 @@ export default function WidgetPagesConfig() {
   };
 
   const addBlock = () => {
-    const newBlock = { id: Date.now().toString(), imageUrl: '', title: '', description: '', linkUrl: '' };
+    const newBlock = { id: crypto.randomUUID(), imageUrl: '', title: '', description: '', linkUrl: '' };
     updateHomeConfig({ blocks: [...homeConfig.blocks, newBlock] });
   };
 
