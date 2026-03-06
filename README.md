@@ -334,9 +334,9 @@ create policy "Agents can view assigned config" on public.bot_config for select 
   )
 );
 
-create policy "Allow public insert to live_messages" on public.live_messages for insert with check (true);
+-- NOTE: Public insert policies for live_messages and live_sessions have been removed.
+-- All inserts are now handled securely via the Next.js API routes using the Service Role Key.
 
-create policy "Allow public insert to live_sessions" on public.live_sessions for insert with check (true);
 create policy "Allow owners and agents to update live_sessions" on public.live_sessions for update using (
   exists (
     select 1 from public.bot_config
