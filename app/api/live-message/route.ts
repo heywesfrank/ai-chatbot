@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Sentiment from 'sentiment';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 const sentiment = new Sentiment();
 
@@ -27,7 +29,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
-    // Authenticate and Authorize 'agent' or 'note' messages
+    // 1. Validate that the session actually exists and fetch its details
+    const { data: sessionInfo, error: sessionInfoError } = await supabase
+      .from('live_sessions')
+      .select('space_id, status')
+      .eq('id', sessionId)
+      .single();
+      
+    if (sessionInfoError || !sessionInfo) {
+       return NextResponse.json({ error: 'Session not found' }, { status: 404, headers: corsHeaders });
+    }
+
+    const spaceId = sessionInfo.space_id;
+
+    // 2. Authenticate and Authorize 'agent' or 'note' messages
     if (role === 'agent' || role === 'note') {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
@@ -36,18 +51,6 @@ export async function POST(req: Request) {
       const { data: { user } } = await supabase.auth.getUser(token);
       if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-      // Fetch the session to determine the associated space_id
-      const { data: sessionInfo, error: sessionInfoError } = await supabase
-        .from('live_sessions')
-        .select('space_id')
-        .eq('id', sessionId)
-        .single();
-        
-      if (sessionInfoError || !sessionInfo) {
-         return NextResponse.json({ error: 'Session not found' }, { status: 404, headers: corsHeaders });
-      }
-
-      const spaceId = sessionInfo.space_id;
       let hasAccess = false;
       
       // Verify Ownership or Agent status
@@ -62,6 +65,35 @@ export async function POST(req: Request) {
       if (!hasAccess) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders });
       }
+    } 
+    // 3. Validate 'user' messages
+    else if (role === 'user') {
+      // Prevent users from injecting messages into closed tickets
+      if (sessionInfo.status !== 'open') {
+         return NextResponse.json({ error: 'Session is closed' }, { status: 400, headers: corsHeaders });
+      }
+
+      // IP Rate Limiting to prevent database flooding / spam
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        try {
+          const redis = new Redis({
+            url: process.env.UPSTASH_REDIS_REST_URL,
+            token: process.env.UPSTASH_REDIS_REST_TOKEN,
+          });
+          const ratelimit = new Ratelimit({
+            redis,
+            limiter: Ratelimit.slidingWindow(20, '1 m'), // Max 20 messages per minute per IP
+          });
+          const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous';
+          const { success } = await ratelimit.limit(`rl_live_msg_${sessionId}_${ip}`);
+          
+          if (!success) {
+            return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429, headers: corsHeaders });
+          }
+        } catch (err) {
+          console.error("Rate limiting failure:", err);
+        }
+      }
     }
 
     let sentimentScore = null;
@@ -69,6 +101,7 @@ export async function POST(req: Request) {
       sentimentScore = sentiment.analyze(content).score;
     }
 
+    // 4. Insert the message securely
     const { error } = await supabase
       .from('live_messages')
       .insert({ session_id: sessionId, role, content, sentiment_score: sentimentScore });
