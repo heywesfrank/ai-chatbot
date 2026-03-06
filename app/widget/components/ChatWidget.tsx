@@ -63,7 +63,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const inputPlaceholder = urlOverrides.placeholder || (config?.inputPlaceholder ?? config?.input_placeholder ?? 'Ask a question...');
   const removeBranding = urlOverrides.removeBranding !== null ? urlOverrides.removeBranding : (config?.removeBranding ?? config?.remove_branding ?? false);
   
-  const botAvatar = config?.botAvatar || config?.bot_avatar || null;
+  const botAvatar = urlOverrides.botAvatar || config?.botAvatar || config?.bot_avatar || null;
   const agentsOnline = config?.agentsOnline ?? config?.agents_online ?? false;
   const teamMembers = config?.teamMembers || [];
   
