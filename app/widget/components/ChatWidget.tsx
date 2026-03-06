@@ -27,7 +27,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Reverted to 430 to prevent the 468px iframe from triggering mobile view
     const checkMobile = () => setIsMobile(window.innerWidth <= 430);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -415,8 +414,12 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     append({ role: 'user', content: text });
   };
 
-  const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
-  const isLeft = (urlOverrides.position === 'left');
+  // Synchronize perfectly with DB layout over URL overrides to prevent layout jitter
+  const positionPref = urlOverrides.preview && urlOverrides.position 
+    ? urlOverrides.position 
+    : (config?.position || urlOverrides.position || 'right');
+  const isLeft = positionPref === 'left';
+  
   const showChatWindow = isOpen || urlOverrides.preview;
   const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
