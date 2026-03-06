@@ -207,7 +207,9 @@ create table public.leads (
   name text not null,
   email text not null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
-  constraint leads_pkey primary key (id)
+  constraint leads_pkey primary key (id),
+  constraint leads_name_length_check CHECK (char_length(name) <= 100),
+  constraint leads_email_length_check CHECK (char_length(email) <= 255)
 ) TABLESPACE pg_default;
 
 create table public.tickets (
@@ -216,7 +218,9 @@ create table public.tickets (
   prompt text not null,
   email text not null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
-  constraint tickets_pkey primary key (id)
+  constraint tickets_pkey primary key (id),
+  constraint tickets_prompt_length_check CHECK (char_length(prompt) <= 2000),
+  constraint tickets_email_length_check CHECK (char_length(email) <= 255)
 ) TABLESPACE pg_default;
 
 create table public.live_sessions (
@@ -240,7 +244,8 @@ create table public.live_messages (
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
   sentiment_score numeric null,
   constraint live_messages_pkey primary key (id),
-  constraint live_messages_session_id_fkey foreign KEY (session_id) references live_sessions (id) on delete CASCADE
+  constraint live_messages_session_id_fkey foreign KEY (session_id) references live_sessions (id) on delete CASCADE,
+  constraint live_messages_content_length_check CHECK (char_length(content) <= 3000)
 ) TABLESPACE pg_default;
 
 -- 3. Stored Procedures / Functions
