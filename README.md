@@ -61,7 +61,8 @@ create table public.bot_config (
   help_center_color text null,
   help_center_bg_image text null,
   constraint bot_config_pkey primary key (user_id),
-  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id)
+  constraint bot_config_user_id_fkey foreign KEY (user_id) references auth.users (id),
+  constraint unique_space_id unique (space_id)
 ) TABLESPACE pg_default;
 
 create table public.profiles (
