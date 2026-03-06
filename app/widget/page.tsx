@@ -37,6 +37,8 @@ function WidgetWrapper() {
       userBubbleColor: searchParams.get('userBubbleColor') || '',
       launcherColor: searchParams.get('launcherColor') || '',
       launcherIconColor: searchParams.get('launcherIconColor') || '',
+      launcherIconImage: searchParams.get('launcherIconImage') || '',
+      botAvatar: searchParams.get('botAvatar') || '',
       header: searchParams.get('header') ?? '', // Safely allow empty
       description: searchParams.get('description') ?? '',
       placeholder: searchParams.get('placeholder') ?? '',
@@ -83,6 +85,8 @@ function WidgetWrapper() {
           userBubbleColor: newConfig.userBubbleColor,
           launcherColor: newConfig.launcherColor,
           launcherIconColor: newConfig.launcherIconColor,
+          launcherIconImage: newConfig.launcherIconImage,
+          botAvatar: newConfig.botAvatar,
           header: newConfig.headerText,
           description: newConfig.descriptionText,
           placeholder: newConfig.inputPlaceholder,
