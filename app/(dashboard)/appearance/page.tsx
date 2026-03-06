@@ -20,7 +20,7 @@ function ColorPicker({ label, value, onChange, disabled }: { label: string, valu
 }
 
 export default function AppearancePage() {
-  const { config, updateConfig, isOwner } = useBotConfig();
+  const { config, updateConfig, isOwner, userId } = useBotConfig();
   const [isUploading, setIsUploading] = useState(false);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,7 +35,8 @@ export default function AppearancePage() {
     setIsUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${config.spaceId}/${Date.now()}.${fileExt}`;
+      // Securely upload into a folder matching the user's Auth UID
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('bot_avatars')
