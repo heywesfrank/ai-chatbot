@@ -1,3 +1,4 @@
+// app/api/integrations/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -11,7 +12,17 @@ export async function GET(req: Request) {
   if (!config) return NextResponse.json({ integrations: [] });
 
   const { data } = await supabase.from('workspace_integrations').select('*').eq('space_id', config.space_id);
-  return NextResponse.json({ integrations: data || [] });
+  
+  // SECURE: Strip out the Slack Bot Token before transmitting to the client
+  const safeIntegrations = (data || []).map(integration => {
+    const safeConfig = { ...integration.config };
+    if (safeConfig.slack_bot_token) {
+      delete safeConfig.slack_bot_token;
+    }
+    return { ...integration, config: safeConfig };
+  });
+
+  return NextResponse.json({ integrations: safeIntegrations });
 }
 
 export async function POST(req: Request) {
