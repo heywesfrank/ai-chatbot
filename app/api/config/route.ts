@@ -1,4 +1,3 @@
-// app/api/config/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -14,7 +13,7 @@ export async function POST(req: Request) {
     if (!body.spaceId || !body.systemPrompt) return NextResponse.json({ error: 'Space ID and System Prompt are required.' }, { status: 400 });
 
     const { data: existing } = await supabase.from('bot_config').select('user_id').eq('space_id', body.spaceId).maybeSingle();
-    if (existing && existing.user_id !== user.id) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    if (existing && existing.user_id !== user.id) return NextResponse.json({ error: 'Forbidden. Space ID already claimed.' }, { status: 403 });
 
     const updatePayload = {
       space_id: body.spaceId,
@@ -60,7 +59,13 @@ export async function POST(req: Request) {
     };
 
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Gracefully catch unique constraint violations to prevent 500s or DoS behavior
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'Space ID is already in use by another workspace. Please generate a new one.' }, { status: 409 });
+      }
+      throw new Error(error.message);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
