@@ -10,7 +10,7 @@ export default function ContextAndRoutingPage() {
   const [newLabel, setNewLabel] = useState('');
   const [newValue, setNewValue] = useState('');
 
-  const routes = config.routingConfig || [];
+  const routes = config.routingConfig ?? [];
 
   const addRoute = () => {
     if (!newLabel.trim() || !newValue.trim()) return;
@@ -51,7 +51,7 @@ export default function ContextAndRoutingPage() {
               <input 
                 type="checkbox" 
                 className="sr-only peer"
-                checked={config.pageContextEnabled}
+                checked={config.pageContextEnabled ?? false}
                 onChange={(e) => updateConfig('pageContextEnabled', e.target.checked)}
                 disabled={!isOwner}
               />
