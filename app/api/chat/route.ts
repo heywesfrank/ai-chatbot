@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     
     // Define internal dashboard domains that should ALWAYS bypass security checks to ensure the preview works
     const dashboardDomains = ['heyapoyo.com', 'app.heyapoyo.com', 'ai-chatbot-alpha-orpin.vercel.app', 'localhost'];
-    const isDashboard = dashboardDomains.includes(originHost) || originHost.endsWith('.vercel.app');
+    const isDashboard = dashboardDomains.includes(originHost);
 
     // 2. Domain Whitelisting Check
     if (configData?.allowed_domains && !isDashboard) {
