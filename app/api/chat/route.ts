@@ -77,7 +77,7 @@ export async function POST(req: Request) {
           redis,
           limiter: Ratelimit.slidingWindow(20, '1 m'),
         });
-        const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous';
+        const ip = req.headers.get('x-real-ip') || req.headers.get('x-vercel-forwarded-for') || 'anonymous';
         const { success } = await ratelimit.limit(`rl_chat_${spaceId}_${ip}`);
         
         if (!success) {
