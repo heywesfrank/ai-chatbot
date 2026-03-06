@@ -2,29 +2,23 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useBotConfig } from '../BotConfigProvider';
-import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { config, updateConfig, saveConfig, isOwner, isSaving } = useBotConfig();
   const [localName, setLocalName] = useState('');
   const [localTimezone, setLocalTimezone] = useState('');
 
-  // Sync local state with config when it loads
+  // Sync local state with config using strict null checks
   useEffect(() => {
     if (config) {
-      setLocalName(config.workspaceName || 'My Workspace');
-      setLocalTimezone(config.timezone || 'UTC');
+      setLocalName(config.workspaceName ?? 'My Workspace');
+      setLocalTimezone(config.timezone ?? 'UTC');
     }
   }, [config]);
 
   const handleSave = async () => {
-    // Update the global config first
     updateConfig('workspaceName', localName);
     updateConfig('timezone', localTimezone);
-    
-    // Trigger the save to backend
-    // Note: We need a small timeout or to wait for state update in a real app, 
-    // but updateConfig updates context state immediately in this provider structure.
     await saveConfig();
   };
 
@@ -39,7 +33,6 @@ export default function SettingsPage() {
 
         <div className="space-y-4 sm:space-y-6">
           
-          {/* Workspace General */}
           <div className="bg-white border border-gray-200 rounded-sm p-4 sm:p-6">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Workspace Details</h2>
             
@@ -87,7 +80,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Danger Zone */}
           <div className="bg-white border border-red-100 rounded-sm p-4 sm:p-6">
             <h2 className="text-sm font-semibold text-red-600 mb-1">Danger Zone</h2>
             <p className="text-xs text-gray-500 mb-4">Irreversible actions for your workspace.</p>
