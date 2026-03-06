@@ -10,13 +10,17 @@ export default function BehaviorPage() {
   const handleAddPrompt = () => {
     const p = newPrompt.trim();
     if (!p || !isOwner) return;
-    if (config.suggestedPrompts.includes(p)) { setNewPrompt(''); return; }
-    updateConfig('suggestedPrompts', [...config.suggestedPrompts, p]);
+    const existingPrompts = config.suggestedPrompts ?? [];
+    if (existingPrompts.includes(p)) { setNewPrompt(''); return; }
+    updateConfig('suggestedPrompts', [...existingPrompts, p]);
     setNewPrompt('');
   };
 
   const handleRemovePrompt = (promptToRemove: string) => {
-    if (isOwner) updateConfig('suggestedPrompts', config.suggestedPrompts.filter((p: string) => p !== promptToRemove));
+    if (isOwner) {
+      const existingPrompts = config.suggestedPrompts ?? [];
+      updateConfig('suggestedPrompts', existingPrompts.filter((p: string) => p !== promptToRemove));
+    }
   };
 
   return (
@@ -29,7 +33,7 @@ export default function BehaviorPage() {
       <div className="space-y-6 sm:space-y-8 bg-white border border-gray-200 p-4 sm:p-6 rounded-md">
         <section>
           <label className="block text-sm font-semibold text-gray-900 mb-2">System Prompt</label>
-          <textarea className="w-full p-3 border border-gray-200 rounded-md text-sm h-32 outline-none focus:border-black resize-none transition-colors bg-gray-50/50" value={config.systemPrompt} disabled={!isOwner} onChange={(e) => updateConfig('systemPrompt', e.target.value)} />
+          <textarea className="w-full p-3 border border-gray-200 rounded-md text-sm h-32 outline-none focus:border-black resize-none transition-colors bg-gray-50/50" value={config.systemPrompt ?? ''} disabled={!isOwner} onChange={(e) => updateConfig('systemPrompt', e.target.value)} />
           <p className="text-[11px] text-gray-500 mt-1.5 font-medium">Define the persona, tone, and specific instructions for your bot.</p>
         </section>
 
@@ -40,18 +44,18 @@ export default function BehaviorPage() {
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Show helpful quick-replies to users when they open the chat.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.showPrompts} onChange={(e) => updateConfig('showPrompts', e.target.checked)} />
+              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.showPrompts ?? true} onChange={(e) => updateConfig('showPrompts', e.target.checked)} />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
             </label>
           </div>
-          {config.showPrompts && (
+          {(config.showPrompts ?? true) && (
             <div className="p-3 sm:p-4 bg-gray-50/50 rounded-md border border-gray-200 space-y-3">
               <div className="flex gap-2">
                 <input type="text" placeholder="Add a prompt..." disabled={!isOwner} className="flex-1 p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors min-w-0" value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPrompt(); } }} />
                 <button onClick={(e) => { e.preventDefault(); handleAddPrompt(); }} disabled={!newPrompt.trim() || !isOwner} className="px-4 sm:px-5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 shrink-0">Add</button>
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
-                {config.suggestedPrompts.map((prompt: string) => (
+                {(config.suggestedPrompts ?? []).map((prompt: string) => (
                   <span key={prompt} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-medium text-gray-700">
                     <span className="truncate max-w-[200px] sm:max-w-[250px]">{prompt}</span>
                     <button onClick={() => handleRemovePrompt(prompt)} disabled={!isOwner} className="text-gray-400 hover:text-red-500 transition-colors shrink-0">
@@ -71,7 +75,7 @@ export default function BehaviorPage() {
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Have the AI automatically suggest 3 dynamic follow-up questions at the end of its response.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.followUpQuestionsEnabled} onChange={(e) => updateConfig('followUpQuestionsEnabled', e.target.checked)} />
+              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.followUpQuestionsEnabled ?? false} onChange={(e) => updateConfig('followUpQuestionsEnabled', e.target.checked)} />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
             </label>
           </div>
@@ -84,7 +88,7 @@ export default function BehaviorPage() {
               <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Require visitors to enter their name and email before chatting.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.leadCaptureEnabled} onChange={(e) => updateConfig('leadCaptureEnabled', e.target.checked)} />
+              <input type="checkbox" className="sr-only peer" disabled={!isOwner} checked={config.leadCaptureEnabled ?? false} onChange={(e) => updateConfig('leadCaptureEnabled', e.target.checked)} />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
             </label>
           </div>
@@ -92,7 +96,7 @@ export default function BehaviorPage() {
 
         <section className="border-t border-gray-100 pt-6 sm:pt-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Language</label>
-          <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" value={config.language} disabled={!isOwner} onChange={(e) => updateConfig('language', e.target.value)}>
+          <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" value={config.language ?? 'Auto-detect'} disabled={!isOwner} onChange={(e) => updateConfig('language', e.target.value)}>
             <option value="Auto-detect">Auto-detect</option>
             <option value="English">English</option>
             <option value="Spanish">Spanish</option>
