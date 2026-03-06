@@ -136,6 +136,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
+    // Payload Size and Type Validation (Mitigates Insufficient Payload Size Limits / Memory Bloat)
+    if (
+      typeof name !== 'string' || name.length > 100 ||
+      typeof email !== 'string' || email.length > 255 ||
+      typeof spaceId !== 'string' || spaceId.length > 50
+    ) {
+      return NextResponse.json({ error: 'Payload validation failed or data exceeds allowed length.' }, { status: 400, headers: corsHeaders });
+    }
+
     const { error } = await supabase
       .from('leads')
       .insert({ space_id: spaceId, name, email });
