@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       user_bubble_color: body.userBubbleColor ?? '#000000',
       launcher_color: body.launcherColor ?? '#000000',
       launcher_icon_color: body.launcherIconColor ?? '#ffffff',
+      launcher_icon_image: body.launcherIconImage ?? '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)',
       header_text: body.headerText ?? 'Documentation Bot',
       description_text: body.descriptionText ?? null,
       welcome_message: body.welcomeMessage ?? 'How can I help you today?',
