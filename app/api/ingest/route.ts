@@ -6,8 +6,9 @@ import * as cheerio from 'cheerio';
 import { parseStringPromise } from 'xml2js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import * as http from 'http';
+import * as https from 'https';
 import * as dns from 'dns';
-import { promisify } from 'util';
 
 // Force Vercel Hobby Plan to allow the maximum execution time
 export const maxDuration = 60; 
@@ -15,71 +16,113 @@ export const maxDuration = 60;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_SITEMAP_PAGES = 50; 
 const MAX_CHUNK_LENGTH = 3000;
-const lookupAsync = promisify(dns.lookup);
 
-// --- SSRF PROTECTION LOGIC ---
-async function isSafeUrl(urlStr: string): Promise<boolean> {
-  try {
-    const parsedUrl = new URL(urlStr);
-
-    // Only allow HTTP/HTTPS protocols
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return false;
-    }
-
-    const hostname = parsedUrl.hostname;
-
-    // Block obvious local/private strings
-    if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
-      return false;
-    }
-
-    // Resolve the hostname to an IP to prevent DNS Rebinding / hidden internal IPs
-    const { address } = await lookupAsync(hostname);
-
-    // Check if the IP is in a private/reserved range
-    if (address.includes('.')) {
-      const parts = address.split('.').map(Number);
-      if (
-        parts[0] === 127 || // Loopback
-        parts[0] === 10 || // Private class A
-        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // Private class B
-        (parts[0] === 192 && parts[1] === 168) || // Private class C
-        (parts[0] === 169 && parts[1] === 254) || // Link-local (AWS metadata)
-        parts[0] === 0 || // Current network
-        parts[0] === 255 // Broadcast
-      ) {
-        return false;
-      }
-    } else {
-      // Basic IPv6 loopback / unique local check
-      const ip = address.toLowerCase();
-      if (
-        ip === '::1' || 
-        ip.startsWith('fc') || 
-        ip.startsWith('fd') || 
-        ip.startsWith('fe8') || 
-        ip.startsWith('fe9') || 
-        ip.startsWith('fea') || 
-        ip.startsWith('feb')
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  } catch (error) {
-    // Fail securely if DNS lookup fails or the URL is malformed
+// --- SSRF PROTECTION LOGIC (Fixes TOCTOU DNS Rebinding) ---
+const isPrivateIP = (ip: string) => {
+  const parts = ip.split('.').map(Number);
+  if (parts.length === 4) {
+    if (
+      parts[0] === 127 || // Loopback
+      parts[0] === 10 || // Private class A
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // Private class B
+      (parts[0] === 192 && parts[1] === 168) || // Private class C
+      (parts[0] === 169 && parts[1] === 254) || // Link-local (AWS metadata)
+      parts[0] === 0 || // Current network
+      parts[0] === 255 // Broadcast
+    ) return true;
     return false;
   }
-}
+  // Basic IPv6 loopback / unique local check
+  const ipv6 = ip.toLowerCase();
+  if (
+    ipv6 === '::1' || 
+    ipv6.startsWith('fc') || 
+    ipv6.startsWith('fd') || 
+    ipv6.startsWith('fe8') || 
+    ipv6.startsWith('fe9') || 
+    ipv6.startsWith('fea') || 
+    ipv6.startsWith('feb')
+  ) return true;
+  
+  return false;
+};
 
-async function safeFetch(url: string, options?: RequestInit) {
-  const isSafe = await isSafeUrl(url);
-  if (!isSafe) {
-    throw new Error(`Access to requested URL is forbidden due to security policies.`);
-  }
-  return fetch(url, options);
+// Force the HTTP request to use our validated IP resolution immediately at socket connection
+const secureLookup = (hostname: string, options: any, callback: any) => {
+  dns.lookup(hostname, options, (err, address, family) => {
+    if (err) return callback(err, address, family);
+    if (isPrivateIP(address)) {
+      return callback(new Error(`SSRF Prevention: Resolution of ${hostname} to ${address} is forbidden.`), address, family);
+    }
+    callback(null, address, family);
+  });
+};
+
+function safeFetch(targetUrl: string, options: any = {}, redirectCount = 0): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) return reject(new Error('Too many redirects'));
+    try {
+      const url = new URL(targetUrl);
+      
+      // Strict protocol enforcement
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return reject(new Error('Invalid protocol'));
+      }
+      
+      // Block blatant localhost queries immediately
+      if (url.hostname === 'localhost' || url.hostname.endsWith('.local') || url.hostname.endsWith('.internal')) {
+        return reject(new Error('Forbidden hostname'));
+      }
+
+      const client = url.protocol === 'https:' ? https : http;
+      
+      const headers = { ...options.headers };
+      if (options.body) {
+        headers['Content-Length'] = Buffer.byteLength(options.body);
+      }
+      
+      const reqOptions: http.RequestOptions | https.RequestOptions = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname + url.search,
+        method: options.method || 'GET',
+        headers,
+        lookup: secureLookup as any, // Injects SSRF mitigation at the socket level
+      };
+
+      const req = client.request(reqOptions, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const redirectUrl = new URL(res.headers.location, targetUrl).toString();
+          return resolve(safeFetch(redirectUrl, options, redirectCount + 1));
+        }
+
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          resolve({
+            ok: res.statusCode ? res.statusCode >= 200 && res.statusCode < 300 : false,
+            status: res.statusCode || 500,
+            statusText: res.statusMessage || '',
+            text: async () => data,
+            json: async () => JSON.parse(data)
+          });
+        });
+      });
+
+      req.on('error', reject);
+      req.setTimeout(15000, () => {
+        req.destroy();
+        reject(new Error('Request Timeout'));
+      });
+
+      if (options.body) {
+        req.write(options.body);
+      }
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 // --- END SSRF PROTECTION LOGIC ---
 
@@ -110,10 +153,10 @@ function chunkText(text: string, sourceUrl: string): string[] {
   return chunks;
 }
 
-// Helper to scrape a single webpage
+// Helper to scrape a single webpage safely
 async function scrapePage(url: string): Promise<string> {
   try {
-    const res = await safeFetch(url); // Use safeFetch to prevent SSRF
+    const res = await safeFetch(url); 
     if (!res.ok) return '';
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -379,7 +422,7 @@ export async function POST(req: Request) {
       if (!url) throw new Error('URL required.');
 
       if (url.endsWith('.xml')) {
-        const res = await safeFetch(url); // Use safeFetch to prevent SSRF
+        const res = await safeFetch(url); 
         const xml = await res.text();
         const parsed = await parseStringPromise(xml);
         
