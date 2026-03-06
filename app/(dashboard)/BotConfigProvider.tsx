@@ -108,14 +108,34 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     let spaceData = null;
     let owner = true;
 
-    const { data } = await supabase.from('bot_config').select('*').eq('user_id', uid).maybeSingle();
-    if (data) {
-      spaceData = data;
-    } else {
-      const { data: member } = await supabase.from('team_members').select('space_id').eq('email', email).maybeSingle();
-      if (member) {
-        const { data: teamData } = await supabase.from('bot_config').select('*').eq('space_id', member.space_id).maybeSingle();
-        if (teamData) { spaceData = teamData; owner = false; }
+    // Secure fetch via server route to bypass RLS races
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      try {
+        const res = await fetch('/api/config', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.config) spaceData = json.config;
+          if (json.isOwner !== undefined) owner = json.isOwner;
+        }
+      } catch (e) {
+        console.error("Server hydration failed, falling back to client fetch.", e);
+      }
+    }
+
+    // Client fallback if network routing failed
+    if (!spaceData) {
+      const { data, error } = await supabase.from('bot_config').select('*').eq('user_id', uid).maybeSingle();
+      if (data) {
+        spaceData = data;
+      } else if (!error) {
+        const { data: member } = await supabase.from('team_members').select('space_id').eq('email', email).maybeSingle();
+        if (member) {
+          const { data: teamData } = await supabase.from('bot_config').select('*').eq('space_id', member.space_id).maybeSingle();
+          if (teamData) { spaceData = teamData; owner = false; }
+        }
       }
     }
 
@@ -184,7 +204,6 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
       setSavedConfig(newConfig);
       setActiveSpaceId(newSpaceId);
       
-      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         try {
           await fetch('/api/config', {
@@ -226,7 +245,8 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
         setSavedConfig(configToSave);
         triggerRefresh();
       } else {
-        toast.error('Failed to update configuration. Ensure you have run the database migration.');
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to update configuration.');
       }
     } catch (error) { 
       toast.error('Error saving configuration.'); 
