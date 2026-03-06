@@ -414,6 +414,8 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
     append({ role: 'user', content: text });
   };
 
+  const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
+
   // Synchronize perfectly with DB layout over URL overrides to prevent layout jitter
   const positionPref = urlOverrides.preview && urlOverrides.position 
     ? urlOverrides.position 
