@@ -1,3 +1,4 @@
+// app/api/feedback/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -25,13 +26,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders });
     }
 
-    // Delete any existing feedback for this specific message to allow switching votes
-    await supabase.from('chat_feedback').delete().eq('message_id', messageId);
-
-    // Insert the new/updated feedback
+    // Use upsert to prevent IDOR via iterative deletion, enforcing space_id context
     const { error } = await supabase
       .from('chat_feedback')
-      .insert({ space_id: spaceId, message_id: messageId, prompt, response, rating });
+      .upsert(
+        { space_id: spaceId, message_id: messageId, prompt, response, rating },
+        { onConflict: 'space_id, message_id' }
+      );
 
     if (error) throw error;
 
