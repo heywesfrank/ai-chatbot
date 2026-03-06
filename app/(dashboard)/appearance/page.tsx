@@ -1,7 +1,6 @@
 // app/(dashboard)/appearance/page.tsx
 'use client';
 import { useBotConfig } from '../BotConfigProvider';
-import { supabaseClient as supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -35,18 +34,22 @@ export default function AppearancePage() {
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      // Securely upload into a folder matching the user's Auth UID
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', userId || 'unknown');
+      formData.append('type', 'avatar');
 
-      const { error: uploadError } = await supabase.storage
-        .from('bot_avatars')
-        .upload(fileName, file, { upsert: false });
+      const uploadRes = await fetch('/api/upload-avatar', {
+        method: 'POST',
+        body: formData
+      });
 
-      if (uploadError) throw uploadError;
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file');
+      }
 
-      const { data } = supabase.storage.from('bot_avatars').getPublicUrl(fileName);
-      updateConfig('botAvatar', data.publicUrl);
+      const { fileUrl } = await uploadRes.json();
+      updateConfig('botAvatar', fileUrl);
       toast.success('Avatar updated');
     } catch (error) {
       console.error('Upload failed:', error);
@@ -67,17 +70,22 @@ export default function AppearancePage() {
 
     setIsUploadingLauncherIcon(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/${Date.now()}_launcher.${fileExt}`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', userId || 'unknown');
+      formData.append('type', 'launcher');
 
-      const { error: uploadError } = await supabase.storage
-        .from('bot_avatars')
-        .upload(fileName, file, { upsert: false });
+      const uploadRes = await fetch('/api/upload-avatar', {
+        method: 'POST',
+        body: formData
+      });
 
-      if (uploadError) throw uploadError;
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file');
+      }
 
-      const { data } = supabase.storage.from('bot_avatars').getPublicUrl(fileName);
-      updateConfig('launcherIconImage', data.publicUrl);
+      const { fileUrl } = await uploadRes.json();
+      updateConfig('launcherIconImage', fileUrl);
       toast.success('Launcher icon updated');
     } catch (error) {
       console.error('Upload failed:', error);
