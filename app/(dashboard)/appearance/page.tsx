@@ -41,7 +41,7 @@ export default function AppearancePage() {
 
       const { error: uploadError } = await supabase.storage
         .from('bot_avatars')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, file, { upsert: false });
 
       if (uploadError) throw uploadError;
 
@@ -72,7 +72,7 @@ export default function AppearancePage() {
 
       const { error: uploadError } = await supabase.storage
         .from('bot_avatars')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, file, { upsert: false });
 
       if (uploadError) throw uploadError;
 
@@ -197,9 +197,6 @@ export default function AppearancePage() {
                    onChange={handleLauncherIconUpload}
                  />
                </label>
-               {config.launcherIconImage && config.launcherIconImage !== '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)' && (
-                 <button onClick={() => updateConfig('launcherIconImage', '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)')} className="ml-3 text-xs text-red-500 hover:text-red-700 font-medium">Reset to Default</button>
-               )}
                <p className="text-[11px] text-gray-500 mt-1.5">Recommended size: 64x64px (PNG with transparent background)</p>
              </div>
           </div>
