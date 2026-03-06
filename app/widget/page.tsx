@@ -45,7 +45,7 @@ function WidgetWrapper() {
       prompts: parsedPrompts,
       leadCapture: leadCaptureParam !== null ? leadCaptureParam === 'true' : null,
       theme: searchParams.get('theme') || 'auto',
-      position: searchParams.get('position') || 'right',
+      position: searchParams.get('position') || null, // Allow null fallback to DB
       preview: searchParams.get('preview') === 'true',
       parentUrl: searchParams.get('parentUrl') || '',
       systemPrompt: searchParams.get('systemPrompt') || null,
