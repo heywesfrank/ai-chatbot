@@ -38,7 +38,7 @@ export async function GET(req: Request) {
     const originHost = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase();
     
     const dashboardDomains = ['heyapoyo.com', 'app.heyapoyo.com', 'ai-chatbot-alpha-orpin.vercel.app', 'localhost'];
-    const isDashboard = dashboardDomains.includes(originHost) || originHost.endsWith('.vercel.app');
+    const isDashboard = dashboardDomains.includes(originHost);
 
     if (data?.allowed_domains && !isDashboard) {
       const allowedList = data.allowed_domains.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean);
