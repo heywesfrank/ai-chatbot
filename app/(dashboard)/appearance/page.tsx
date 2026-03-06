@@ -10,10 +10,10 @@ function ColorPicker({ label, value, onChange, disabled }: { label: string, valu
     <section>
       <label className="block text-sm font-semibold text-gray-900 mb-2">{label}</label>
       <div className="flex items-center gap-3">
-        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer">
-          <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
+        <div className="relative w-10 h-10 rounded-md overflow-hidden border border-gray-200 shrink-0 cursor-pointer bg-white">
+          <input type="color" className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" disabled={disabled} value={value || '#000000'} onChange={(e) => onChange(e.target.value)} />
         </div>
-        <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black uppercase transition-colors font-mono" disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value)} />
       </div>
     </section>
   );
@@ -87,7 +87,7 @@ export default function AppearancePage() {
 
         <section className="pt-4 border-t border-gray-100">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Header Text</label>
-          <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.headerText} onChange={(e) => updateConfig('headerText', e.target.value)} />
+          <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.headerText || ''} onChange={(e) => updateConfig('headerText', e.target.value)} />
         </section>
 
         <section className="pt-2 border-t border-gray-100">
@@ -98,7 +98,7 @@ export default function AppearancePage() {
 
         <section className="pt-2 border-t border-gray-100">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Welcome Message</label>
-          <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.welcomeMessage} onChange={(e) => updateConfig('welcomeMessage', e.target.value)} />
+          <input type="text" className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black transition-colors" disabled={!isOwner} value={config.welcomeMessage || ''} onChange={(e) => updateConfig('welcomeMessage', e.target.value)} />
         </section>
 
         <section className="pt-2 border-t border-gray-100">
@@ -141,7 +141,7 @@ export default function AppearancePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-4 sm:pt-6 border-t border-gray-100">
           <section>
             <label className="block text-sm font-semibold text-gray-900 mb-2">Theme</label>
-            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" disabled={!isOwner} value={config.theme} onChange={(e) => updateConfig('theme', e.target.value)}>
+            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" disabled={!isOwner} value={config.theme || 'auto'} onChange={(e) => updateConfig('theme', e.target.value)}>
               <option value="auto">System Auto</option>
               <option value="light">Light</option>
               <option value="dark">Dark</option>
@@ -149,7 +149,7 @@ export default function AppearancePage() {
           </section>
           <section>
             <label className="block text-sm font-semibold text-gray-900 mb-2">Widget Position</label>
-            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" disabled={!isOwner} value={config.position} onChange={(e) => updateConfig('position', e.target.value)}>
+            <select className="w-full p-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-black bg-white transition-colors cursor-pointer" disabled={!isOwner} value={config.position || 'right'} onChange={(e) => updateConfig('position', e.target.value)}>
               <option value="right">Bottom Right</option>
               <option value="left">Bottom Left</option>
             </select>
