@@ -1,5 +1,8 @@
+// app/api/config/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -21,43 +24,43 @@ export async function POST(req: Request) {
       timezone: body.timezone,           
       system_prompt: body.systemPrompt,
       user_id: user.id,
-      primary_color: body.primaryColor || '#000000',
-      bot_font_color: body.botFontColor || '#1f2937',
-      user_font_color: body.userFontColor || '#ffffff',
-      agent_bubble_color: body.agentBubbleColor || '#f3f4f6',
-      user_bubble_color: body.userBubbleColor || '#000000',
-      launcher_color: body.launcherColor || '#000000',
-      launcher_icon_color: body.launcherIconColor || '#ffffff',
-      header_text: body.headerText || 'Documentation Bot',
-      description_text: body.descriptionText || null,
-      welcome_message: body.welcomeMessage || 'How can I help you today?',
-      input_placeholder: body.inputPlaceholder || 'Ask a question...',
-      bot_avatar: body.botAvatar || null,
+      primary_color: body.primaryColor ?? '#000000',
+      bot_font_color: body.botFontColor ?? '#1f2937',
+      user_font_color: body.userFontColor ?? '#ffffff',
+      agent_bubble_color: body.agentBubbleColor ?? '#f3f4f6',
+      user_bubble_color: body.userBubbleColor ?? '#000000',
+      launcher_color: body.launcherColor ?? '#000000',
+      launcher_icon_color: body.launcherIconColor ?? '#ffffff',
+      header_text: body.headerText ?? 'Documentation Bot',
+      description_text: body.descriptionText ?? null,
+      welcome_message: body.welcomeMessage ?? 'How can I help you today?',
+      input_placeholder: body.inputPlaceholder ?? 'Ask a question...',
+      bot_avatar: body.botAvatar ?? null,
       remove_branding: body.removeBranding ?? false,
-      show_prompts: body.showPrompts,
-      suggested_prompts: body.suggestedPrompts,
-      follow_up_questions_enabled: body.followUpQuestionsEnabled,
-      lead_capture_enabled: body.leadCaptureEnabled,
-      page_context_enabled: body.pageContextEnabled,
+      show_prompts: body.showPrompts ?? true,
+      suggested_prompts: body.suggestedPrompts ?? [],
+      follow_up_questions_enabled: body.followUpQuestionsEnabled ?? false,
+      lead_capture_enabled: body.leadCaptureEnabled ?? false,
+      page_context_enabled: body.pageContextEnabled ?? false,
       tabs_enabled: body.tabsEnabled ?? false,
-      routing_config: body.routingConfig,
-      language: body.language || 'Auto-detect',
-      theme: body.theme || 'auto',
-      position: body.position || 'right',
-      allowed_domains: body.allowedDomains || null,
-      temperature: body.temperature,
-      match_threshold: body.matchThreshold,
-      reasoning_effort: body.reasoningEffort,
-      verbosity: body.verbosity,
+      routing_config: body.routingConfig ?? [],
+      language: body.language ?? 'Auto-detect',
+      theme: body.theme ?? 'auto',
+      position: body.position ?? 'right',
+      allowed_domains: body.allowedDomains ?? null,
+      temperature: body.temperature ?? 0.5,
+      match_threshold: body.matchThreshold ?? 0.5,
+      reasoning_effort: body.reasoningEffort ?? 'medium',
+      verbosity: body.verbosity ?? 'medium',
       
-      // Page Extensions (make sure these columns exist in DB)
-      help_search_placeholder: body.helpSearchPlaceholder,
-      help_center_color: body.helpCenterColor || '#000000',
-      help_center_bg_image: body.helpCenterBgImage || null,
-      greeting_title: body.greetingTitle,
-      greeting_body: body.greetingBody,
-      home_tab_enabled: body.homeTabEnabled,
-      home_content: body.homeContent
+      // Page Extensions
+      help_search_placeholder: body.helpSearchPlaceholder ?? null,
+      help_center_color: body.helpCenterColor ?? '#000000',
+      help_center_bg_image: body.helpCenterBgImage ?? null,
+      greeting_title: body.greetingTitle ?? null,
+      greeting_body: body.greetingBody ?? null,
+      home_tab_enabled: body.homeTabEnabled ?? false,
+      home_content: body.homeContent ?? null
     };
 
     const { error } = await supabase.from('bot_config').upsert(updatePayload, { onConflict: 'user_id' });
