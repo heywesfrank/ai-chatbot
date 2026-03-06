@@ -6,6 +6,8 @@ import * as cheerio from 'cheerio';
 import { parseStringPromise } from 'xml2js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import * as dns from 'dns';
+import { promisify } from 'util';
 
 // Force Vercel Hobby Plan to allow the maximum execution time
 export const maxDuration = 60; 
@@ -13,6 +15,73 @@ export const maxDuration = 60;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_SITEMAP_PAGES = 50; 
 const MAX_CHUNK_LENGTH = 3000;
+const lookupAsync = promisify(dns.lookup);
+
+// --- SSRF PROTECTION LOGIC ---
+async function isSafeUrl(urlStr: string): Promise<boolean> {
+  try {
+    const parsedUrl = new URL(urlStr);
+
+    // Only allow HTTP/HTTPS protocols
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return false;
+    }
+
+    const hostname = parsedUrl.hostname;
+
+    // Block obvious local/private strings
+    if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+      return false;
+    }
+
+    // Resolve the hostname to an IP to prevent DNS Rebinding / hidden internal IPs
+    const { address } = await lookupAsync(hostname);
+
+    // Check if the IP is in a private/reserved range
+    if (address.includes('.')) {
+      const parts = address.split('.').map(Number);
+      if (
+        parts[0] === 127 || // Loopback
+        parts[0] === 10 || // Private class A
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // Private class B
+        (parts[0] === 192 && parts[1] === 168) || // Private class C
+        (parts[0] === 169 && parts[1] === 254) || // Link-local (AWS metadata)
+        parts[0] === 0 || // Current network
+        parts[0] === 255 // Broadcast
+      ) {
+        return false;
+      }
+    } else {
+      // Basic IPv6 loopback / unique local check
+      const ip = address.toLowerCase();
+      if (
+        ip === '::1' || 
+        ip.startsWith('fc') || 
+        ip.startsWith('fd') || 
+        ip.startsWith('fe8') || 
+        ip.startsWith('fe9') || 
+        ip.startsWith('fea') || 
+        ip.startsWith('feb')
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    // Fail securely if DNS lookup fails or the URL is malformed
+    return false;
+  }
+}
+
+async function safeFetch(url: string, options?: RequestInit) {
+  const isSafe = await isSafeUrl(url);
+  if (!isSafe) {
+    throw new Error(`Access to requested URL is forbidden due to security policies.`);
+  }
+  return fetch(url, options);
+}
+// --- END SSRF PROTECTION LOGIC ---
 
 // Helper to chunk text
 function chunkText(text: string, sourceUrl: string): string[] {
@@ -44,7 +113,7 @@ function chunkText(text: string, sourceUrl: string): string[] {
 // Helper to scrape a single webpage
 async function scrapePage(url: string): Promise<string> {
   try {
-    const res = await fetch(url);
+    const res = await safeFetch(url); // Use safeFetch to prevent SSRF
     if (!res.ok) return '';
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -310,7 +379,7 @@ export async function POST(req: Request) {
       if (!url) throw new Error('URL required.');
 
       if (url.endsWith('.xml')) {
-        const res = await fetch(url);
+        const res = await safeFetch(url); // Use safeFetch to prevent SSRF
         const xml = await res.text();
         const parsed = await parseStringPromise(xml);
         
