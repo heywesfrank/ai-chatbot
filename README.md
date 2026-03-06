@@ -51,6 +51,7 @@ create table public.bot_config (
   user_bubble_color text null default '#000000'::text,
   launcher_color text null default '#000000'::text,
   launcher_icon_color text null default '#ffffff'::text,
+  launcher_icon_image text null default '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png'::text](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png'::text),
   tabs_enabled boolean null default false,
   help_search_placeholder text null default 'Search articles...'::text,
   greeting_title text null default 'Hello there.'::text,
