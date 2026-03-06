@@ -1,4 +1,4 @@
-// app/api/slack/oauth/route.ts
+// app/api/slack/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
