@@ -22,6 +22,7 @@ function ColorPicker({ label, value, onChange, disabled }: { label: string, valu
 export default function AppearancePage() {
   const { config, updateConfig, isOwner, userId } = useBotConfig();
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingLauncherIcon, setIsUploadingLauncherIcon] = useState(false);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -52,6 +53,37 @@ export default function AppearancePage() {
       toast.error('Failed to upload avatar');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleLauncherIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
+
+    setIsUploadingLauncherIcon(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}_launcher.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('bot_avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('bot_avatars').getPublicUrl(fileName);
+      updateConfig('launcherIconImage', data.publicUrl);
+      toast.success('Launcher icon updated');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast.error('Failed to upload launcher icon');
+    } finally {
+      setIsUploadingLauncherIcon(false);
     }
   };
 
@@ -109,7 +141,7 @@ export default function AppearancePage() {
         <section className="pt-2 border-t border-gray-100">
           <label className="block text-sm font-semibold text-gray-900 mb-2">Bot Avatar</label>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-             <div className="relative shrink-0 w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+             <div className="relative shrink-0 w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center shadow-sm">
                {config.botAvatar ? (
                  <img src={config.botAvatar} alt="Avatar" className="w-full h-full object-cover" />
                ) : (
@@ -134,6 +166,41 @@ export default function AppearancePage() {
                  />
                </label>
                <p className="text-[11px] text-gray-500 mt-1.5">Recommended size: 64x64px (PNG, JPG, GIF)</p>
+             </div>
+          </div>
+        </section>
+
+        <section className="pt-2 border-t border-gray-100">
+          <label className="block text-sm font-semibold text-gray-900 mb-2">Launcher Icon</label>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+             <div className="relative shrink-0 w-12 h-12 rounded-full overflow-hidden border border-gray-200 flex items-center justify-center shadow-sm" style={{ backgroundColor: config.launcherColor || '#000000' }}>
+               {config.launcherIconImage ? (
+                 <img src={config.launcherIconImage} alt="Launcher Icon" className="w-7 h-7 object-contain" />
+               ) : (
+                 <svg className="w-6 h-6 text-white" style={{ color: config.launcherIconColor || '#ffffff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+               )}
+               {isUploadingLauncherIcon && (
+                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                 </div>
+               )}
+             </div>
+             
+             <div className="flex-1">
+               <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors shadow-sm">
+                 <span>Upload Image</span>
+                 <input 
+                   type="file" 
+                   accept="image/*" 
+                   className="hidden" 
+                   disabled={!isOwner || isUploadingLauncherIcon} 
+                   onChange={handleLauncherIconUpload}
+                 />
+               </label>
+               {config.launcherIconImage && config.launcherIconImage !== '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)' && (
+                 <button onClick={() => updateConfig('launcherIconImage', '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)')} className="ml-3 text-xs text-red-500 hover:text-red-700 font-medium">Reset to Default</button>
+               )}
+               <p className="text-[11px] text-gray-500 mt-1.5">Recommended size: 64x64px (PNG with transparent background)</p>
              </div>
           </div>
         </section>
