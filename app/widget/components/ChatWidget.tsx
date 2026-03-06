@@ -416,7 +416,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   };
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
-  const isLeft = (config?.position === 'left');
+  const isLeft = (urlOverrides.position === 'left');
   const showChatWindow = isOpen || urlOverrides.preview;
   const isLauncherMorphOpen = !urlOverrides.preview && isOpen;
 
