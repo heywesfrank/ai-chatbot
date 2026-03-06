@@ -27,7 +27,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 430);
+    // Use physical screen width instead of innerWidth so the state doesn't toggle 
+    // when the iframe dynamically resizes from 120px to 468px wide.
+    const checkMobile = () => setIsMobile(typeof window !== 'undefined' && Math.min(window.screen.width, window.screen.height) <= 430);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
