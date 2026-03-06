@@ -295,7 +295,7 @@ export default function InboxDashboard() {
     const msg = input.trim();
     setInput('');
     setSuggestedReply(''); // Clear any lingering drafts after sending
-    const tempId = Date.now().toString();
+    const tempId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
     const sendRole = isNote ? 'note' : 'agent';
     
