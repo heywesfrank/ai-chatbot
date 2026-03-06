@@ -27,8 +27,6 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Use physical screen width instead of innerWidth so the state doesn't toggle 
-    // when the iframe dynamically resizes from 120px to 468px wide.
     const checkMobile = () => setIsMobile(typeof window !== 'undefined' && Math.min(window.screen.width, window.screen.height) <= 430);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -42,6 +40,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   
+  // Colors can fall back using || as empty hex codes are invalid anyway
   const primaryColor = urlOverrides.color || config?.primaryColor || config?.primary_color || '#000000';
   const botFontColor = urlOverrides.botFontColor || config?.botFontColor || config?.bot_font_color || '#1f2937';
   const userFontColor = urlOverrides.userFontColor || config?.userFontColor || config?.user_font_color || '#ffffff';
@@ -51,10 +50,11 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const launcherColor = urlOverrides.launcherColor || config?.launcherColor || config?.launcher_color || primaryColor;
   const launcherIconColor = urlOverrides.launcherIconColor || config?.launcherIconColor || config?.launcher_icon_color || userFontColor;
   
-  const headerText = urlOverrides.header || config?.headerText || config?.header_text || 'Documentation Bot';
-  const descriptionText = urlOverrides.description || config?.descriptionText || config?.description_text || '';
-  const welcomeMessage = config?.welcomeMessage || config?.welcome_message || 'How can I help you today?';
-  const inputPlaceholder = urlOverrides.placeholder || config?.inputPlaceholder || config?.input_placeholder || 'Ask a question...';
+  // Use ?? for text so users can intentionally leave them blank!
+  const headerText = urlOverrides.header || config?.headerText ?? config?.header_text ?? 'Documentation Bot';
+  const descriptionText = urlOverrides.description || config?.descriptionText ?? config?.description_text ?? '';
+  const welcomeMessage = config?.welcomeMessage ?? config?.welcome_message ?? 'How can I help you today?';
+  const inputPlaceholder = urlOverrides.placeholder || config?.inputPlaceholder ?? config?.input_placeholder ?? 'Ask a question...';
   const removeBranding = urlOverrides.removeBranding !== null ? urlOverrides.removeBranding : (config?.removeBranding ?? config?.remove_branding ?? false);
   
   const botAvatar = config?.botAvatar || config?.bot_avatar || null;
@@ -62,19 +62,19 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const teamMembers = config?.teamMembers || [];
   
   const enablePageContext = urlOverrides.pageContextEnabled !== undefined && urlOverrides.pageContextEnabled !== null ? urlOverrides.pageContextEnabled : (config?.pageContextEnabled ?? config?.page_context_enabled ?? false);
-  const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routingConfig || config?.routing_config || []);
+  const routingOptions = urlOverrides.routingConfig !== undefined && urlOverrides.routingConfig !== null ? urlOverrides.routingConfig : (config?.routingConfig ?? config?.routing_config ?? []);
   const tabsEnabled = urlOverrides.tabsEnabled !== null ? urlOverrides.tabsEnabled : (config?.tabsEnabled ?? config?.tabs_enabled ?? false);
 
   const homeTabEnabled = urlOverrides.homeTabEnabled !== null ? urlOverrides.homeTabEnabled : (config?.homeTabEnabled ?? config?.home_tab_enabled ?? false);
-  const greetingTitle = urlOverrides.greetingTitle || config?.greetingTitle || config?.greeting_title || 'Hello there.';
-  const greetingBody = urlOverrides.greetingBody || config?.greetingBody || config?.greeting_body || 'How can we help you today?';
-  const homeContent = urlOverrides.homeContent || config?.homeContent || config?.home_content || '';
+  const greetingTitle = urlOverrides.greetingTitle || config?.greetingTitle ?? config?.greeting_title ?? 'Hello there.';
+  const greetingBody = urlOverrides.greetingBody || config?.greetingBody ?? config?.greeting_body ?? 'How can we help you today?';
+  const homeContent = urlOverrides.homeContent || config?.homeContent ?? config?.home_content ?? '';
 
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
   const defaultPrompts = ["How do I reset my password?", "Where can I find the documentation?", "How do I contact support?"];
   const showPrompts = urlOverrides.showPrompts !== null ? urlOverrides.showPrompts : (config?.showPrompts ?? config?.show_prompts ?? true);
-  const suggestedPrompts = urlOverrides.prompts !== null ? urlOverrides.prompts : (config?.suggestedPrompts || config?.suggested_prompts || defaultPrompts);
+  const suggestedPrompts = urlOverrides.prompts !== null ? urlOverrides.prompts : (config?.suggestedPrompts ?? config?.suggested_prompts ?? defaultPrompts);
 
   const initMsg = { id: 'init', role: 'assistant', content: welcomeMessage } as const;
 
@@ -418,10 +418,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
 
   const showRouting = !routingContext && messages.length === 1 && routingOptions.length > 0 && !liveSessionId;
 
-  // Synchronize perfectly with DB layout over URL overrides to prevent layout jitter
+  // Fix: Ensure the position respects proper truthiness defaults
   const positionPref = urlOverrides.preview && urlOverrides.position 
     ? urlOverrides.position 
-    : (config?.position || urlOverrides.position || 'right');
+    : (config?.position ?? urlOverrides.position ?? 'right');
   const isLeft = positionPref === 'left';
   
   const showChatWindow = isOpen || urlOverrides.preview;
@@ -475,7 +475,7 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
              <ChatInterface {...chatInterfaceProps} />
            )}
            {tabsEnabled && activeTab === 'help' && (
-             <HelpTab spaceId={spaceId} primaryColor={primaryColor} searchPlaceholder={config?.helpSearchPlaceholder || config?.help_search_placeholder} />
+             <HelpTab spaceId={spaceId} primaryColor={primaryColor} searchPlaceholder={config?.helpSearchPlaceholder ?? config?.help_search_placeholder} />
            )}
         </div>
 
