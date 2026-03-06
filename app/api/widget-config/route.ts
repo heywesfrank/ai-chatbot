@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Force Next.js to always fetch fresh data and never cache this route
+export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 export async function OPTIONS(req: Request) {
