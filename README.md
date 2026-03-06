@@ -318,10 +318,9 @@ create policy "Article Image Uploads" on storage.objects for insert to authentic
   )
 );
 
--- For chat_attachments (which public users need), restrict specific MIME types:
-create policy "Public Chat Uploads" on storage.objects for insert with check (
-  bucket_id = 'chat_attachments' AND 
-  (storage.extension(name) = 'png' OR storage.extension(name) = 'jpg' OR storage.extension(name) = 'pdf')
+-- For chat_attachments, restrict uploads to authenticated dashboard users only to prevent abuse
+create policy "Authenticated Chat Attachments Uploads" on storage.objects for insert to authenticated with check (
+  bucket_id = 'chat_attachments'
 );
 
 create policy "Allow public viewing" on storage.objects for select using ( bucket_id in ('chat_attachments', 'article_images', 'bot_avatars') );
