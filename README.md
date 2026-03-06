@@ -31,6 +31,8 @@ create table public.bot_config (
   agents_online boolean null default false,
   canned_responses jsonb null default '[]'::jsonb,
   language text null default 'Auto-detect'::text,
+  theme text null default 'auto'::text,
+  position text null default 'right'::text,
   temperature numeric null default 0.5,
   match_threshold numeric null default 0.5,
   reasoning_effort text null default 'medium'::text,
