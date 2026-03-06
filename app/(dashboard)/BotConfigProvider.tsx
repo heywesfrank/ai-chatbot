@@ -43,7 +43,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
     userBubbleColor: '#000000',
     launcherColor: '#000000',
     launcherIconColor: '#ffffff',
-    launcherIconImage: '[https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png](https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png)',
+    launcherIconImage: 'https://dxbheirwlzrdfvdkrkhm.supabase.co/storage/v1/object/public/bot_avatars/chatbubble.png',
     headerText: 'Documentation Bot',
     descriptionText: '',
     welcomeMessage: 'How can I help you today?',
@@ -144,6 +144,13 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
 
     if (spaceData) {
       setConfig(prev => {
+        let parsedLauncherIcon = spaceData.launcher_icon_image ?? prev.launcherIconImage;
+        // Fix any markdown-formatted image URLs stored in the DB
+        if (typeof parsedLauncherIcon === 'string' && parsedLauncherIcon.startsWith('[')) {
+          const match = parsedLauncherIcon.match(/\((.*?)\)/);
+          if (match) parsedLauncherIcon = match[1];
+        }
+
         const newConfig = {
           ...prev,
           spaceId: spaceData.space_id ?? '',
@@ -158,7 +165,7 @@ export function BotConfigProvider({ children }: { children: ReactNode }) {
           userBubbleColor: spaceData.user_bubble_color ?? prev.userBubbleColor,
           launcherColor: spaceData.launcher_color ?? prev.launcherColor,
           launcherIconColor: spaceData.launcher_icon_color ?? prev.launcherIconColor,
-          launcherIconImage: spaceData.launcher_icon_image ?? prev.launcherIconImage,
+          launcherIconImage: parsedLauncherIcon,
           headerText: spaceData.header_text ?? prev.headerText,
           descriptionText: spaceData.description_text ?? '',
           welcomeMessage: spaceData.welcome_message ?? prev.welcomeMessage,
