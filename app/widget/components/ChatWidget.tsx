@@ -51,10 +51,10 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const launcherIconColor = urlOverrides.launcherIconColor || config?.launcherIconColor || config?.launcher_icon_color || userFontColor;
   
   // Use ?? for text so users can intentionally leave them blank!
-  const headerText = urlOverrides.header || config?.headerText ?? config?.header_text ?? 'Documentation Bot';
-  const descriptionText = urlOverrides.description || config?.descriptionText ?? config?.description_text ?? '';
+  const headerText = urlOverrides.header || (config?.headerText ?? config?.header_text ?? 'Documentation Bot');
+  const descriptionText = urlOverrides.description || (config?.descriptionText ?? config?.description_text ?? '');
   const welcomeMessage = config?.welcomeMessage ?? config?.welcome_message ?? 'How can I help you today?';
-  const inputPlaceholder = urlOverrides.placeholder || config?.inputPlaceholder ?? config?.input_placeholder ?? 'Ask a question...';
+  const inputPlaceholder = urlOverrides.placeholder || (config?.inputPlaceholder ?? config?.input_placeholder ?? 'Ask a question...');
   const removeBranding = urlOverrides.removeBranding !== null ? urlOverrides.removeBranding : (config?.removeBranding ?? config?.remove_branding ?? false);
   
   const botAvatar = config?.botAvatar || config?.bot_avatar || null;
@@ -66,9 +66,9 @@ export default function ChatWidget({ spaceId, config, urlOverrides }: any) {
   const tabsEnabled = urlOverrides.tabsEnabled !== null ? urlOverrides.tabsEnabled : (config?.tabsEnabled ?? config?.tabs_enabled ?? false);
 
   const homeTabEnabled = urlOverrides.homeTabEnabled !== null ? urlOverrides.homeTabEnabled : (config?.homeTabEnabled ?? config?.home_tab_enabled ?? false);
-  const greetingTitle = urlOverrides.greetingTitle || config?.greetingTitle ?? config?.greeting_title ?? 'Hello there.';
-  const greetingBody = urlOverrides.greetingBody || config?.greetingBody ?? config?.greeting_body ?? 'How can we help you today?';
-  const homeContent = urlOverrides.homeContent || config?.homeContent ?? config?.home_content ?? '';
+  const greetingTitle = urlOverrides.greetingTitle || (config?.greetingTitle ?? config?.greeting_title ?? 'Hello there.');
+  const greetingBody = urlOverrides.greetingBody || (config?.greetingBody ?? config?.greeting_body ?? 'How can we help you today?');
+  const homeContent = urlOverrides.homeContent || (config?.homeContent ?? config?.home_content ?? '');
 
   const currentUrl = enablePageContext ? (urlOverrides.parentUrl || (typeof window !== 'undefined' ? window.location.href : '')) : undefined;
 
