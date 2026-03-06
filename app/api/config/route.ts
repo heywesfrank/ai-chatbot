@@ -42,6 +42,8 @@ export async function POST(req: Request) {
       tabs_enabled: body.tabsEnabled ?? false,
       routing_config: body.routingConfig,
       language: body.language || 'Auto-detect',
+      theme: body.theme || 'auto',
+      position: body.position || 'right',
       allowed_domains: body.allowedDomains || null,
       temperature: body.temperature,
       match_threshold: body.matchThreshold,
